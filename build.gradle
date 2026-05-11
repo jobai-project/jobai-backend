@@ -1,0 +1,110 @@
+plugins {
+	id 'java'
+	id 'org.springframework.boot' version '3.5.14'
+	id 'io.spring.dependency-management' version '1.1.7'
+}
+
+group = 'com.jobai'
+version = '0.0.1-SNAPSHOT'
+
+java {
+	toolchain {
+		languageVersion = JavaLanguageVersion.of(21)
+	}
+}
+
+repositories {
+	mavenCentral()
+}
+
+ext {
+	set('springAiVersion', "1.1.0")
+}
+
+dependencyManagement {
+	imports {
+		mavenBom "org.springframework.ai:spring-ai-bom:${springAiVersion}"
+	}
+}
+
+dependencies {
+
+	// ── Core ─────────────────────────────────────────────────
+	implementation 'org.springframework.boot:spring-boot-starter-web'
+	implementation 'org.springframework.boot:spring-boot-starter-validation'
+
+	// ── 인증 (Google OAuth2 + JWT) ───────────────────────────
+	implementation 'org.springframework.boot:spring-boot-starter-security'
+	implementation 'org.springframework.boot:spring-boot-starter-oauth2-client'
+
+	implementation 'io.jsonwebtoken:jjwt-api:0.12.6'
+	runtimeOnly 'io.jsonwebtoken:jjwt-impl:0.12.6'
+	runtimeOnly 'io.jsonwebtoken:jjwt-jackson:0.12.6'
+
+	// ── DB (JPA + PostgreSQL + Flyway) ───────────────────────
+	implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
+
+	runtimeOnly 'org.postgresql:postgresql'
+
+	implementation 'org.flywaydb:flyway-core'
+	implementation 'org.flywaydb:flyway-database-postgresql'
+
+	// ── pgvector (벡터 DB) ───────────────────────────────────
+	implementation 'com.pgvector:pgvector:0.1.6'
+
+	// ── Spring Batch + Quartz (수집 스케줄러) ────────────────
+	implementation 'org.springframework.boot:spring-boot-starter-batch'
+	implementation 'org.springframework.boot:spring-boot-starter-quartz'
+
+	// ── WebSocket + STOMP (실시간 알림) ──────────────────────
+	implementation 'org.springframework.boot:spring-boot-starter-websocket'
+
+	// ── WebClient (FastAPI 비동기 HTTP 호출) ──────────────────
+	implementation 'org.springframework.boot:spring-boot-starter-webflux'
+
+	// ── Redis + Cache (Bloom Filter, LLM 캐싱) ───────────────
+	implementation 'org.springframework.boot:spring-boot-starter-cache'
+	implementation 'org.springframework.boot:spring-boot-starter-data-redis'
+
+	implementation 'org.redisson:redisson-spring-boot-starter:3.29.0'
+
+	// ── 이메일 + Thymeleaf 템플릿 ────────────────────────────
+	implementation 'org.springframework.boot:spring-boot-starter-mail'
+	implementation 'org.springframework.boot:spring-boot-starter-thymeleaf'
+
+	// ── Spring AI — Claude API ───────────────────────────────
+	implementation 'org.springframework.ai:spring-ai-starter-model-anthropic'
+
+	// ── Spring AI — pgvector Store ───────────────────────────
+	implementation 'org.springframework.ai:spring-ai-starter-vector-store-pgvector'
+
+	// ── Elasticsearch (트렌드 검색) ──────────────────────────
+	implementation 'org.springframework.boot:spring-boot-starter-data-elasticsearch'
+
+	// ── RSS 파싱 ─────────────────────────────────────────────
+	implementation 'com.rometools:rome:2.1.0'
+
+	// ── AWS S3 (이력서 업로드) ───────────────────────────────
+	implementation 'io.awspring.cloud:spring-cloud-aws-starter-s3:3.1.1'
+
+	// ── PDF 텍스트 추출 ──────────────────────────────────────
+	implementation 'org.apache.pdfbox:pdfbox:3.0.2'
+
+	// ── Swagger UI ───────────────────────────────────────────
+	implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.8.9'
+
+	// ── Lombok ───────────────────────────────────────────────
+	compileOnly 'org.projectlombok:lombok'
+	annotationProcessor 'org.projectlombok:lombok'
+
+	// ── Test ─────────────────────────────────────────────────
+	testImplementation 'org.springframework.boot:spring-boot-starter-test'
+	testImplementation 'org.springframework.batch:spring-batch-test'
+	testImplementation 'org.springframework.security:spring-security-test'
+
+	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+
+tasks.named('test') {
+	useJUnitPlatform()
+}
