@@ -15,13 +15,15 @@ docker compose up --build
 ```
 
 ### 3. 실행 확인
-- PostgreSQL: localhost:${POSTGRES_PORT} → container 5432
-- Redis: localhost:${REDIS_PORT} → container 6379
-- AI Server: localhost:${FASTAPI_PORT} → container 8001
+
+- PostgreSQL: `localhost:${POSTGRES_PORT}` → container `5432`
+- Redis: `localhost:${REDIS_PORT}` → container `6379`
+- AI Server: `localhost:${FASTAPI_PORT}` → container `8001`
+
 AI Server health check:
 
 ```bash
-curl http://localhost:8001/health
+curl http://localhost:${FASTAPI_PORT}/health
 ```
 
 Expected:
