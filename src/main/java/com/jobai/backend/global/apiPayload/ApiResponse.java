@@ -42,6 +42,7 @@ public class ApiResponse<T> {
     }
 
     public static <T> ApiResponse<T> onFailure(BaseErrorCode code, List<String> errorDetail) {
-        return new ApiResponse<>(false, code.getCode(), code.getMessage(), null, errorDetail);
+        List<String> safeErrorDetail = (errorDetail == null) ? null : List.copyOf(errorDetail);
+        return new ApiResponse<>(false, code.getCode(), code.getMessage(), null, safeErrorDetail);
     }
 }

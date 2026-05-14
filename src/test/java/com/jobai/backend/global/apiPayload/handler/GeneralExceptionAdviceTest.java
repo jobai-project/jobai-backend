@@ -1,15 +1,17 @@
 package com.jobai.backend.global.apiPayload.handler;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jobai.backend.global.apiPayload.code.GeneralErrorCode;
 import com.jobai.backend.global.apiPayload.exception.GeneralException;
+import jakarta.validation.ConstraintViolationException;
 import jakarta.validation.Valid;
+import jakarta.validation.Validation;
 import jakarta.validation.constraints.NotBlank;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 import static org.hamcrest.Matchers.containsString;
@@ -19,7 +21,6 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 class GeneralExceptionAdviceTest {
 
     private MockMvc mockMvc;
-    private final ObjectMapper objectMapper = new ObjectMapper();
 
     @BeforeEach
     void setup() {
@@ -33,6 +34,7 @@ class GeneralExceptionAdviceTest {
     // 테스트용 더미 컨트롤러
     // -------------------------------------------------------
 
+    @Validated
     @RestController
     @RequestMapping("/test")
     static class TestController {
@@ -56,6 +58,20 @@ class GeneralExceptionAdviceTest {
         @GetMapping("/server-error")
         public void serverError() {
             throw new RuntimeException("unexpected");
+        }
+
+        // standaloneSetup은 AOP를 실행하지 않으므로 @Validated가 동작하지 않음
+        // Validator를 직접 실행해 ConstraintViolationException을 발생시킴
+        record NameBean(@NotBlank(message = "name은 비어 있을 수 없습니다") String name) {}
+
+        @GetMapping("/constraint-violation")
+        public void constraintViolation(@RequestParam String name) {
+            var violations = Validation.buildDefaultValidatorFactory()
+                    .getValidator()
+                    .validate(new NameBean(name));
+            if (!violations.isEmpty()) {
+                throw new ConstraintViolationException(violations);
+            }
         }
     }
 
@@ -85,6 +101,19 @@ class GeneralExceptionAdviceTest {
                 .andExpect(jsonPath("$.isSuccess").value(false))
                 .andExpect(jsonPath("$.code").value("COMMON_400_002"))
                 .andExpect(jsonPath("$.errorDetail[0]").value("name: 이름은 필수입니다"));
+    }
+
+    // -------------------------------------------------------
+    // ConstraintViolationException (@Validated RequestParam)
+    // -------------------------------------------------------
+
+    @Test
+    void constraintViolation_blankParam_returns400() throws Exception {
+        mockMvc.perform(get("/test/constraint-violation").param("name", ""))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.isSuccess").value(false))
+                .andExpect(jsonPath("$.code").value("COMMON_400_002"))
+                .andExpect(jsonPath("$.errorDetail[0]", containsString("name은 비어 있을 수 없습니다")));
     }
 
     // -------------------------------------------------------

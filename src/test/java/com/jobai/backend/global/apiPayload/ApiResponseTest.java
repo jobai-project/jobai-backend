@@ -7,7 +7,10 @@ import org.junit.jupiter.api.Test;
 
 import java.util.List;
 
+import java.util.ArrayList;
+
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class ApiResponseTest {
 
@@ -73,6 +76,25 @@ class ApiResponseTest {
         ApiResponse<?> response = ApiResponse.onFailure(GeneralErrorCode.VALIDATION_ERROR, errors);
 
         assertThat(response.getErrorDetail()).hasSize(2).containsExactlyElementsOf(errors);
+    }
+
+    @Test
+    void onFailure_withNullErrorDetail_errorDetailIsNull() {
+        ApiResponse<?> response = ApiResponse.onFailure(GeneralErrorCode.BAD_REQUEST, null);
+
+        assertThat(response.getErrorDetail()).isNull();
+    }
+
+    @Test
+    void onFailure_defensiveCopy_callerMutationDoesNotAffectResponse() {
+        List<String> mutable = new ArrayList<>();
+        mutable.add("name: 필수값");
+
+        ApiResponse<?> response = ApiResponse.onFailure(GeneralErrorCode.VALIDATION_ERROR, mutable);
+
+        mutable.add("email: 형식 오류"); // 원본 수정
+
+        assertThat(response.getErrorDetail()).hasSize(1); // 응답 내부는 영향 없음
     }
 
     // -------------------------------------------------------

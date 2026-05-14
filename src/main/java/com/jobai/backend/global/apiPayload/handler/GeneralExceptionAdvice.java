@@ -1,5 +1,6 @@
 package com.jobai.backend.global.apiPayload.handler;
 
+
 import com.jobai.backend.global.apiPayload.ApiResponse;
 import com.jobai.backend.global.apiPayload.code.BaseErrorCode;
 import com.jobai.backend.global.apiPayload.code.GeneralErrorCode;
@@ -87,7 +88,8 @@ public class GeneralExceptionAdvice {
     public ResponseEntity<ApiResponse<?>> handleNotReadable(HttpMessageNotReadableException ex) {
         BaseErrorCode ec = GeneralErrorCode.BAD_REQUEST;
 
-        log.warn("[HttpMessageNotReadable] {}", ex.getMessage());
+        log.warn("[HttpMessageNotReadable] malformed request body");
+        log.debug("[HttpMessageNotReadable] detail", ex);
         return ResponseEntity.status(ec.getHttpStatus())
                 .body(ApiResponse.onFailure(ec, List.of("요청 본문(JSON)을 올바르게 작성해 주세요.")));
     }
