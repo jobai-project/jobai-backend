@@ -53,11 +53,11 @@ dependencies {
 	implementation 'com.pgvector:pgvector:0.1.6'
 
 	// ── Spring Batch + Quartz (수집 스케줄러) ────────────────
-	implementation 'org.springframework.boot:spring-boot-starter-batch'
-	implementation 'org.springframework.boot:spring-boot-starter-quartz'
-
-	// ── WebSocket + STOMP (실시간 알림) ──────────────────────
-	implementation 'org.springframework.boot:spring-boot-starter-websocket'
+//	implementation 'org.springframework.boot:spring-boot-starter-batch'
+//	implementation 'org.springframework.boot:spring-boot-starter-quartz'
+//
+//	// ── WebSocket + STOMP (실시간 알림) ──────────────────────
+//	implementation 'org.springframework.boot:spring-boot-starter-websocket'
 
 	// ── WebClient (FastAPI 비동기 HTTP 호출) ──────────────────
 	implementation 'org.springframework.boot:spring-boot-starter-webflux'
