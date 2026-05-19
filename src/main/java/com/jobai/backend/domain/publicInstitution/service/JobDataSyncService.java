@@ -53,6 +53,7 @@ public class JobDataSyncService {
                         .queryParam("pageNo", "1")
                         .queryParam("numOfRows", "100")       // 한번에 땡겨올 공고 데이터 수
                         .queryParam("ongoingYn", "Y")
+                        .queryParam("ncsCdLst", "R600020")  // NCS 대분류 정보통신에 포함되는 공고만 받아오도록 함
                         .queryParam("_type", "json")          // JSON 응답 포맷 강제 지정
                         .build())
                 .retrieve()
@@ -78,9 +79,7 @@ public class JobDataSyncService {
 
             jobPostingRepository.findByPblntfNo(pblntfNoStr)
                     .ifPresentOrElse(
-                            existingPost -> {
-                                existingPost.updateInfo(item.recrutPbancTtl(), item.recrutSeNm(), item.workRgnNmLst(), endDate);
-                            },
+                            existingPost -> existingPost.updateInfo(item.recrutPbancTtl(), item.recrutSeNm(), item.workRgnNmLst(), endDate),
                             () -> {
                                 JobPosting newPost = JobPosting.builder()
                                         .pblntfNo(pblntfNoStr)
