@@ -2,10 +2,10 @@ package com.jobai.backend.domain.publicInstitution.dto;
 
 import java.util.List;
 
-public record PublicJobApiResponse(int resultCode,
-                                   String resultMsg,
-                                   int totalCount,
-                                   List<Item> result // response/body 계층 없이 최상위의 result 배열을 바로 매핑
+public record PublicJobListResponse(int resultCode,
+                                    String resultMsg,
+                                    int totalCount,
+                                    List<Item> result // response/body 계층 없이 최상위의 result 배열을 바로 매핑
 ) {
     public record Item(
             Long recrutPblntSn,      // 채용공고 일련번호 (고유 ID)

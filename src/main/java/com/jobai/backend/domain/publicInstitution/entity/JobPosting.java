@@ -26,11 +26,32 @@ public class JobPosting {
     private LocalDate pbancBgngDt; // 공고 시작일
     private LocalDate pbancEndDt;   // 공고 종료일
 
-    // 중복 수집 방지를 위한 엔티티 업데이트 로직
-    public void updateInfo(String pbancNm, String recrutSeNm, String workRgnNm, LocalDate pbancEndDt) {
+    // 고도화 및 AI 매칭을 위한 상세 필드
+    @Column(columnDefinition = "TEXT")
+    private String applicationMethod; // 접수 방법 (scrnprcdrMthdExpln 매핑)
+
+    private String jobRole;           // 모집 직무 (ncsCdNmLst 매핑)
+
+    @Column(columnDefinition = "TEXT")
+    private String applyQualification; // 지원 자격
+
+    @Column(columnDefinition = "TEXT")
+    private String disqualificationReason; // 결격 사유
+
+    private String jobDescriptionPdfUrl; // 직무기술서 PDF 링크
+
+    // 중복 수집 방지를 위한 엔티티 업데이트 로직(상세 정보 전체를 안전하게 Upsert 하기 위한 통합 업데이트 로직)
+    public void updateDetailedInfo(String pbancNm, String recrutSeNm, String workRgnNm, LocalDate pbancEndDt,
+                                   String applicationMethod, String jobRole, String applyQualification,
+                                   String disqualificationReason, String jobDescriptionPdfUrl) {
         this.pbancNm = pbancNm;
         this.recrutSeNm = recrutSeNm;
         this.workRgnNm = workRgnNm;
         this.pbancEndDt = pbancEndDt;
+        this.applicationMethod = applicationMethod;
+        this.jobRole = jobRole;
+        this.applyQualification = applyQualification;
+        this.disqualificationReason = disqualificationReason;
+        this.jobDescriptionPdfUrl = jobDescriptionPdfUrl;
     }
 }
