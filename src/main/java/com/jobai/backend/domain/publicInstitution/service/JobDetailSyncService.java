@@ -30,13 +30,13 @@ public class JobDetailSyncService {
                     .uri(uriBuilder -> uriBuilder
                             .path("/1051000/recruitment/detail")
                             .queryParam("serviceKey", serviceKey)
-                            .queryParam("recrutPblntSn", sn)
+                            .queryParam("sn", sn)
+                            .queryParam("_type", "json")
                             .build())
                     .retrieve()
                     .bodyToMono(PublicJobDetailResponse.class)
                     .block();
 
-            // TODO 공고 상세 데이터가 모두 빈 상테로 반환됨. 수정필요
             if (detailResponse == null || detailResponse.result() == null) {
                 log.warn("공고 일련번호 [{}] 상세 데이터가 비어있어 스킵합니다.", sn);
                 return;

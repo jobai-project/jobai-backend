@@ -50,7 +50,7 @@ public class JobDataSyncService {
                         .path("/1051000/recruitment/list") // 오픈 API 상세 명세서 상의 Endpoint URI 기재
                         .queryParam("serviceKey", serviceKey) // 인코딩된 인증키 그대로 통과
                         .queryParam("pageNo", "1")
-                        .queryParam("numOfRows", "3")       // 한번에 땡겨올 공고 데이터 수
+                        .queryParam("numOfRows", "3")       // 한번에 땡겨올 공고 데이터 수 TODO 필요한 값으로 수정
                         .queryParam("ongoingYn", "Y")
                         .queryParam("ncsCdLst", "R600020")  // NCS 대분류 정보통신에 포함되는 공고만 받아오도록 함
                         .queryParam("_type", "json")          // JSON 응답 포맷 강제 지정
@@ -69,11 +69,11 @@ public class JobDataSyncService {
         log.info("공공기관 채용 공고 데이터 {}건 수집 완료. 수집 데이터 저장 프로세스를 시작합니다.", apiItems.size());
 
         // 3. 수집된 데이터를 하나씩 순회하며 Upsert (있으면 업데이트, 없으면 신규 저장)
-        // TODO: SRP 에 따라서 분리된 코드에 따라 수정필요
         for (PublicJobListResponse.Item briefItem : apiItems) {
             Long sn = briefItem.recrutPblntSn();
 
-            // 🚀 핵심 비즈니스 로직 및 저장 처리는 분리된 서비스 클래스가 처리함
+            log.info("sn = {}", sn.toString()); // sn은 정상적으로 받아옴.
+            // 핵심 비즈니스 로직 및 저장 처리는 분리된 서비스 클래스가 처리함
             jobDetailSyncService.fetchAndSaveJobDetail(webClient, sn, serviceKey);
 
             try {
