@@ -1,7 +1,6 @@
 package com.jobai.backend.domain.publicInstitution.service;
 
 import com.jobai.backend.domain.publicInstitution.dto.PublicJobListResponse;
-import com.jobai.backend.domain.publicInstitution.repository.JobPostingRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -11,10 +10,11 @@ import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.util.DefaultUriBuilderFactory;
 import org.springframework.web.reactive.function.client.ExchangeStrategies;
 
-import java.time.LocalDate;
-import java.time.format.DateTimeFormatter;
 import java.util.List;
 
+/**
+    공공기관에서 현재 채용중인 채용공고의 목록을 가져옴.
+ */
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -24,8 +24,6 @@ public class JobDataSyncService {
 
     @Value("${api.data-go-kr.service-key}")
     private String serviceKey;
-
-    private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyyMMdd");
 
     @Transactional
     public void syncPublicJobOpenings() {
@@ -50,7 +48,7 @@ public class JobDataSyncService {
                         .path("/1051000/recruitment/list") // 오픈 API 상세 명세서 상의 Endpoint URI 기재
                         .queryParam("serviceKey", serviceKey) // 인코딩된 인증키 그대로 통과
                         .queryParam("pageNo", "1")
-                        .queryParam("numOfRows", "20")       // 한번에 땡겨올 공고 데이터 수 TODO 필요한 값으로 수정
+                        .queryParam("numOfRows", "50")       // 한번에 땡겨올 공고 데이터 수 TODO 필요한 값으로 수정
                         .queryParam("ongoingYn", "Y")
                         .queryParam("ncsCdLst", "R600020")  // NCS 대분류 정보통신에 포함되는 공고만 받아오도록 함
                         .queryParam("_type", "json")          // JSON 응답 포맷 강제 지정
@@ -72,7 +70,7 @@ public class JobDataSyncService {
         for (PublicJobListResponse.Item briefItem : apiItems) {
             Long sn = briefItem.recrutPblntSn();
 
-            log.info("sn = {}", sn.toString()); // sn은 정상적으로 받아옴.
+//            log.info("sn = {}", sn.toString()); // sn은 정상적으로 받아옴.
             // 핵심 비즈니스 로직 및 저장 처리는 분리된 서비스 클래스가 처리함
             jobDetailSyncService.fetchAndSaveJobDetail(webClient, sn, serviceKey);
 
@@ -83,15 +81,5 @@ public class JobDataSyncService {
             }
         }
         log.info("공공기관 채용 공고 DB 동기화가 성공적으로 완료되었습니다.");
-    }
-
-    private LocalDate parseLocalDate(String dateStr) {
-        if (dateStr == null || dateStr.isBlank()) return null;
-        try {
-            return LocalDate.parse(dateStr.replaceAll("-", ""), DATE_FORMATTER);
-        } catch (Exception e) {
-            log.warn("날짜 포맷 파싱 실패: {}", dateStr);
-            return null;
-        }
     }
 }
