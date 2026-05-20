@@ -40,10 +40,16 @@ public class JobPosting {
 
     private String jobDescriptionPdfUrl; // 직무기술서 PDF 링크
 
+    @Column(columnDefinition = "TEXT")
+    private String extractedHtmlText; // PDF에서 추출된 전체 텍스트 본문 (LLM/유사도 검사용)
+
+    private String ncsSubCategory;    // 정규식으로 뜯어낸 소분류 카테고리 (필터링용)
+
     // 중복 수집 방지를 위한 엔티티 업데이트 로직(상세 정보 전체를 안전하게 Upsert 하기 위한 통합 업데이트 로직)
     public void updateDetailedInfo(String pbancNm, String recrutSeNm, String workRgnNm, LocalDate pbancEndDt,
                                    String applicationMethod, String jobRole, String applyQualification,
-                                   String disqualificationReason, String jobDescriptionPdfUrl) {
+                                   String disqualificationReason, String jobDescriptionPdfUrl,
+                                   String extractedHtmlText, String ncsSubCategory) {
         this.pbancNm = pbancNm;
         this.recrutSeNm = recrutSeNm;
         this.workRgnNm = workRgnNm;
@@ -53,5 +59,7 @@ public class JobPosting {
         this.applyQualification = applyQualification;
         this.disqualificationReason = disqualificationReason;
         this.jobDescriptionPdfUrl = jobDescriptionPdfUrl;
+        this.extractedHtmlText = extractedHtmlText;
+        this.ncsSubCategory = ncsSubCategory;
     }
 }

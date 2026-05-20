@@ -49,6 +49,11 @@ dependencies {
 	implementation 'org.flywaydb:flyway-core'
 	implementation 'org.flywaydb:flyway-database-postgresql'
 
+	// 코드 수정시 스프링부트 자동재시작
+	developmentOnly 'org.springframework.boot:spring-boot-devtools'
+	// Apache PDFBox (PDF 텍스트 추출 라이브러리)
+	implementation 'org.apache.pdfbox:pdfbox:3.0.3'
+
 	// ── pgvector (벡터 DB) ───────────────────────────────────
 	implementation 'com.pgvector:pgvector:0.1.6'
 

@@ -50,7 +50,7 @@ public class JobDataSyncService {
                         .path("/1051000/recruitment/list") // 오픈 API 상세 명세서 상의 Endpoint URI 기재
                         .queryParam("serviceKey", serviceKey) // 인코딩된 인증키 그대로 통과
                         .queryParam("pageNo", "1")
-                        .queryParam("numOfRows", "3")       // 한번에 땡겨올 공고 데이터 수 TODO 필요한 값으로 수정
+                        .queryParam("numOfRows", "20")       // 한번에 땡겨올 공고 데이터 수 TODO 필요한 값으로 수정
                         .queryParam("ongoingYn", "Y")
                         .queryParam("ncsCdLst", "R600020")  // NCS 대분류 정보통신에 포함되는 공고만 받아오도록 함
                         .queryParam("_type", "json")          // JSON 응답 포맷 강제 지정
