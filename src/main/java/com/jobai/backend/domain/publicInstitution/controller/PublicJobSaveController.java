@@ -4,7 +4,7 @@ import com.jobai.backend.domain.publicInstitution.service.JobDataSyncService;
 import com.jobai.backend.global.apiPayload.ApiResponse;
 import com.jobai.backend.global.apiPayload.code.GeneralSuccessCode;
 import lombok.RequiredArgsConstructor;
-import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -15,7 +15,7 @@ public class PublicJobSaveController implements PublicJobApi {
 
     private final JobDataSyncService jobDataSyncService;
 
-    @GetMapping("/job-sync")
+    @PostMapping("/job-sync")
     public ApiResponse<Void> triggerJobSync() {
 
         // 공공데이터 API 호출 및 DB 동기화 로직 실행
