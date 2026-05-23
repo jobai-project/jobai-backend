@@ -49,15 +49,17 @@ dependencies {
 	implementation 'org.flywaydb:flyway-core'
 	implementation 'org.flywaydb:flyway-database-postgresql'
 
+	// 코드 수정시 스프링부트 자동재시작
+	developmentOnly 'org.springframework.boot:spring-boot-devtools'
+	// Apache PDFBox (PDF 텍스트 추출 라이브러리)
+	implementation 'org.apache.pdfbox:pdfbox:3.0.3'
+
 	// ── pgvector (벡터 DB) ───────────────────────────────────
 	implementation 'com.pgvector:pgvector:0.1.6'
 
 	// ── Spring Batch + Quartz (수집 스케줄러) ────────────────
 	implementation 'org.springframework.boot:spring-boot-starter-batch'
 	implementation 'org.springframework.boot:spring-boot-starter-quartz'
-
-	// ── WebSocket + STOMP (실시간 알림) ──────────────────────
-	implementation 'org.springframework.boot:spring-boot-starter-websocket'
 
 	// ── WebClient (FastAPI 비동기 HTTP 호출) ──────────────────
 	implementation 'org.springframework.boot:spring-boot-starter-webflux'
@@ -86,9 +88,6 @@ dependencies {
 
 	// ── AWS S3 (이력서 업로드) ───────────────────────────────
 	implementation 'io.awspring.cloud:spring-cloud-aws-starter-s3:3.1.1'
-
-	// ── PDF 텍스트 추출 ──────────────────────────────────────
-	implementation 'org.apache.pdfbox:pdfbox:3.0.2'
 
 	// ── Swagger UI ───────────────────────────────────────────
 	implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.8.9'
