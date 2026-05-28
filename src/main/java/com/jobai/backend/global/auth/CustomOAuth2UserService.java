@@ -1,4 +1,4 @@
-package com.jobai.backend.global.security.oauth;
+package com.jobai.backend.global.auth;
 
 import com.jobai.backend.domain.member.entity.Member;
 import com.jobai.backend.domain.member.repository.MemberRepository;

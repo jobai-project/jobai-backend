@@ -1,10 +1,9 @@
-package com.jobai.backend.domain.member.controller;
+package com.jobai.backend.domain.auth.controller;
 
-import com.jobai.backend.domain.member.dto.AuthResponse;
+import com.jobai.backend.domain.auth.dto.AuthResponse;
 import com.jobai.backend.domain.member.entity.Member;
 import com.jobai.backend.domain.member.service.MemberService;
 import com.jobai.backend.global.apiPayload.ApiResponse;
-import com.jobai.backend.global.apiPayload.code.GeneralErrorCode;
 import com.jobai.backend.global.apiPayload.code.GeneralSuccessCode;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -28,6 +27,15 @@ public class AuthController {
 
     private final MemberService memberService;
 
+    @Operation(summary = "구글 로그인 URL 조회", description = "구글 소셜 로그인을 시작하기 위한 URL을 반환합니다.")
+    @GetMapping("/login/google")
+    public ApiResponse<AuthResponse.LoginUrl> getGoogleLoginUrl() {
+        // Spring Security 기본 OAuth2 인증 시작 경로
+        String url = "/oauth2/authorization/google";
+        return ApiResponse.onSuccess(GeneralSuccessCode.OK, 
+                AuthResponse.LoginUrl.builder().googleLoginUrl(url).build());
+    }
+
     @Operation(summary = "로그아웃", description = "accessToken 쿠키를 삭제하여 로그아웃 처리를 합니다.")
     @PostMapping("/logout")
     public ApiResponse<Void> logout(HttpServletResponse response) {
@@ -46,7 +54,7 @@ public class AuthController {
     @GetMapping("/me")
     public ApiResponse<AuthResponse.MemberInfo> getMyInfo(@AuthenticationPrincipal String email) {
         if (email == null) {
-            return ApiResponse.onFailure(GeneralErrorCode.NOT_FOUND, null);
+            return ApiResponse.onSuccess(GeneralSuccessCode.OK, null);
         }
 
         Optional<Member> member = memberService.findByEmail(email);

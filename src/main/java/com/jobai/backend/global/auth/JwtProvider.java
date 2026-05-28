@@ -1,6 +1,7 @@
-package com.jobai.backend.global.security.oauth;
+package com.jobai.backend.global.auth;
 
 import io.jsonwebtoken.Jwts;
+import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.security.Keys;
 import jakarta.annotation.PostConstruct;
 import org.springframework.beans.factory.annotation.Value;
@@ -43,10 +44,10 @@ public class JwtProvider {
     // JWT 토큰 유효성 검증
     public boolean validateToken(String token) {
         try {
-            Jwts.parser()
-                    .verifyWith(key)
+            Jwts.parserBuilder()
+                    .setSigningKey(key)
                     .build()
-                    .parseSignedClaims(token);
+                    .parseClaimsJws(token);
             return true;
         } catch (Exception e) {
             return false;
@@ -55,11 +56,11 @@ public class JwtProvider {
 
     // 토큰에서 이메일(Subject) 추출
     public String getEmailFromToken(String token) {
-        return Jwts.parser()
-                .verifyWith(key)
+        return Jwts.parserBuilder()
+                .setSigningKey(key)
                 .build()
-                .parseSignedClaims(token)
-                .getPayload()
+                .parseClaimsJws(token)
+                .getBody()
                 .getSubject();
     }
 }

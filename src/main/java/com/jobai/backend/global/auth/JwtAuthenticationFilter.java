@@ -1,4 +1,4 @@
-package com.jobai.backend.global.security.oauth;
+package com.jobai.backend.global.auth;
 
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;

@@ -1,7 +1,8 @@
 package com.jobai.backend.global.config;
 
-import com.jobai.backend.global.security.oauth.CustomOAuth2UserService;
-import com.jobai.backend.global.security.oauth.OAuth2SuccessHandler;
+import com.jobai.backend.global.auth.CustomOAuth2UserService;
+import com.jobai.backend.global.auth.OAuth2SuccessHandler;
+import com.jobai.backend.global.auth.JwtAuthenticationFilter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -10,6 +11,7 @@ import org.springframework.security.config.annotation.web.configuration.EnableWe
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
 @Configuration
 @EnableWebSecurity
@@ -18,7 +20,7 @@ public class SecurityConfig {
 
     private final CustomOAuth2UserService customOAuth2UserService;
     private final OAuth2SuccessHandler oAuth2SuccessHandler;
-    private final com.jobai.backend.global.security.oauth.JwtAuthenticationFilter jwtAuthenticationFilter;
+    private final JwtAuthenticationFilter jwtAuthenticationFilter;
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
@@ -58,7 +60,7 @@ public class SecurityConfig {
                         .successHandler(oAuth2SuccessHandler)
                 )
                 // 6. JWT 필터 추가
-                .addFilterBefore(jwtAuthenticationFilter, org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter.class);
+                .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
     }
