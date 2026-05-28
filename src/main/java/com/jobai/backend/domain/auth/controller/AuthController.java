@@ -4,6 +4,7 @@ import com.jobai.backend.domain.auth.dto.AuthResponse;
 import com.jobai.backend.domain.member.entity.Member;
 import com.jobai.backend.domain.member.service.MemberService;
 import com.jobai.backend.global.apiPayload.ApiResponse;
+import com.jobai.backend.global.apiPayload.code.GeneralErrorCode;
 import com.jobai.backend.global.apiPayload.code.GeneralSuccessCode;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -54,7 +55,7 @@ public class AuthController {
     @GetMapping("/me")
     public ApiResponse<AuthResponse.MemberInfo> getMyInfo(@AuthenticationPrincipal String email) {
         if (email == null) {
-            return ApiResponse.onSuccess(GeneralSuccessCode.OK, null);
+            return ApiResponse.onFailure(GeneralErrorCode.NOT_FOUND, null);
         }
 
         Optional<Member> member = memberService.findByEmail(email);
@@ -63,6 +64,6 @@ public class AuthController {
                                 .email(m.getEmail())
                                 .name(m.getName())
                                 .build()))
-                .orElse(ApiResponse.onSuccess(GeneralSuccessCode.OK, null));
+                .orElse(ApiResponse.onFailure(GeneralErrorCode.NOT_FOUND, null));
     }
 }
