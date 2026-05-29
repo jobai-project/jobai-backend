@@ -6,6 +6,7 @@ import com.jobai.backend.domain.member.service.MemberService;
 import com.jobai.backend.global.apiPayload.ApiResponse;
 import com.jobai.backend.global.apiPayload.code.GeneralErrorCode;
 import com.jobai.backend.global.apiPayload.code.GeneralSuccessCode;
+import com.jobai.backend.global.auth.CookieProvider;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletResponse;
@@ -27,6 +28,7 @@ import java.util.Optional;
 public class AuthController {
 
     private final MemberService memberService;
+    private final CookieProvider cookieProvider;
 
     @Operation(summary = "구글 로그인 URL 조회", description = "구글 소셜 로그인을 시작하기 위한 URL을 반환합니다.")
     @GetMapping("/login/google")
@@ -40,12 +42,8 @@ public class AuthController {
     @Operation(summary = "로그아웃", description = "accessToken 쿠키를 삭제하여 로그아웃 처리를 합니다.")
     @PostMapping("/logout")
     public ApiResponse<Void> logout(HttpServletResponse response) {
-        ResponseCookie cookie = ResponseCookie.from("accessToken", "")
-                .path("/")
-                .httpOnly(true)
-                .secure(false)
-                .maxAge(0) // 쿠키 즉시 만료
-                .build();
+
+        ResponseCookie cookie = cookieProvider.createEmptyAccessTokenCookie();
 
         response.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
         return ApiResponse.onSuccess(GeneralSuccessCode.OK);
@@ -55,7 +53,7 @@ public class AuthController {
     @GetMapping("/me")
     public ApiResponse<AuthResponse.MemberInfo> getMyInfo(@AuthenticationPrincipal String email) {
         if (email == null) {
-            return ApiResponse.onFailure(GeneralErrorCode.NOT_FOUND, null);
+            return ApiResponse.onFailure(GeneralErrorCode.UNAUTHORIZED, null);
         }
 
         Optional<Member> member = memberService.findByEmail(email);

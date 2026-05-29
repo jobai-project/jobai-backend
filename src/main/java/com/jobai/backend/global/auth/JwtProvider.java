@@ -15,7 +15,7 @@ import java.util.Date;
 public class JwtProvider {
 
     // application.yaml이나 .env에 등록한 비밀키 (최소 32바이트 이상 문자열 필수)
-    @Value("${JWT_SECRET:dummy-secret-key-for-local-testing-32bytes-over}")
+    @Value("${JWT_SECRET}")
     private String secretKeyString;
 
     // 만료 시간 설정 (예: 1시간 = 3600000 밀리초)
@@ -24,6 +24,9 @@ public class JwtProvider {
 
     @PostConstruct
     protected void init() {
+        if (secretKeyString == null || secretKeyString.isBlank()) {
+            throw new IllegalStateException("JWT_SECRET must be configured");
+        }
         // 문자열로 된 비밀키를 JJWT에 맞는 SecretKey 객체로 변환
         this.key = Keys.hmacShaKeyFor(secretKeyString.getBytes(StandardCharsets.UTF_8));
     }

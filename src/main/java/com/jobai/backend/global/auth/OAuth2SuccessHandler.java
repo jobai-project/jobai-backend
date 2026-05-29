@@ -5,6 +5,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseCookie;
 import org.springframework.security.core.Authentication;
@@ -21,31 +22,31 @@ import java.time.Duration;
 public class OAuth2SuccessHandler implements AuthenticationSuccessHandler {
 
     private final JwtProvider jwtProvider;
+    @Value("${app.auth.cookie.secure:true}")
+    private boolean cookieSecure;
+    @Value("${app.auth.frontend-redirect-url}")
+    private String frontendRedirectUrl;
+    private final CookieProvider cookieProvider; // 공통 쿠키 컴포넌트 주입
 
     @Override
     public void onAuthenticationSuccess(HttpServletRequest request, HttpServletResponse response,
                                         Authentication authentication) throws IOException, ServletException {
+
         OAuth2User oAuth2User = (OAuth2User) authentication.getPrincipal();
         String email = (String) oAuth2User.getAttributes().get("email");
 
-        log.info("OAuth2 로그인 성공 유저 이메일: {}", email);
+        log.debug("OAuth2 로그인 성공 유저 이메일: {}", email);
 
         // 1. 임시 토큰 생성
         String accessToken = jwtProvider.createAccessToken(email);
 
         // 2. 안전한 토큰 전달을 위한 HttpOnly 쿠키 생성
-        ResponseCookie cookie = ResponseCookie.from("accessToken", accessToken)
-                .path("/")
-                .httpOnly(true)                // JavaScript 접근 차단 (XSS 공격 방어)
-                .secure(false)                 // 로컬 개발 환경(HTTP)환경을 위해 임시 false (배포/HTTPS 환경에선 true)
-                .sameSite("Lax")               // CSRF 공격 방어 기본 설정
-                .maxAge(Duration.ofHours(1))   // 쿠키 만료 시간 설정 (1시간)
-                .build();
+        ResponseCookie cookie = cookieProvider.createAccessTokenCookie(accessToken);
 
         // 3. 응답 헤더에 쿠키 세팅
         response.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
 
         // 4. 프론트엔드 특정 페이지로 토큰을 들고 리디렉션 처리
-        response.sendRedirect("http://localhost:3000/oauth2/redirect");
+        response.sendRedirect(frontendRedirectUrl);
     }
 }

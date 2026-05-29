@@ -39,12 +39,13 @@ public class SecurityConfig {
 
                 // 4. URL별 권한 제어 설정
                 .authorizeHttpRequests(auth -> auth
+                        .requestMatchers("/api/v1/auth/me").authenticated()
                         // 무조건 허용할 경로들
                         .requestMatchers(
                                 "/swagger-ui/**",      // Swagger HTML 및 내부 리소스 폴더
                                 "/v3/api-docs/**",     // SpringDoc이 생성하는 Open-API JSON 규격 주소
                                 "/swagger-ui.html",     // 리다이렉트용 기본 주소
-                                "/api/v1/admin/**",  // TODO 테스트를 위해 임시 추가. 추후 조정필요
+                                "/api/v1/admin/**",  // 의도된 임시 허용. TODO 테스트를 위해 임시 추가. 추후 조정필요
                                 "/login/oauth2/**" // OAuth2 인증 엔드포인트 허용
                         ).permitAll()
 

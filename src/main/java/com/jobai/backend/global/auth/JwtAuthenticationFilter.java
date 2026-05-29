@@ -40,7 +40,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             );
 
             SecurityContextHolder.getContext().setAuthentication(authentication);
-            log.info("JWT 인증 성공: {}", email);
+            log.debug("JWT 인증 성공: {}", email);
         }
 
         filterChain.doFilter(request, response);
