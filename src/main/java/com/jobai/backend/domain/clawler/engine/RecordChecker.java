@@ -37,13 +37,17 @@ public final class RecordChecker {
                 issues.add("필수필드 '" + f + "' 비어있음: " + missing + "/" + n);
             }
         }
-        // job_id 중복
+        // job_id 중복 (null/blank 는 필수필드 검사에서 이미 잡히므로 제외)
         Set<String> ids = new HashSet<>();
+        int counted = 0;
         for (JobRecord r : records) {
-            ids.add(String.valueOf(r.getJobId()));
+            Object id = r.getJobId();
+            if (id == null || String.valueOf(id).isBlank()) continue;
+            ids.add(String.valueOf(id));
+            counted++;
         }
-        if (ids.size() != n) {
-            issues.add("job_id 중복: 고유 " + ids.size() + " / 전체 " + n);
+        if (ids.size() != counted) {
+            issues.add("job_id 중복: 고유 " + ids.size() + " / 전체 " + counted);
         }
         return issues;
     }

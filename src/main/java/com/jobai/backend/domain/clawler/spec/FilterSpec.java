@@ -25,6 +25,9 @@ public class FilterSpec {
     public void setIn(List<Object> in) { this.in = in; }
 
     public List<String> getExcludeContains() { return excludeContains; }
-    public void setExcludeContains(List<String> excludeContains) { this.excludeContains = excludeContains; }
+    public void setExcludeContains(List<String> excludeContains) {
+        this.excludeContains = (excludeContains == null) ? null :
+                excludeContains.stream().filter(s -> s != null).toList();
+    }
 }
 

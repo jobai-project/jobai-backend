@@ -18,7 +18,9 @@ public class JobRecord {
     public Object get(String key) { return values.get(key); }
     public boolean has(String key) {
         Object v = values.get(key);
-        return v != null && !"".equals(v);
+        if (v == null) return false;
+        if (v instanceof CharSequence) return !v.toString().trim().isEmpty();
+        return true;
     }
     public Map<String, Object> asMap() { return values; }
 

@@ -10,6 +10,8 @@ import com.jobai.backend.domain.clawler.spec.Pagination;
 import org.springframework.web.client.RestClient;
 import org.springframework.stereotype.Component;
 
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -211,7 +213,9 @@ public class DeclarativeCrawler {
         boolean first = true;
         for (Map.Entry<String, Object> e : params.entrySet()) {
             if (!first) sb.append('&');
-            sb.append(e.getKey()).append('=').append(String.valueOf(e.getValue()));
+            String k = URLEncoder.encode(e.getKey(), StandardCharsets.UTF_8);
+            String v = URLEncoder.encode(e.getValue() == null ? "" : String.valueOf(e.getValue()), StandardCharsets.UTF_8);
+            sb.append(k).append('=').append(v);
             first = false;
         }
         return sb.toString();

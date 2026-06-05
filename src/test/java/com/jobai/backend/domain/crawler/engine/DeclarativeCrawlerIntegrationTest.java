@@ -23,6 +23,7 @@ class DeclarativeCrawlerIntegrationTest {
         CrawlSpec spec = new SpecLoader().loadFromClasspath("specs/coupang.yaml");
         List<JobRecord> records = crawler.collect(spec);
 
+        assertFalse(records.isEmpty());
         JobRecord first = records.get(0);
         System.out.println("수집 건수: " + records.size());
         System.out.println("job_id: " + first.getJobId());
@@ -30,8 +31,7 @@ class DeclarativeCrawlerIntegrationTest {
         System.out.println("apply_url: " + first.getApplyUrl());
         System.out.println("description 있나: " + (first.getDescription() != null));
 
-        assertFalse(records.isEmpty());
-        assertNotNull(records.get(0).getJobId());
+        assertNotNull(first.getJobId());
     }
 
     @Test
@@ -42,6 +42,7 @@ class DeclarativeCrawlerIntegrationTest {
         CrawlSpec spec = new SpecLoader().loadFromClasspath("specs/daangn.yaml");  // 파일명 맞게
         List<JobRecord> records = crawler.collect(spec);
 
+        assertFalse(records.isEmpty());
         JobRecord first = records.get(0);
         System.out.println("수집 건수: " + records.size());
         System.out.println("job_id: " + first.getJobId());
@@ -49,7 +50,6 @@ class DeclarativeCrawlerIntegrationTest {
         System.out.println("apply_url: " + first.getApplyUrl());
         System.out.println("description 있나: " + (first.getDescription() != null));
 
-        assertFalse(records.isEmpty());
         assertNotNull(first.getJobId());
     }
 }
