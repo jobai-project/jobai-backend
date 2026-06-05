@@ -83,11 +83,11 @@ resource "aws_security_group" "jobai" {
   }
 
   ingress {
-    from_port   = 8001
-    to_port     = 8001
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
+  from_port   = 22
+  to_port     = 22
+  protocol    = "tcp"
+  cidr_blocks = ["${var.my_ip}/32"]
+}
 
   egress {
     from_port   = 0

@@ -9,3 +9,7 @@ variable "ami_id" {
 variable "key_name" {
   description = "EC2 SSH 키페어 이름"
 }
+
+variable "my_ip" {
+  description = "내 로컬 IP"
+}
