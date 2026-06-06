@@ -67,26 +67,25 @@ resource "aws_security_group" "jobai" {
   name        = "jobai-sg"
   description = "jobai security group"
   vpc_id      = aws_vpc.jobai.id
-
-  ingress {
-    from_port   = 22
-    to_port     = 22
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-
-  ingress {
-    from_port   = 8080
-    to_port     = 8080
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-
-  ingress {
+ingress {
   from_port   = 22
   to_port     = 22
   protocol    = "tcp"
-  cidr_blocks = ["${var.my_ip}/32"]
+  cidr_blocks = ["${var.my_ip}/32"]  # SSH는 내 IP만
+}
+
+ingress {
+  from_port   = 8080
+  to_port     = 8080
+  protocol    = "tcp"
+  cidr_blocks = ["0.0.0.0/0"]  # Spring Boot 전체 오픈
+}
+
+ingress {
+  from_port   = 8001
+  to_port     = 8001
+  protocol    = "tcp"
+  cidr_blocks = ["0.0.0.0/0"]  # FastAPI 전체 오픈
 }
 
   egress {
