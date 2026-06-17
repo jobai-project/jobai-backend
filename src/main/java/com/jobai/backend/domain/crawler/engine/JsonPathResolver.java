@@ -1,4 +1,4 @@
-package com.jobai.backend.domain.clawler.engine;
+package com.jobai.backend.domain.crawler.engine;
 
 import java.util.ArrayList;
 import java.util.List;

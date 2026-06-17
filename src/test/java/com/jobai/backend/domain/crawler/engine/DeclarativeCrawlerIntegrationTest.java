@@ -1,11 +1,9 @@
 package com.jobai.backend.domain.crawler.engine;
 
-import com.jobai.backend.domain.clawler.engine.DeclarativeCrawler;
-
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.jobai.backend.domain.clawler.model.JobRecord;
-import com.jobai.backend.domain.clawler.spec.CrawlSpec;
-import com.jobai.backend.domain.clawler.spec.SpecLoader;
+import com.jobai.backend.domain.crawler.model.JobRecord;
+import com.jobai.backend.domain.crawler.spec.CrawlSpec;
+import com.jobai.backend.domain.crawler.spec.SpecLoader;
 import org.junit.jupiter.api.Test;
 import org.springframework.web.client.RestClient;
 

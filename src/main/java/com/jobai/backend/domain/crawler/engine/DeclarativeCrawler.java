@@ -1,12 +1,12 @@
-package com.jobai.backend.domain.clawler.engine;
+package com.jobai.backend.domain.crawler.engine;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.jobai.backend.domain.clawler.model.JobRecord;
-import com.jobai.backend.domain.clawler.spec.CrawlSpec;
-import com.jobai.backend.domain.clawler.spec.FilterSpec;
-import com.jobai.backend.domain.clawler.spec.ListSpec;
-import com.jobai.backend.domain.clawler.spec.Pagination;
+import com.jobai.backend.domain.crawler.model.JobRecord;
+import com.jobai.backend.domain.crawler.spec.CrawlSpec;
+import com.jobai.backend.domain.crawler.spec.FilterSpec;
+import com.jobai.backend.domain.crawler.spec.ListSpec;
+import com.jobai.backend.domain.crawler.spec.Pagination;
 import org.springframework.web.client.RestClient;
 import org.springframework.stereotype.Component;
 

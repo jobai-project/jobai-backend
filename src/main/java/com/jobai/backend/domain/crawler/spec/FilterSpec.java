@@ -1,4 +1,4 @@
-package com.jobai.backend.domain.clawler.spec;
+package com.jobai.backend.domain.crawler.spec;
 
 import com.fasterxml.jackson.databind.PropertyNamingStrategies;
 import com.fasterxml.jackson.databind.annotation.JsonNaming;

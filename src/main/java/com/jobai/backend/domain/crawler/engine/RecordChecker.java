@@ -1,7 +1,7 @@
-package com.jobai.backend.domain.clawler.engine;
+package com.jobai.backend.domain.crawler.engine;
 
-import com.jobai.backend.domain.clawler.model.JobRecord;
-import com.jobai.backend.domain.clawler.spec.CrawlSpec;
+import com.jobai.backend.domain.crawler.model.JobRecord;
+import com.jobai.backend.domain.crawler.spec.CrawlSpec;
 
 import java.util.ArrayList;
 import java.util.HashSet;

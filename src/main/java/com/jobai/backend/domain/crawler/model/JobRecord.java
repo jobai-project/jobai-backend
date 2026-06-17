@@ -1,4 +1,4 @@
-package com.jobai.backend.domain.clawler.model;
+package com.jobai.backend.domain.crawler.model;
 
 
 import java.util.LinkedHashMap;
