@@ -28,12 +28,19 @@ public class PrivateJobPostingService {
      */
     @Transactional
     public void saveAll(String company, List<JobRecord> records) {
+        if (records == null || records.isEmpty()) {
+            return;   // 수집 실패/0건 시 대량 오마감 방지
+        }
         LocalDateTime now = LocalDateTime.now();
         Set<String> seenJobIds = new HashSet<>();   // 이번에 본 source_job_id 모음
 
         // 1) upsert
         for (JobRecord r : records) {
-            String sourceJobId = String.valueOf(r.getJobId());
+            Object rawJobId = r.getJobId();
+            if (rawJobId == null || String.valueOf(rawJobId).isBlank()) {
+                throw new IllegalArgumentException("upsert 키인 job_id 가 없습니다");
+            }
+            String sourceJobId = String.valueOf(rawJobId).trim();
             seenJobIds.add(sourceJobId);
 
             Optional<PrivateJobPosting> existing =
@@ -87,6 +94,9 @@ public class PrivateJobPostingService {
 
     // 마감일 문자열 → LocalDate. 형식이 회사마다 달라 실패하면 null.
     private LocalDate parseDeadline(Object v) {
+        if (v instanceof List<?> list) {           // str() 과 동일하게
+            v = list.isEmpty() ? null : list.get(0);
+        }
         if (v == null) return null;
         String s = String.valueOf(v).trim();
         if (s.isEmpty() || s.startsWith("9999")) return null;   // 상시채용 등

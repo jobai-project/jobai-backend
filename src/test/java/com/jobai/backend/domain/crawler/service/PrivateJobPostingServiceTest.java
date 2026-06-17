@@ -12,6 +12,9 @@ import org.springframework.boot.test.context.SpringBootTest;
 
 import java.util.List;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
 @SpringBootTest
 class PrivateJobPostingServiceTest {
 
@@ -43,12 +46,16 @@ class PrivateJobPostingServiceTest {
 
         long count2 = repository.count();
         System.out.println("=== 재수집 후: " + count2 + "건 (1차와 같아야 = 중복 안 됨) ===");
+        // 수집_저장_재수집
+        assertEquals(count1, count2, "재수집 시 중복 없이 동일 건수여야 함");
     }
 
     @Test
     void 마감_처리() throws Exception {
         CrawlSpec spec = new SpecLoader().loadFromClasspath("specs/kakao.yaml");
         List<JobRecord> records = crawler.collect(spec);
+        // 마감_처리
+        assertTrue(records.size() > 1, "마감 테스트엔 2건 이상 필요");
 
         // 1차: 전체 저장 (7건)
         service.saveAll("kakao", records);
@@ -63,6 +70,7 @@ class PrivateJobPostingServiceTest {
                 repository.findByCompanyAndSourceJobId("kakao", droppedId).orElseThrow();
         System.out.println("빠진 공고 " + droppedId + " closed=" + dropped.isClosed());
         // → closed=true 면 마감 처리 작동!
+        assertTrue(dropped.isClosed(), "누락 공고는 마감 처리되어야 함");
     }
 
     @Test
