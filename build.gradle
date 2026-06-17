@@ -89,6 +89,9 @@ dependencies {
 	// ── AWS S3 (이력서 업로드) ───────────────────────────────
 	implementation 'io.awspring.cloud:spring-cloud-aws-starter-s3:3.1.1'
 
+	// ── AWS Lambda 직접 호출을 위한 SDK 추가 ──
+	implementation 'software.amazon.awssdk:lambda:2.25.60'
+
 	// ── Swagger UI ───────────────────────────────────────────
 	implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.8.9'
 

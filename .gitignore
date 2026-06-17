@@ -41,3 +41,6 @@ out/
 
 ### VS Code ###
 .vscode/
+
+### md 파일
+*.md
