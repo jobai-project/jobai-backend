@@ -258,7 +258,13 @@ public class DeclarativeCrawler {
         // 4) 매핑 (기존 mapRecord 재사용 — JSON 목록과 동일)
         List<JobRecord> out = new ArrayList<>();
         for (Object raw : batch) {
-            if (raw != null) out.add(mapRecord(raw, spec));
+            Object eff = raw;
+            if (ls.getRecordPath() != null && !ls.getRecordPath().isEmpty()) {
+                eff = JsonPathResolver.resolve(raw, ls.getRecordPath());
+            }
+            if (eff != null) {
+                out.add(mapRecord(eff, spec));
+            }
         }
         return out;
     }

@@ -172,4 +172,49 @@ class GreetingEmbeddedJsonTest {
                 + json
                 + "</script></body></html>";
     }
+
+    @Test
+    @DisplayName("select 없이 response_path 로 배열을 직접 꺼내 매핑한다")
+    void collectsViaResponsePath() {
+        // select 가 없는 spec → response_path 분기를 탄다
+        CrawlSpec spec = new CrawlSpec();
+        spec.setCompany("generic");
+        spec.setSourceType("embedded_json");
+
+        ListSpec ls = new ListSpec();
+        ls.setUrl(SUBDOMAIN_URL);
+        ls.setScriptId("__NEXT_DATA__");
+        ls.setResponsePath("props.pageProps.jobs");   // 배열이 바로 이 경로에 있음
+        // ls.setSelect(...) 안 함 → select == null → response_path 분기
+        spec.setList(ls);
+
+        spec.setFields(new java.util.LinkedHashMap<>(Map.of(
+                "job_id", "id",
+                "title", "title"
+        )));
+        spec.setRequired(List.of("job_id", "title"));
+
+        server.expect(requestTo(SUBDOMAIN_URL))
+                .andExpect(method(GET))
+                .andRespond(withSuccess(responsePathHtml(),
+                        new MediaType(MediaType.TEXT_HTML, StandardCharsets.UTF_8)));
+
+        List<JobRecord> records = crawler.collect(spec);
+
+        server.verify();
+        assertThat(records).hasSize(2);
+        assertThat(records.get(0).getJobId()).isEqualTo(7001);
+        assertThat(records.get(0).getTitle()).isEqualTo("데이터 엔지니어");
+    }
+
+    /** select 없이 response_path 로 바로 닿는 위치에 공고 배열이 있는 __NEXT_DATA__. */
+    private String responsePathHtml() {
+        String json = """
+        {"props":{"pageProps":{"jobs":[
+          {"id":7001,"title":"데이터 엔지니어"},
+          {"id":7002,"title":"플랫폼 엔지니어"}
+        ]}}}
+        """;
+        return wrapNextData(json);
+    }
 }
