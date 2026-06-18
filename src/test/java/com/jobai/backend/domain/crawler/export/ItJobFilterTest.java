@@ -114,6 +114,24 @@ class ItJobFilterTest {
         void singleWeakIsNotEnough() {
             assertThat(ItJobFilter.isItJob("기획 담당자", "Planning")).isFalse();
         }
+
+        @Test
+        @DisplayName("부분문자열 중복 매칭 방지: 'Designer' 단독은 design+designer 로 이중계산되지 않아 비IT")
+        void noSubstringDoubleCount() {
+            // design 이 designer 의 부분문자열이지만, 단어경계 매칭이라 designer 1개만 카운트.
+            // weak 1개 → 비IT (이중계산되면 2개로 잘못 IT 판정됨 → 회귀 방지)
+            assertThat(ItJobFilter.isItJob("Designer", "")).isFalse();
+            assertThat(ItJobFilter.isItJob("Product Designer", "")).isFalse();
+            // 반면 ux/ui 가 붙으면 weak 2개 → IT (정상)
+            assertThat(ItJobFilter.isItJob("UX Designer", "")).isTrue();
+        }
+
+        @Test
+        @DisplayName("하이픈 표기 정규화: back-end·full-stack 도 STRONG 매칭")
+        void normalizesHyphen() {
+            assertThat(ItJobFilter.isItJob("back-end engineer", null)).isTrue();
+            assertThat(ItJobFilter.isItJob("full-stack developer", null)).isTrue();
+        }
     }
 
     @Nested

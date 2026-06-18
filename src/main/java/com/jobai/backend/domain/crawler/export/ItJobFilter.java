@@ -127,6 +127,7 @@ public class ItJobFilter {
 
         return value
                 .toLowerCase()
+                .replace("-", "")                       // 하이픈 제거(붙임): back-end → backend
                 .replaceAll("[\\[\\]()/_,·|]", " ")
                 .replaceAll("\\s+", " ")
                 .trim();
@@ -139,16 +140,19 @@ public class ItJobFilter {
             return false;
         }
 
-        // 영어 짧은 약어는 반드시 단어 단위로만 매칭 (it, ai, ml, pm, po, qa, ui, ux 등)
-        if (isShortEnglishKeyword(normalizedKeyword)) {
+        // 영어 키워드는 길이 무관하게 단어 단위로만 매칭한다.
+        // (it/ai 같은 짧은 약어의 부분매칭 방지 + design/designer 처럼
+        //  한 키워드가 다른 키워드의 부분문자열일 때 WEAK 중복 계산 방지)
+        if (isEnglishWordKeyword(normalizedKeyword)) {
             return containsWord(text, normalizedKeyword);
         }
 
         return text.contains(normalizedKeyword);
     }
 
-    private static boolean isShortEnglishKeyword(String keyword) {
-        return keyword.matches("[a-z0-9]+") && keyword.length() <= 3;
+    private static boolean isEnglishWordKeyword(String keyword) {
+        // 영문/숫자/공백으로만 이루어진 키워드 (단일어 'design' 및 복합어 'product manager')
+        return keyword.matches("[a-z0-9 ]+");
     }
 
     private static boolean containsWord(String text, String word) {

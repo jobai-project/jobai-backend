@@ -21,7 +21,6 @@ import java.util.Collections;
 @Slf4j
 @Component
 @RequiredArgsConstructor
-@Profile("!local")
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtProvider jwtProvider;
