@@ -3,10 +3,7 @@ package com.jobai.backend.domain.crawler.engine;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jobai.backend.domain.crawler.model.JobRecord;
-import com.jobai.backend.domain.crawler.spec.CrawlSpec;
-import com.jobai.backend.domain.crawler.spec.FilterSpec;
-import com.jobai.backend.domain.crawler.spec.ListSpec;
-import com.jobai.backend.domain.crawler.spec.Pagination;
+import com.jobai.backend.domain.crawler.spec.*;
 import org.springframework.web.client.RestClient;
 import org.springframework.stereotype.Component;
 
@@ -36,13 +33,17 @@ public class DeclarativeCrawler {
         this.objectMapper = objectMapper;
     }
 
-    /** 진입점. 현재는 json 만 처리. (html/embedded 는 후속) */
+    /** 진입점. json + embedded_json 처리. (html 은 후속) */
     public List<JobRecord> collect(CrawlSpec spec) {
         String st = spec.getSourceType();
-        if (!"json".equals(st)) {
-            throw new UnsupportedOperationException("source_type=" + st + " 은 아직 미지원(1단계는 json)");
+        List<JobRecord> records;
+        if ("json".equals(st)) {
+            records = collectJson(spec);
+        } else if ("embedded_json".equals(st)) {
+            records = collectEmbeddedJson(spec);
+        } else {
+            throw new UnsupportedOperationException("source_type=" + st + " 은 아직 미지원");
         }
-        List<JobRecord> records = collectJson(spec);
         return applyFilter(records, spec);
     }
 
@@ -228,6 +229,76 @@ public class DeclarativeCrawler {
         } catch (Exception e) {
             throw new IllegalStateException("JSON 파싱 실패: " + e.getMessage(), e);
         }
+    }
+
+    // ---------- embedded_json 수집 (Python collect_embedded_json) ----------
+    @SuppressWarnings("unchecked")
+    private List<JobRecord> collectEmbeddedJson(CrawlSpec spec) {
+        ListSpec ls = spec.getList();
+
+        // 1) HTML 페이지 받기 (GET)
+        String html = fetch(ls.getUrl(), ls.getParams() != null ? ls.getParams() : Map.of(), ls.getHeaders());
+
+        // 2) <script id="__NEXT_DATA__"> 안의 JSON 추출
+        String scriptId = (ls.getScriptId() != null) ? ls.getScriptId() : "__NEXT_DATA__";
+        Object data = extractEmbedded(html, scriptId);
+        if (data == null) {
+            return List.of();   // script 없음 → 빈 결과
+        }
+
+        // 3) 공고 배열 꺼내기: select(조건 매칭) 우선, 없으면 response_path
+        List<Object> batch;
+        if (ls.getSelect() != null) {
+            batch = selectFromArray(data, ls.getSelect());
+        } else {
+            Object b = JsonPathResolver.resolve(data, ls.getResponsePath());
+            batch = (b instanceof List) ? (List<Object>) b : List.of();
+        }
+
+        // 4) 매핑 (기존 mapRecord 재사용 — JSON 목록과 동일)
+        List<JobRecord> out = new ArrayList<>();
+        for (Object raw : batch) {
+            if (raw != null) out.add(mapRecord(raw, spec));
+        }
+        return out;
+    }
+
+    // ---------- __NEXT_DATA__ script 추출 (Python _extract_embedded, Jsoup 사용) ----------
+    private Object extractEmbedded(String html, String scriptId) {
+        org.jsoup.nodes.Document doc = org.jsoup.Jsoup.parse(html);
+        org.jsoup.nodes.Element script = doc.getElementById(scriptId);
+        if (script == null) {
+            return null;
+        }
+        String json = script.data();   // <script> 안의 텍스트(JSON)
+        try {
+            return objectMapper.readValue(json, new com.fasterxml.jackson.core.type.TypeReference<Object>() {});
+        } catch (Exception e) {
+            throw new IllegalStateException("__NEXT_DATA__ JSON 파싱 실패: " + e.getMessage(), e);
+        }
+    }
+
+    // ---------- select: 배열에서 조건 맞는 항목의 take 경로 꺼내기 (Python select 분기) ----------
+    @SuppressWarnings("unchecked")
+    private List<Object> selectFromArray(Object data, SelectSpec sel) {
+        Object arrObj = JsonPathResolver.resolve(data, sel.getArray());
+        if (!(arrObj instanceof List)) {
+            return List.of();
+        }
+        for (Object item : (List<Object>) arrObj) {
+            Object fieldVal = JsonPathResolver.resolve(item, sel.getMatchField());
+            if (matchEquals(fieldVal, sel.getMatchValue())) {
+                Object taken = JsonPathResolver.resolve(item, sel.getTake());
+                return (taken instanceof List) ? (List<Object>) taken : List.of();
+            }
+        }
+        return List.of();
+    }
+
+    // queryKey 가 ["openings"] 처럼 리스트라, 리스트끼리도 비교되게.
+    private boolean matchEquals(Object a, Object b) {
+        if (a == null) return b == null;
+        return a.equals(b);   // Jackson 이 JSON 배열을 List 로 파싱하므로 List.equals 로 비교됨
     }
 }
 

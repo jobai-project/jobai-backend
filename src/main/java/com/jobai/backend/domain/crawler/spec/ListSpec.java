@@ -2,6 +2,8 @@ package com.jobai.backend.domain.crawler.spec;
 
 import com.fasterxml.jackson.databind.PropertyNamingStrategies;
 import com.fasterxml.jackson.databind.annotation.JsonNaming;
+import lombok.Getter;
+import lombok.Setter;
 
 import java.util.Map;
 
@@ -11,6 +13,8 @@ import java.util.Map;
  * <p>이번 단계: url(api 주소), method(어떤 방식으로 요청할지), responsePath, params, headers, recordPath.
  * body(POST JSON) 는 후속 이슈에서 추가.
  */
+@Getter
+@Setter
 @JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy.class)
 public class ListSpec {
 
@@ -26,21 +30,15 @@ public class ListSpec {
     private Map<String, Object> params;
     private Map<String, String> headers;
 
-    public String getUrl() { return url; }
-    public void setUrl(String url) { this.url = url; }
+    /** embedded_json: 추출할 <script> 태그의 id (기본 __NEXT_DATA__). */
+    private String scriptId;
 
-    public String getMethod() { return method; }
-    public void setMethod(String method) { this.method = method; }
+    /** embedded_json: 배열에서 조건 맞는 항목 고르기 (그리팅 React Query 캐시). */
+    private SelectSpec select;
 
-    public String getResponsePath() { return responsePath; }
-    public void setResponsePath(String responsePath) { this.responsePath = responsePath; }
+    public String getScriptId() { return scriptId; }
+    public void setScriptId(String scriptId) { this.scriptId = scriptId; }
 
-    public String getRecordPath() { return recordPath; }
-    public void setRecordPath(String recordPath) { this.recordPath = recordPath; }
-
-    public Map<String, Object> getParams() { return params; }
-    public void setParams(Map<String, Object> params) { this.params = params; }
-
-    public Map<String, String> getHeaders() { return headers; }
-    public void setHeaders(Map<String, String> headers) { this.headers = headers; }
+    public SelectSpec getSelect() { return select; }
+    public void setSelect(SelectSpec select) { this.select = select; }
 }
