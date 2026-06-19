@@ -27,5 +27,6 @@ public class SelectSpec {
     private String array;
     private String matchField;
     private Object matchValue;   // ["openings"] 처럼 리스트일 수 있어 Object
+    private Object matchPrefix;   // ["career","getOpeningById"] — queryKey 앞부분 일치(상세 단계)
     private String take;
 }
