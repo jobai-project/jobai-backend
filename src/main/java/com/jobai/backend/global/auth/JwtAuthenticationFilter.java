@@ -35,6 +35,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         if (token != null && jwtProvider.validateToken(token)) {
             String email = jwtProvider.getEmailFromToken(token);
 
+            // 인증 객체를 생성할 때 principal 자리에 객체가 아닌 email (String 문자열)을 넣음
             UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
                     email, null, Collections.singleton(new SimpleGrantedAuthority("ROLE_USER"))
             );

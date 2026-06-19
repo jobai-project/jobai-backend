@@ -7,6 +7,8 @@ import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
 @Entity
 @Table(name = "members")
@@ -26,7 +28,6 @@ public class Member {
     @Column(nullable = false, unique = true, length = 255)
     private String email;
 
-    // 혹시 필요할까봐
     @Column(length = 500)
     private String profileImageUrl;
 
@@ -36,8 +37,8 @@ public class Member {
     @Column(length = 20)
     private String provider;
 
-    @Column(length = 255)
-    private String career_type;
+    @Column(name = "career_type", length = 20) // 네이밍 컨벤션 수정
+    private String careerType;
 
     private LocalDateTime lastLoginAt;
 
@@ -46,6 +47,32 @@ public class Member {
 
     @UpdateTimestamp
     private LocalDateTime updatedAt;
+
+    // --- 연관 관계 추가 (Cascade 및 고판정 제거 설정) ---
+    @Builder.Default
+    @OneToMany(mappedBy = "member", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<PreferredJob> prefJobs = new ArrayList<>();
+
+    @Builder.Default
+    @OneToMany(mappedBy = "member", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<PreferredRegion> prefLocations = new ArrayList<>();
+
+    // --- 비즈니스 로직 (통 업데이트 편의 메서드) ---
+    public void updateJobPreferences(String careerType, List<String> jobCategories, List<String> locations) {
+        this.careerType = careerType;
+
+        // 1. 기존 직무 리스트 비우고 새 리스트로 교체 (JPA orphanRemoval 작동)
+        this.prefJobs.clear();
+        if (jobCategories != null) {
+            jobCategories.forEach(category -> this.prefJobs.add(new PreferredJob(this, category)));
+        }
+
+        // 2. 기존 지역 리스트 비우고 새 리스트로 교체
+        this.prefLocations.clear();
+        if (locations != null) {
+            locations.forEach(loc -> this.prefLocations.add(new PreferredRegion(this, loc)));
+        }
+    }
 
     public Member update(String name) {
         this.name = name;

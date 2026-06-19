@@ -16,9 +16,14 @@ public class PreferredRegion {
     private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "member_id", nullable = false)
+    @JoinColumn(name = "member_id")
     private Member member;
 
-    @Column(length = 100)
-    private String regionName;
+    @Column(nullable = false, length = 100)
+    private String location;
+
+    public PreferredRegion(Member member, String location) {
+        this.member = member;
+        this.location = location;
+    }
 }

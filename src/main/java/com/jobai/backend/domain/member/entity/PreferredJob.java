@@ -16,9 +16,14 @@ public class PreferredJob {
     private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "member_id", nullable = false)
+    @JoinColumn(name = "member_id") // ERD의 외래키 명칭 매핑
     private Member member;
 
-    @Column(length = 100)
-    private String jobName;
+    @Column(name = "job_category", nullable = false, length = 100)
+    private String jobCategory;
+
+    public PreferredJob(Member member, String jobCategory) {
+        this.member = member;
+        this.jobCategory = jobCategory;
+    }
 }
