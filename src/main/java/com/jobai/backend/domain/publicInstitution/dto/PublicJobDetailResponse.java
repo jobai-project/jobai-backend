@@ -21,6 +21,7 @@ public record PublicJobDetailResponse(
             String srcUrl,
             String scrnprcdrMthdExpln,
             String ncsCdNmLst,
+            String hireTypeNmLst,
             String aplyQlfcCn,      // 지원 자격 내용
             String disqlfcRsn,     // 결격 사유 내용
             List<FileItem> files    // 첨부파일 목록 (직무기술서 포함 구역)

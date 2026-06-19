@@ -46,7 +46,7 @@ public class JobDataSyncService {
                         .path("/1051000/recruitment/list")
                         .queryParam("serviceKey", serviceKey)
                         .queryParam("pageNo", "1")
-                        .queryParam("numOfRows", "50")
+                        .queryParam("numOfRows", "5")
                         .queryParam("ongoingYn", "Y")
                         .queryParam("ncsCdLst", "R600020")
                         .queryParam("_type", "json")
