@@ -105,6 +105,9 @@ dependencies {
 	testImplementation 'org.springframework.security:spring-security-test'
 
 	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+
+	// ── Jsoup ─────────────────────────────────────────────────
+	implementation 'org.jsoup:jsoup:1.18.1'
 }
 
 tasks.named('test') {

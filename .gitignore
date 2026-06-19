@@ -44,3 +44,14 @@ out/
 
 ### md 파일
 *.md
+
+### Environment ###
+.env
+.env.*
+!.env.example
+
+
+# terraform
+infra/terraform/.terraform/
+**/*.tfstate
+**/*.tfstate.backup
