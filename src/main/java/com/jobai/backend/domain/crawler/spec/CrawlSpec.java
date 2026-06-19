@@ -30,6 +30,7 @@ public class CrawlSpec {
     private ListSpec list;
     private Pagination pagination;
     private FilterSpec filter;
+    private DetailSpec detail;
 
     private List<String> required;
 
