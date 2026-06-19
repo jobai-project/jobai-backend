@@ -20,7 +20,6 @@ import java.time.Duration;
 @Slf4j
 @Component
 @RequiredArgsConstructor
-@Profile("!local")
 public class OAuth2SuccessHandler implements AuthenticationSuccessHandler {
 
     private final JwtProvider jwtProvider;

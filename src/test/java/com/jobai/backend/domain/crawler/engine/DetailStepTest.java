@@ -21,6 +21,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.http.HttpMethod.GET;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.method;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.requestTo;
+import static org.springframework.test.web.client.response.MockRestResponseCreators.withServerError;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess;
 
 /**
@@ -131,6 +132,40 @@ class DetailStepTest {
         return """
             {"data":{"recruitContents":"%s"}}
             """.formatted(contents);
+    }
+
+    @Test
+    @DisplayName("상세 호출이 실패하면 해당 공고에 detail_error 를 남기고 목록은 보존한다")
+    void detailErrorIsolation() {
+        // 목록은 정상
+        server.expect(requestTo(WOOWA_LIST_URL))
+                .andExpect(method(GET))
+                .andRespond(withSuccess(woowahanListJson(), MediaType.APPLICATION_JSON));
+        // 첫 공고 상세: 서버 500 → 예외 → detail_error 기록
+        server.expect(requestTo("https://career.woowahan.com/w1/recruits/R2605045"))
+                .andExpect(method(GET))
+                .andRespond(withServerError());
+        // 둘째 공고 상세: 깨진 JSON → 파싱 실패 → detail_error 기록
+        server.expect(requestTo("https://career.woowahan.com/w1/recruits/R2605011"))
+                .andExpect(method(GET))
+                .andRespond(withSuccess("{not valid json", MediaType.APPLICATION_JSON));
+
+        List<JobRecord> records = crawler.collect(woowahanSpec());
+
+        server.verify();
+        // 상세가 둘 다 실패해도 목록 2건은 그대로 보존된다.
+        assertThat(records).hasSize(2);
+
+        JobRecord first = records.get(0);
+        assertThat(first.get("detail_error")).isNotNull();   // 500 → 에러 기록
+        assertThat(first.getDescription()).isNull();         // 본문은 못 채움
+        // 목록 단계에서 채워진 필드는 살아있다.
+        assertThat(first.getJobId()).isEqualTo(25030);
+        assertThat(first.getTitle()).isEqualTo("자율주행 로봇 관제");
+
+        JobRecord second = records.get(1);
+        assertThat(second.get("detail_error")).isNotNull();  // 파싱 실패 → 에러 기록
+        assertThat(second.getDescription()).isNull();
     }
 
     // ============================================================

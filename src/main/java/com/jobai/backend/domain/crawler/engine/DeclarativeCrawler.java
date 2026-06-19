@@ -313,10 +313,13 @@ public class DeclarativeCrawler {
                 }
             }
             applyDetailFields(rec, target, d.getFields());
-        } else {
-            // html 상세: 본문 셀렉터로 description 추출
+        } else if ("html".equals(dst) || dst == null || dst.isBlank()) {
+            // html 상세: 본문 셀렉터로 description 추출 (source_type 생략 시 기본값)
             String html = fetch(url, Map.of(), headers);
             extractDetailHtml(rec, html, d);
+        } else {
+            // 오타 등 미지원 값은 조용히 html 로 처리하지 않고 즉시 실패시킨다(collect() 와 동일).
+            throw new UnsupportedOperationException("detail.source_type=" + dst + " 은(는) 미지원");
         }
     }
 
