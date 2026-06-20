@@ -60,7 +60,12 @@ public class PrivateJobPostingService {
                 throw new IllegalArgumentException("upsert 키인 job_id 가 없습니다");
             }
             String sourceJobId = String.valueOf(rawJobId).trim();
-            seenJobIds.add(sourceJobId);
+            // 같은 배치에 중복 job_id 가 오면 두 번째부터 건너뛴다.
+            // (안 거르면 신규 처리가 두 번 일어나 유니크 키 충돌 → 트랜잭션 전체 롤백)
+            if (!seenJobIds.add(sourceJobId)) {
+                log.warn("[{}] 중복 job_id 무시: {}", company, sourceJobId);
+                continue;
+            }
 
             String title = str(r.getTitle());
             String location = str(r.get("location"));
@@ -104,6 +109,8 @@ public class PrivateJobPostingService {
                         .build();
                 repository.save(entity);
                 inserted.add(entity);
+                // 방금 저장한 신규도 Map 에 반영 → 혹시 같은 job_id 가 또 오면 기존으로 처리(INSERT 중복 차단)
+                existingMap.put(sourceJobId, entity);
             }
         }
 

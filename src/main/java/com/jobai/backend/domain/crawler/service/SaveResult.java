@@ -3,6 +3,7 @@ package com.jobai.backend.domain.crawler.service;
 import com.jobai.backend.domain.crawler.entity.PrivateJobPosting;
 
 import java.util.List;
+import java.util.Objects;
 
 /**
  * {@link PrivateJobPostingService#saveAll} 의 결과. 이번 수집 반영으로 무엇이 바뀌었는지 담는다.
@@ -22,7 +23,8 @@ public class SaveResult {
     private final int closedCount;
 
     public SaveResult(List<PrivateJobPosting> inserted, int updatedCount, int closedCount) {
-        this.inserted = inserted;
+        // 방어적 복사 + 불변화: 호출자가 받은 리스트를 바꿔도 결과(개수/export 대상)가 오염되지 않게.
+        this.inserted = List.copyOf(Objects.requireNonNull(inserted, "inserted"));
         this.updatedCount = updatedCount;
         this.closedCount = closedCount;
     }

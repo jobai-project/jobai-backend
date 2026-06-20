@@ -188,7 +188,36 @@ class PrivateJobPostingServiceSaveResultTest {
     }
 
     @Test
-    @DisplayName("job_id 가 없으면 예외를 던진다")
+    @DisplayName("동일 배치의 중복 job_id 는 한 번만 반영된다")
+    void ignoresDuplicateJobIdInSingleBatch() {
+        when(repository.findAllByCompany(COMPANY)).thenReturn(new ArrayList<>());
+
+        // 같은 job_id "E" 가 두 번 들어옴 (사이트 중복 노출/페이지 겹침 등)
+        List<JobRecord> records = List.of(
+                record("E", "신입 개발자", "본문E-1"),
+                record("E", "신입 개발자", "본문E-2"));
+
+        SaveResult result = service.saveAll(COMPANY, records);
+
+        // 두 번 와도 신규 1건만, save 도 1번만 (유니크 충돌/중복 분류 방지)
+        assertThat(result.getInsertedCount()).isEqualTo(1);
+        assertThat(result.getUpdatedCount()).isZero();
+        assertThat(result.getClosedCount()).isZero();
+        verify(repository, times(1)).save(any(PrivateJobPosting.class));
+    }
+
+    @Test
+    @DisplayName("SaveResult.inserted 는 불변이라 호출자가 변경할 수 없다")
+    void insertedIsImmutable() {
+        when(repository.findAllByCompany(COMPANY)).thenReturn(new ArrayList<>());
+
+        SaveResult result = service.saveAll(COMPANY, List.of(record("E", "신입", "본문E")));
+
+        // 받은 리스트를 변경하려 하면 예외 → 결과 계약 보호
+        org.junit.jupiter.api.Assertions.assertThrows(
+                UnsupportedOperationException.class,
+                () -> result.getInserted().clear());
+    }
     void throwsWhenNoJobId() {
         when(repository.findAllByCompany(COMPANY)).thenReturn(new ArrayList<>());
 

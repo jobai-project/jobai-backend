@@ -13,7 +13,6 @@ import java.nio.charset.StandardCharsets;
 import java.util.Date;
 
 @Component
-@Profile("!local")
 public class JwtProvider {
 
     // application.yaml이나 .env에 등록한 비밀키 (최소 32바이트 이상 문자열 필수)
