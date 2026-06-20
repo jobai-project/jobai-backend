@@ -10,6 +10,8 @@ import com.jobai.backend.global.apiPayload.ApiResponse;
 import com.jobai.backend.global.apiPayload.code.BaseErrorCode;
 import com.jobai.backend.global.apiPayload.code.GeneralErrorCode;
 import com.jobai.backend.global.apiPayload.exception.GeneralException;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -86,5 +88,14 @@ public class MemberService {
                 .jobPreference(jobPreference)
                 .resumes(resumeInfos)
                 .build();
+    }
+
+    @Transactional // 더티체크를 활용한 이름변경 로직
+    public void updateMemberName(String email, String newName) {
+
+        Member member = memberRepository.findByEmail(email)
+                .orElseThrow(() -> new GeneralException(GeneralErrorCode.MEMBER_NOT_FOUND, "해당 이메일은 존재하지 않는 회원입니다."));
+
+        member.update(newName);
     }
 }
