@@ -57,14 +57,15 @@ public class PrivateJobCollectService {
             throw new IllegalStateException(company + " 스펙에 company 가 비어있습니다");
         }
         if (!specCompany.equals(company)) {
-            log.warn("요청 회사({})와 스펙 company({}) 불일치 — 스펙 값으로 저장합니다", company, specCompany);
+            throw new IllegalStateException(
+                    "요청 회사(" + company + ")와 스펙 company(" + specCompany + ")가 일치하지 않습니다");
         }
 
         List<JobRecord> records = crawler.collect(spec);
-        log.info("[{}] 수집 {}건", specCompany, records.size());
+        log.info("[{}] 수집 {}건", company, records.size());   // specCompany → company
 
-        SaveResult result = savingService.saveAll(specCompany, records);
-        log.info("[{}] 저장 결과 {}", specCompany, result);
+        SaveResult result = savingService.saveAll(company, records);  // specCompany → company
+        log.info("[{}] 저장 결과 {}", company, result);
         return result;
     }
 

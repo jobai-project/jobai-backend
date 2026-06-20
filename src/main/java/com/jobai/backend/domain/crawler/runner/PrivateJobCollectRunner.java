@@ -2,7 +2,7 @@ package com.jobai.backend.domain.crawler.runner;
 
 import com.jobai.backend.domain.crawler.service.PrivateJobCollectService;
 import com.jobai.backend.domain.crawler.service.SaveResult;
-import groovy.util.logging.Slf4j;
+import lombok.extern.slf4j.Slf4j;
 import lombok.RequiredArgsConstructor;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;

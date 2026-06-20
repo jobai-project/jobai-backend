@@ -93,4 +93,19 @@ class PrivateJobCollectServiceTest {
         verify(crawler, never()).collect(any());
         verify(savingService, never()).saveAll(any(), any());
     }
+
+    @Test
+    @DisplayName("스펙 company 와 요청 회사가 다르면 예외를 던진다")
+    void throwsWhenCompanyMismatch() {
+        // mismatch.yaml 은 파일명은 mismatch 지만 안의 company 는 anothercompany
+        // → 파일은 찾지만 company 불일치로 예외가 나야 한다
+        assertThatThrownBy(() -> service().collectAndSave("mismatch"))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("일치하지 않습니다");
+
+        // 불일치면 수집·저장이 일어나면 안 됨
+        verify(crawler, never()).collect(any());
+        verify(savingService, never()).saveAll(any(), any());
+    }
+
 }
