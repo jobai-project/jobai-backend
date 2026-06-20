@@ -36,8 +36,8 @@ public class JobPosting {
     @Column(length = 500)
     private String companyName; 
 
-    @Column(length = 50)
-    private String company_type; 
+    @Column(length = 50, name = "company_type")
+    private String companyType;
 
     @Column(length = 500)
     private String title; 
@@ -47,8 +47,6 @@ public class JobPosting {
 
     @Column(length = 50)
     private String recrutType; //hireTypeNmLst
-
-
 
     @Column(length = 255)
     private String workRegion; 

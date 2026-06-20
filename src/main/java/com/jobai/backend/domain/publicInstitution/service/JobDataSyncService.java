@@ -46,8 +46,8 @@ public class JobDataSyncService {
                         .path("/1051000/recruitment/list")
                         .queryParam("serviceKey", serviceKey)
                         .queryParam("pageNo", "1")
-                        .queryParam("numOfRows", "10")
-                        .queryParam("ongoingYn", "Y")
+                        .queryParam("numOfRows", "5") // 불러오는 데이터 갯수
+                        //.queryParam("ongoingYn", "Y")
                         .queryParam("ncsCdLst", "R600020")
                         .queryParam("_type", "json")
                         .build())
