@@ -9,6 +9,7 @@ import lombok.NoArgsConstructor;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.Objects;
 
 @Entity
 @Table(
@@ -84,5 +85,39 @@ public class PrivateJobPosting {
     public void markClosed(LocalDateTime now) {
         this.isClosed = true;
         this.updatedAt = now;
+    }
+
+    /**
+     * 새로 수집한 내용이 현재 저장된 내용과 같은지 판별한다(변경 감지).
+     *
+     * <p>upsert 시 내용이 안 바뀐 공고를 매번 UPDATE 하지 않기 위해 쓴다.
+     * 비교 대상은 updateDetail 이 갱신하는 공고 정보 필드 전부:
+     * title, location, employmentType, jobCategory, description, applyUrl, deadline.
+     *
+     * <p>주의: 마감(isClosed=true)됐던 공고가 다시 보이면 내용이 같아도 되살려야(update) 하므로,
+     * 이 메서드는 "내용 동일" 만 판단하고, 마감 부활 여부는 호출하는 쪽에서 isClosed 로 함께 본다.
+     * deadline 은 null 일 수 있어 Objects.equals 로 null 안전 비교한다.
+     */
+    public boolean hasSameContent(String title, String location, String employmentType,
+                                  String jobCategory, String description, String applyUrl,
+                                  LocalDate deadline) {
+        return Objects.equals(this.title, title)
+                && Objects.equals(this.location, location)
+                && Objects.equals(this.employmentType, employmentType)
+                && Objects.equals(this.jobCategory, jobCategory)
+                && Objects.equals(this.description, description)
+                && Objects.equals(this.applyUrl, applyUrl)
+                && Objects.equals(this.deadline, deadline);
+    }
+
+    /**
+     * 내용 변화가 없을 때, 이번 수집에서 봤다는 표시(lastSeenAt)만 갱신한다.
+     * updatedAt 은 건드리지 않는다(실제 변경이 아니므로). 변경 감지로 인한 불필요한 UPDATE 를 막는다.
+     *
+     * <p>단, lastSeenAt 갱신 자체가 dirty checking 으로 UPDATE 를 유발할 수 있다.
+     * 그래도 updateDetail 전체보다 의미가 분명하고, "마지막으로 살아있던 시각" 기록은 마감 판정에 유용하다.
+     */
+    public void touch(LocalDateTime now) {
+        this.lastSeenAt = now;
     }
 }
