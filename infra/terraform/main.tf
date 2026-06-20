@@ -67,26 +67,27 @@ resource "aws_security_group" "jobai" {
   name        = "jobai-sg"
   description = "jobai security group"
   vpc_id      = aws_vpc.jobai.id
-ingress {
-  from_port   = 22
-  to_port     = 22
-  protocol    = "tcp"
-  cidr_blocks = ["${var.my_ip}/32"]  # SSH는 내 IP만
-}
 
-ingress {
-  from_port   = 8080
-  to_port     = 8080
-  protocol    = "tcp"
-  cidr_blocks = ["0.0.0.0/0"]  # Spring Boot 전체 오픈
-}
+  ingress {
+    from_port   = 22
+    to_port     = 22
+    protocol    = "tcp"
+    cidr_blocks = ["${var.my_ip}/32"] # SSH는 내 IP만
+  }
 
-ingress {
-  from_port   = 8001
-  to_port     = 8001
-  protocol    = "tcp"
-  cidr_blocks = ["0.0.0.0/0"]  # FastAPI 전체 오픈
-}
+  ingress {
+    from_port   = 8080
+    to_port     = 8080
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"] # Spring Boot 전체 오픈
+  }
+
+  ingress {
+    from_port   = 8001
+    to_port     = 8001
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"] # FastAPI 전체 오픈
+  }
 
   egress {
     from_port   = 0
@@ -119,7 +120,74 @@ resource "aws_instance" "jobai" {
     chmod +x /usr/local/bin/docker-compose
   EOF
 
+  metadata_options {
+    http_tokens = "required"
+  }
+
+  root_block_device {
+    encrypted   = true
+    volume_type = "gp3"
+    volume_size = 20
+  }
+
   tags = {
     Name = "jobai-ec2"
+  }
+}
+
+resource "aws_db_subnet_group" "jobai" {
+  name       = "jobai-db-subnet-group"
+  subnet_ids = [aws_subnet.jobai_public.id]
+
+  tags = {
+    Name = "jobai-db-subnet-group"
+  }
+}
+
+resource "aws_security_group" "rds" {
+  name        = "jobai-rds-sg"
+  description = "Postgres access for jobai application"
+  vpc_id      = aws_vpc.jobai.id
+
+  ingress {
+    from_port       = 5432
+    to_port         = 5432
+    protocol        = "tcp"
+    security_groups = [aws_security_group.jobai.id]
+  }
+
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  tags = {
+    Name = "jobai-rds-sg"
+  }
+}
+
+resource "aws_db_instance" "jobai" {
+  identifier              = "jobai-db"
+  allocated_storage       = var.db_allocated_storage
+  engine                  = var.db_engine
+  engine_version          = var.db_engine_version
+  instance_class          = var.db_instance_class
+  db_name                 = var.db_name
+  username                = var.db_username
+  password                = var.db_password
+  port                    = var.db_port
+  db_subnet_group_name    = aws_db_subnet_group.jobai.name
+  vpc_security_group_ids  = [aws_security_group.rds.id]
+  skip_final_snapshot     = true
+  publicly_accessible     = false
+  storage_type            = "gp3"
+  backup_retention_period = 7
+  deletion_protection     = false
+  apply_immediately       = true
+
+  tags = {
+    Name = "jobai-rds"
   }
 }
