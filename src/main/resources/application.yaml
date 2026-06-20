@@ -1,3 +1,80 @@
 spring:
   application:
     name: backend
+
+  profiles:
+    active: local
+
+  security:
+    oauth2:
+      client:
+        registration:
+          google:
+            client-id: ${GOOGLE_CLIENT_ID:dummy-google-client-id}
+            client-secret: ${GOOGLE_CLIENT_SECRET:dummy-google-client-secret}
+            scope:
+              - profile
+              - email
+
+---
+
+spring:
+  config:
+    activate:
+      on-profile: local
+
+  autoconfigure:
+    exclude:
+      - org.springframework.ai.vectorstore.pgvector.autoconfigure.PgVectorStoreAutoConfiguration
+      - org.redisson.spring.starter.RedissonAutoConfigurationV2
+      - org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration
+      - org.springframework.boot.autoconfigure.data.redis.RedisRepositoriesAutoConfiguration
+      - org.springframework.boot.actuate.autoconfigure.data.redis.RedisHealthContributorAutoConfiguration
+      - org.springframework.boot.actuate.autoconfigure.data.redis.RedisReactiveHealthContributorAutoConfiguration
+      - io.awspring.cloud.autoconfigure.s3.S3AutoConfiguration
+      - org.springframework.boot.autoconfigure.elasticsearch.ElasticsearchClientAutoConfiguration
+      - org.springframework.boot.autoconfigure.data.elasticsearch.ElasticsearchDataAutoConfiguration
+      - org.springframework.boot.autoconfigure.data.elasticsearch.ElasticsearchRepositoriesAutoConfiguration
+
+  datasource:
+    driver-class-name: org.postgresql.Driver
+    url: jdbc:postgresql://localhost:5432/jobai
+    username: postgres
+    password: 1234
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
+
+  cloud:
+    aws:
+      s3:
+        enabled: false
+
+  ai:
+    anthropic:
+      api-key: ${ANTHROPIC_API_KEY:dummy-anthropic-api-key-for-local-testing}
+
+api:
+  data-go-kr:
+    service-key: ${DATA_GO_KR_SERVICE_KEY:dummy-key-for-local}
+
+app:
+  auth:
+    cookie:
+      secure: false
+    frontend-redirect-url: ${APP_FRONTEND_REDIRECT_URL:http://localhost:3000/oauth2/redirect}
+
+management:
+  health:
+    elasticsearch:
+      enabled: false
