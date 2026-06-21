@@ -104,6 +104,9 @@ dependencies {
 
 	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 
+	// H2 in-memory for tests
+	testRuntimeOnly 'com.h2database:h2'
+
 	// ── Jsoup ─────────────────────────────────────────────────
 	implementation 'org.jsoup:jsoup:1.18.1'
 }
