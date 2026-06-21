@@ -2,8 +2,10 @@ package com.jobai.backend.domain.ai.client;
 
 import com.jobai.backend.domain.ai.dto.EmbedRequest;
 import com.jobai.backend.domain.ai.dto.EmbedResponse;
+import com.jobai.backend.domain.ai.exception.AiClientException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.http.HttpStatusCode;
 import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Mono;
@@ -24,8 +26,9 @@ public class AiEmbeddingClient {
                         status -> status.is4xxClientError() || status.is5xxServerError(),
                         response -> response.bodyToMono(String.class)
                                 .defaultIfEmpty("")
-                                .flatMap(body -> Mono.error(new IllegalStateException(
-                                        "AI embed 호출 실패: status=" + response.statusCode() + ", body=" + body
+                                .flatMap(body -> Mono.error(new AiClientException(
+                                        response.statusCode(),
+                                        body
                                 )))
                 )
                 .bodyToMono(EmbedResponse.class);
