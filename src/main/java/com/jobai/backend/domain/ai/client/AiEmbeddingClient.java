@@ -20,6 +20,14 @@ public class AiEmbeddingClient {
                 .uri("/embed")
                 .bodyValue(request)
                 .retrieve()
+                .onStatus(
+                        status -> status.is4xxClientError() || status.is5xxServerError(),
+                        response -> response.bodyToMono(String.class)
+                                .defaultIfEmpty("")
+                                .flatMap(body -> Mono.error(new IllegalStateException(
+                                        "AI embed 호출 실패: status=" + response.statusCode() + ", body=" + body
+                                )))
+                )
                 .bodyToMono(EmbedResponse.class);
     }
 }
