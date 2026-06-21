@@ -6,6 +6,7 @@ import com.jobai.backend.domain.crawler.model.JobRecord;
 import com.jobai.backend.domain.crawler.repository.PrivateJobPostingRepository;
 import com.jobai.backend.domain.crawler.spec.CrawlSpec;
 import com.jobai.backend.domain.crawler.spec.SpecLoader;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -16,6 +17,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 @SpringBootTest
+@Tag("external")
 class PrivateJobPostingServiceTest {
 
     @Autowired DeclarativeCrawler crawler;
