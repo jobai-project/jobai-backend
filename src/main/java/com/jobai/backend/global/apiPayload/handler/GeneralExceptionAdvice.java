@@ -114,6 +114,15 @@ public class GeneralExceptionAdvice {
                 .body(ApiResponse.onFailure(ec, List.of(detail)));
     }
 
+    @ExceptionHandler(com.jobai.backend.domain.ai.exception.AiClientException.class)
+    public ResponseEntity<ApiResponse<?>> handleAiClientException(com.jobai.backend.domain.ai.exception.AiClientException ex) {
+        BaseErrorCode ec = GeneralErrorCode.AI_SERVICE_ERROR;
+
+        log.warn("[AiClientException] status={}, body={}", ex.getStatus(), ex.getResponseBody());
+        return ResponseEntity.status(ec.getHttpStatus())
+                .body(ApiResponse.onFailure(ec, List.of("AI 서버 호출 중 오류가 발생했습니다.")));
+    }
+
     // 나머지 전부 (500)
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiResponse<?>> handleException(Exception ex) {
