@@ -38,9 +38,9 @@ spring:
 
   datasource:
     driver-class-name: org.postgresql.Driver
-    url: jdbc:postgresql://localhost:5432/jobai
-    username: postgres
-    password: 1234
+    url: jdbc:postgresql://localhost:${POSTGRES_PORT:5432}/${POSTGRES_DB:jobai}
+    username: ${POSTGRES_USER:jobai_user}
+    password: ${POSTGRES_PASSWORD:jobai_password}
 
   jpa:
     hibernate:
@@ -63,7 +63,8 @@ spring:
   ai:
     anthropic:
       api-key: ${ANTHROPIC_API_KEY:dummy-anthropic-api-key-for-local-testing}
-
+ai-server:
+  base-url: ${AI_SERVER_BASE_URL:http://localhost:8001}
 api:
   data-go-kr:
     service-key: ${DATA_GO_KR_SERVICE_KEY:dummy-key-for-local}
