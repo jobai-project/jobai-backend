@@ -1,5 +1,6 @@
 package com.jobai.backend.domain.bloom.service;
 
+import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import org.redisson.api.RBloomFilter;
 import org.redisson.api.RedissonClient;
@@ -14,18 +15,19 @@ public class JobBloomFilterService {
     private static final double FALSE_PROBABILITY = 0.01;
 
     private final RedissonClient redissonClient;
+    private RBloomFilter<String> bloomFilter;
+
+    @PostConstruct
+    private void initBloomFilter() {
+        bloomFilter = redissonClient.getBloomFilter(JOB_BLOOM_FILTER_NAME);
+        bloomFilter.tryInit(EXPECTED_INSERTIONS, FALSE_PROBABILITY);
+    }
 
     public boolean mightContain(String jobKey) {
-        return getBloomFilter().contains(jobKey);
+        return bloomFilter.contains(jobKey);
     }
 
     public boolean add(String jobKey) {
-        return getBloomFilter().add(jobKey);
-    }
-
-    private RBloomFilter<String> getBloomFilter() {
-        RBloomFilter<String> bloomFilter = redissonClient.getBloomFilter(JOB_BLOOM_FILTER_NAME);
-        bloomFilter.tryInit(EXPECTED_INSERTIONS, FALSE_PROBABILITY);
-        return bloomFilter;
+        return bloomFilter.add(jobKey);
     }
 }
