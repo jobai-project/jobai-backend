@@ -63,6 +63,7 @@ dependencies {
 
 	// ── WebClient (FastAPI 비동기 HTTP 호출) ──────────────────
 	implementation 'org.springframework.boot:spring-boot-starter-webflux'
+	implementation 'org.springframework.boot:spring-boot-starter-websocket'
 
 	// ── Redis + Cache (Bloom Filter, LLM 캐싱) ───────────────
 	implementation 'org.springframework.boot:spring-boot-starter-cache'

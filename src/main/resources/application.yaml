@@ -82,3 +82,7 @@ management:
   health:
     elasticsearch:
       enabled: false
+
+websocket:
+  # comma-separated allowed origins for WebSocket (use full origin(s), e.g. http://localhost:3000)
+  allowed-origins: ${WEBSOCKET_ALLOWED_ORIGINS:http://localhost:3000}
