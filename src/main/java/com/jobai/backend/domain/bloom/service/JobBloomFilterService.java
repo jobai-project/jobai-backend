@@ -24,10 +24,18 @@ public class JobBloomFilterService {
     }
 
     public boolean mightContain(String jobKey) {
+        validateJobKey(jobKey);
         return bloomFilter.contains(jobKey);
     }
 
     public boolean add(String jobKey) {
+        validateJobKey(jobKey);
         return bloomFilter.add(jobKey);
+    }
+
+    private void validateJobKey(String jobKey) {
+        if (jobKey == null || jobKey.isBlank()) {
+            throw new IllegalArgumentException("jobKey must not be null or blank");
+        }
     }
 }

@@ -5,7 +5,7 @@ import com.jobai.backend.domain.ai.dto.EmbedResponse;
 import com.jobai.backend.domain.ai.exception.AiClientException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Qualifier;
-import org.springframework.http.HttpStatus;
+import org.springframework.http.HttpStatusCode;
 import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Mono;
@@ -27,7 +27,7 @@ public class AiEmbeddingClient {
                         response -> response.bodyToMono(String.class)
                                 .defaultIfEmpty("")
                                 .flatMap(body -> Mono.error(new AiClientException(
-                                        HttpStatus.valueOf(response.statusCode().value()),
+                                        response.statusCode(),
                                         body
                                 )))
                 )

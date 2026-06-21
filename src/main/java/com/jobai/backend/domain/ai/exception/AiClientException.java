@@ -1,19 +1,19 @@
 package com.jobai.backend.domain.ai.exception;
 
-import org.springframework.http.HttpStatus;
+import org.springframework.http.HttpStatusCode;
 
 public class AiClientException extends RuntimeException {
 
-    private final HttpStatus status;
+    private final HttpStatusCode status;
     private final String responseBody;
 
-    public AiClientException(HttpStatus status, String responseBody) {
+    public AiClientException(HttpStatusCode status, String responseBody) {
         super("AI 호출 실패: status=" + status);
         this.status = status;
         this.responseBody = responseBody;
     }
 
-    public HttpStatus getStatus() {
+    public HttpStatusCode getStatus() {
         return status;
     }
 
