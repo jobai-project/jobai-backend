@@ -34,6 +34,18 @@ resource "aws_subnet" "jobai_public" {
   }
 }
 
+# 두 번째 퍼블릭 서브넷 (RDS DB 서브넷 그룹을 위한 서로 다른 AZ)
+resource "aws_subnet" "jobai_public_2" {
+  vpc_id                  = aws_vpc.jobai.id
+  cidr_block              = "10.0.2.0/24"
+  availability_zone       = "ap-northeast-2b"
+  map_public_ip_on_launch = true
+
+  tags = {
+    Name = "jobai-public-subnet-2"
+  }
+}
+
 # 인터넷 게이트웨이
 resource "aws_internet_gateway" "jobai" {
   vpc_id = aws_vpc.jobai.id
@@ -59,6 +71,11 @@ resource "aws_route_table" "jobai_public" {
 
 resource "aws_route_table_association" "jobai_public" {
   subnet_id      = aws_subnet.jobai_public.id
+  route_table_id = aws_route_table.jobai_public.id
+}
+
+resource "aws_route_table_association" "jobai_public_2" {
+  subnet_id      = aws_subnet.jobai_public_2.id
   route_table_id = aws_route_table.jobai_public.id
 }
 
@@ -137,7 +154,7 @@ resource "aws_instance" "jobai" {
 
 resource "aws_db_subnet_group" "jobai" {
   name       = "jobai-db-subnet-group"
-  subnet_ids = [aws_subnet.jobai_public.id]
+  subnet_ids = [aws_subnet.jobai_public.id, aws_subnet.jobai_public_2.id]
 
   tags = {
     Name = "jobai-db-subnet-group"
@@ -156,11 +173,12 @@ resource "aws_security_group" "rds" {
     security_groups = [aws_security_group.jobai.id]
   }
 
+  # 제한된 아웃바운드 규칙: 불필요한 전체 공개 egress 제거
   egress {
     from_port   = 0
     to_port     = 0
     protocol    = "-1"
-    cidr_blocks = ["0.0.0.0/0"]
+    cidr_blocks = [aws_vpc.jobai.cidr_block]
   }
 
   tags = {
@@ -183,6 +201,7 @@ resource "aws_db_instance" "jobai" {
   skip_final_snapshot     = true
   publicly_accessible     = false
   storage_type            = "gp3"
+  storage_encrypted       = true
   backup_retention_period = 7
   deletion_protection     = false
   apply_immediately       = true
