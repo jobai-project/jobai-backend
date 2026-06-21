@@ -16,7 +16,7 @@ import java.util.Date;
 public class JwtProvider {
 
     // application.yaml이나 .env에 등록한 비밀키 (최소 32바이트 이상 문자열 필수)
-    @Value("${JWT_SECRET}")
+    @Value("${JWT_SECRET:change-this-jwt-secret-at-least-32-characters}")
     private String secretKeyString;
 
     // 만료 시간 설정 (예: 1시간 = 3600000 밀리초)
