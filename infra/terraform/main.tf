@@ -205,6 +205,7 @@ resource "aws_db_instance" "jobai" {
   backup_retention_period = 7
   deletion_protection     = false
   apply_immediately       = true
+  auto_minor_version_upgrade = true
 
   tags = {
     Name = "jobai-rds"
