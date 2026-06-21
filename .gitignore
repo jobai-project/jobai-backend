@@ -23,7 +23,6 @@ bin/
 *.iml
 *.ipr
 *.yaml
-!src/main/resources/*.yaml
 !src/test/resources/application.yaml
 !src/test/resources/specs/
 !src/test/resources/specs/*.yaml
