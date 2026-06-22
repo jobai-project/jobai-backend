@@ -62,9 +62,9 @@ jobs:
         run: chmod +x ./gradlew
 
       - name: Build and test
-        run: ./gradlew test --tests BackendApplicationTests --stacktrace --info --no-daemon
+        run: ./gradlew clean build --no-daemon --stacktrace
         env:
-          SPRING_PROFILES_ACTIVE: local
+          SPRING_PROFILES_ACTIVE: test
           POSTGRES_HOST: localhost
           POSTGRES_PORT: 5432
           POSTGRES_DB: jobai_test
