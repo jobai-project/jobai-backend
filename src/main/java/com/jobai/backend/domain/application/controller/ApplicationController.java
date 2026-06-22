@@ -49,4 +49,13 @@ public class ApplicationController implements ApplicationControllerDocs {
         applicationService.removeApplication(email, applicationId);
         return ApiResponse.onSuccess(GeneralSuccessCode.OK, "입사 지원 기록이 성공적으로 삭제되었습니다.");
     }
+
+    @GetMapping // 💡 목록 조회의 RESTful 명세 규격 규칙 적용
+    public ApiResponse<ApplicationResponseDTO.ApplicationListDTO> getApplications(
+            @AuthenticationPrincipal String email
+    ) {
+        ApplicationResponseDTO.ApplicationListDTO response = applicationService.getApplicationList(email);
+
+        return ApiResponse.onSuccess(GeneralSuccessCode.OK, response);
+    }
 }

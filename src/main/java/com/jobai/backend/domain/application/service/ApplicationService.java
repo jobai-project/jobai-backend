@@ -1,6 +1,7 @@
 package com.jobai.backend.domain.application.service;
 
 import com.jobai.backend.domain.application.dto.ApplicationRequestDTO;
+import com.jobai.backend.domain.application.dto.ApplicationResponseDTO;
 import com.jobai.backend.domain.application.entity.Application;
 import com.jobai.backend.domain.application.repository.ApplicationRepository;
 import com.jobai.backend.domain.member.entity.Member;
@@ -10,6 +11,9 @@ import com.jobai.backend.global.apiPayload.exception.GeneralException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -79,5 +83,30 @@ public class ApplicationService {
 
         // 3. DB에서 삭제 수행 (Hard Delete)
         applicationRepository.delete(application);
+    }
+
+    // readOnly = true 설정
+    public ApplicationResponseDTO.ApplicationListDTO getApplicationList(String email) {
+        // 1. 해당 유저의 지원 현황 리스트 최신순 조회
+        List<Application> applications = applicationRepository.findByMemberEmailOrderByAppliedAtDesc(email);
+
+        // 2. 엔티티 리스트 -> DTO 리스트 변환
+        List<ApplicationResponseDTO.ApplicationListItemDTO> itemDTOs = applications.stream()
+                .map(app -> ApplicationResponseDTO.ApplicationListItemDTO.builder()
+                        .applicationId(app.getId())
+                        .companyName(app.getCompanyName())
+                        .jobTitle(app.getJobTitle())
+                        .status(app.getStatus())
+                        .statusLabel(app.getStatus() != null ? app.getStatus().getDescription() : "") // Enum 내 한글 매핑 텍스트 활용
+                        .appliedAt(app.getAppliedAt())
+                        .interviewAt(app.getInterviewAt())
+                        .memo(app.getMemo())
+                        .build())
+                .collect(Collectors.toList());
+
+        // 3. 객체 조립 후 반환
+        return ApplicationResponseDTO.ApplicationListDTO.builder()
+                .applications(itemDTOs)
+                .build();
     }
 }
