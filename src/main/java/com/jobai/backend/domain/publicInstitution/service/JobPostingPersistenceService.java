@@ -1,7 +1,7 @@
 package com.jobai.backend.domain.publicInstitution.service;
 
 import com.jobai.backend.domain.publicInstitution.dto.PublicJobDetailResponse;
-import com.jobai.backend.domain.publicInstitution.entity.JobPosting;
+import com.jobai.backend.domain.publicInstitution.entity.PublicJobPosting;
 import com.jobai.backend.domain.publicInstitution.repository.JobPostingRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -23,38 +23,54 @@ public class JobPostingPersistenceService {
         LocalDate endDate = PublicJobDateParser.parseLocalDate(detail.pbancEndYmd());
         String pblntfNoStr = String.valueOf(detail.recrutPblntSn());
 
-        String finalPdfUrl = (pdfUrl != null) ? pdfUrl : "없음";
-
         jobPostingRepository.findByPblntfNo(pblntfNoStr)
                 .ifPresentOrElse(
                         existingPost -> {
-                            existingPost.updateDetailedInfo(
-                                    detail.recrutPbancTtl(), detail.recrutSeNm(), detail.workRgnNmLst(), endDate,
-                                    detail.scrnprcdrMthdExpln(), detail.ncsCdNmLst(),
-                                    detail.aplyQlfcCn(), detail.disqlfcRsn(), finalPdfUrl,
-                                    extractedText, ncsSubCategory
-                            );
-                            log.info("기존 공고 상세 업데이트 완료: {}", detail.recrutPbancTtl());
+                            if (existingPost instanceof PublicJobPosting publicPost) {
+                                publicPost.updatePublicInfo(
+                                        pblntfNoStr,
+                                        detail.srcUrl(),
+                                        detail.scrnprcdrMthdExpln(),
+                                        detail.ncsCdNmLst(),
+                                        detail.aplyQlfcCn(),
+                                        detail.disqlfcRsn(),
+                                        extractedText,
+                                        false,
+                                        LocalDate.now(),
+                                        LocalDate.now(),
+                                        detail.recrutPbancTtl(),
+                                        detail.instNm(),
+                                        startDate,
+                                        endDate,
+                                        detail.recrutSeNm(),
+                                        detail.workRgnNmLst(),
+                                        detail.hireTypeNmLst()
+                                );
+                                log.info("기존 공공기관 공고 업데이트 완료: {}", detail.recrutPbancTtl());
+                            }
                         },
                         () -> {
-                            JobPosting newPost = JobPosting.builder()
+                            PublicJobPosting newPost = PublicJobPosting.builder()
                                     .pblntfNo(pblntfNoStr)
-                                    .pbancNm(detail.recrutPbancTtl())
-                                    .instNm(detail.instNm())
-                                    .recrutSeNm(detail.recrutSeNm())
-                                    .workRgnNm(detail.workRgnNmLst())
-                                    .pbancBgngDt(startDate)
-                                    .pbancEndDt(endDate)
+                                    .title(detail.recrutPbancTtl())
+                                    .recrutType(detail.hireTypeNmLst())
+                                    .companyName(detail.instNm())
+                                    .workExperience(detail.recrutSeNm())
+                                    .workRegion(detail.workRgnNmLst())
+                                    .beginDate(startDate)
+                                    .endDate(endDate)
+                                    .applyLink(detail.srcUrl())
                                     .applicationMethod(detail.scrnprcdrMthdExpln())
                                     .jobRole(detail.ncsCdNmLst())
                                     .applyQualification(detail.aplyQlfcCn())
                                     .disqualificationReason(detail.disqlfcRsn())
-                                    .jobDescriptionPdfUrl(finalPdfUrl)
-                                    .extractedHtmlText(extractedText)
-                                    .ncsSubCategory(ncsSubCategory)
+                                    .htmlContent(extractedText)
+                                    .isClosed(false)
+                                    .lastCollectedAt(LocalDate.now())
+                                    .lastSyncedDate(LocalDate.now())
                                     .build();
                             jobPostingRepository.save(newPost);
-                            log.info("신규 공고 상세 저장 완료: {}", detail.recrutPbancTtl());
+                            log.info("신규 공공기관 공고 저장 완료: {}", detail.recrutPbancTtl());
                         }
                 );
     }

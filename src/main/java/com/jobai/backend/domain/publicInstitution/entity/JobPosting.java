@@ -2,64 +2,70 @@ package com.jobai.backend.domain.publicInstitution.entity;
 
 import jakarta.persistence.*;
 import lombok.*;
+import lombok.experimental.SuperBuilder;
+import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.annotations.UpdateTimestamp;
+import org.hibernate.type.SqlTypes;
+
 import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.util.List;
 
 @Entity
 @Table(name = "job_postings")
+@Inheritance(strategy = InheritanceType.JOINED)
+@DiscriminatorColumn(name = "dtype")
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor
-@Builder
+@SuperBuilder
 public class JobPosting {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false, unique = true)
-    private String pblntfNo;      // 채용 공고 고유 번호
+//    @Column(name = "embedding", columnDefinition = "vector(768)")
+//    @JdbcTypeCode(SqlTypes.FLOAT)
+//    private float[] embedding;
 
-    private String pbancNm;       // 공고 제목
-    private String instNm;        // 공공기관명
-    private String recrutSeNm;    // 채용 구분 (예: 신입/경력)
-    private String workRgnNm;     // 근무 지역
-    private LocalDate pbancBgngDt; // 공고 시작일
-    private LocalDate pbancEndDt;   // 공고 종료일
+    private LocalDate beginDate; 
+    private LocalDate endDate; 
 
-    // 고도화 및 AI 매칭을 위한 상세 필드
-    @Column(columnDefinition = "TEXT")
-    private String applicationMethod; // 접수 방법 (scrnprcdrMthdExpln 매핑)
+    @Column(length = 500)
+    private String companyName; 
 
-    private String jobRole;           // 모집 직무 (ncsCdNmLst 매핑)
+    @Column(length = 50)
+    private String company_type; 
 
-    @Column(columnDefinition = "TEXT")
-    private String applyQualification; // 지원 자격
+    @Column(length = 500)
+    private String title; 
 
-    @Column(columnDefinition = "TEXT")
-    private String disqualificationReason; // 결격 사유
+    @Column(length = 50)
+    private String workExperience;
 
-    private String jobDescriptionPdfUrl; // 직무기술서 PDF 링크
+    @Column(length = 50)
+    private String recrutType; //hireTypeNmLst
 
-    @Column(columnDefinition = "TEXT")
-    private String extractedHtmlText; // PDF에서 추출된 전체 텍스트 본문 (LLM/유사도 검사용)
 
-    private String ncsSubCategory;    // 정규식으로 뜯어낸 소분류 카테고리 (필터링용)
 
-    // 중복 수집 방지를 위한 엔티티 업데이트 로직(상세 정보 전체를 안전하게 Upsert 하기 위한 통합 업데이트 로직)
-    public void updateDetailedInfo(String pbancNm, String recrutSeNm, String workRgnNm, LocalDate pbancEndDt,
-                                   String applicationMethod, String jobRole, String applyQualification,
-                                   String disqualificationReason, String jobDescriptionPdfUrl,
-                                   String extractedHtmlText, String ncsSubCategory) {
-        this.pbancNm = pbancNm;
-        this.recrutSeNm = recrutSeNm;
-        this.workRgnNm = workRgnNm;
-        this.pbancEndDt = pbancEndDt;
-        this.applicationMethod = applicationMethod;
-        this.jobRole = jobRole;
-        this.applyQualification = applyQualification;
-        this.disqualificationReason = disqualificationReason;
-        this.jobDescriptionPdfUrl = jobDescriptionPdfUrl;
-        this.extractedHtmlText = extractedHtmlText;
-        this.ncsSubCategory = ncsSubCategory;
+    @Column(length = 255)
+    private String workRegion; 
+
+    @CreationTimestamp
+    private LocalDateTime createdAt;
+
+    @UpdateTimestamp
+    private LocalDateTime updatedAt;
+
+    public void updateBaseInfo(String title, String companyName, LocalDate beginDate, LocalDate endDate, String workExperience, String workRegion, String recrutType) {
+        this.title = title;
+        this.companyName = companyName;
+        this.beginDate = beginDate;
+        this.endDate = endDate;
+        this.workExperience = workExperience;
+        this.workRegion = workRegion;
+        this.recrutType = recrutType;
     }
 }

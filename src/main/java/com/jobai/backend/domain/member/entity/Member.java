@@ -1,7 +1,14 @@
 package com.jobai.backend.domain.member.entity;
 
+import com.jobai.backend.global.apiPayload.code.BaseCode;
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.UpdateTimestamp;
+
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
 @Entity
 @Table(name = "members")
@@ -15,16 +22,58 @@ public class Member {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false, unique = true)
-    private String email;
-
+    @Column(length = 20)
     private String name;
 
-    private String provider; // "google" 저장
+    @Column(nullable = false, unique = true, length = 255)
+    private String email;
 
-    private String providerId; // 구글의 유저 고유 ID (sub 값)
+    @Column(length = 500)
+    private String profileImageUrl;
 
-    // 사용자의 이름 등이 변경되었을 때를 위한 업데이트 메서드
+    @Column(length = 255)
+    private String providerId;
+
+    @Column(length = 20)
+    private String provider;
+
+    @Column(name = "career_type", length = 20) // 네이밍 컨벤션 수정
+    private String careerType;
+
+    private LocalDateTime lastLoginAt;
+
+    @CreationTimestamp
+    private LocalDateTime createdAt;
+
+    @UpdateTimestamp
+    private LocalDateTime updatedAt;
+
+    // --- 연관 관계 추가 (Cascade 및 고판정 제거 설정) ---
+    @Builder.Default
+    @OneToMany(mappedBy = "member", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<PreferredJob> prefJobs = new ArrayList<>();
+
+    @Builder.Default
+    @OneToMany(mappedBy = "member", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<PreferredRegion> prefLocations = new ArrayList<>();
+
+    // --- 비즈니스 로직 (통 업데이트 편의 메서드) ---
+    public void updateJobPreferences(String careerType, List<String> jobCategories, List<String> locations) {
+        this.careerType = careerType;
+
+        // 1. 기존 직무 리스트 비우고 새 리스트로 교체 (JPA orphanRemoval 작동)
+        this.prefJobs.clear();
+        if (jobCategories != null) {
+            jobCategories.forEach(category -> this.prefJobs.add(new PreferredJob(this, category)));
+        }
+
+        // 2. 기존 지역 리스트 비우고 새 리스트로 교체
+        this.prefLocations.clear();
+        if (locations != null) {
+            locations.forEach(loc -> this.prefLocations.add(new PreferredRegion(this, loc)));
+        }
+    }
+
     public Member update(String name) {
         this.name = name;
         return this;
