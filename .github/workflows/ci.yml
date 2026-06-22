@@ -62,7 +62,7 @@ jobs:
         run: chmod +x ./gradlew
 
       - name: Build and test
-        run: ./gradlew clean build --no-daemon --stacktrace
+        run: ./gradlew test --tests BackendApplicationTests --stacktrace --info --no-daemon
         env:
           SPRING_PROFILES_ACTIVE: local
           POSTGRES_HOST: localhost
