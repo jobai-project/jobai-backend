@@ -1,6 +1,7 @@
 package com.jobai.backend.domain.application.controller;
 
 import com.jobai.backend.domain.application.dto.ApplicationRequestDTO;
+import com.jobai.backend.domain.application.dto.ApplicationResponseDTO;
 import com.jobai.backend.global.apiPayload.ApiResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -120,7 +121,7 @@ public interface ApplicationControllerDocs {
                     )
             )
     })
-    ApiResponse<String> createApplication(
+    ApiResponse<ApplicationResponseDTO.CreateResultDTO> createApplication(
             String email,
             ApplicationRequestDTO.CreateApplicationDTO request
     );

@@ -30,4 +30,23 @@ public class ApplicationRequestDTO {
         private LocalDate interviewAt; // 면접일 (선택 가능)
         private String memo;           // 메모 (선택 가능)
     }
+
+    @Getter
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @Builder
+    public static class UpdateApplicationDTO {
+
+        // 사용자가 인라인으로 한 필드씩 수정할 수 있는 화면 요구사항을 고려해서 NotNull 어노테이션 제거
+        @Size(max = 50, message = "회사명은 50글자 이하여야 합니다.")
+        private String companyName;
+
+        @Size(max = 50, message = "직무명은 50글자 이하여야 합니다.")
+        private String jobTitle;
+
+        private ApplicationStatus status;
+        private LocalDate appliedAt;
+        private LocalDate interviewAt;
+        private String memo;
+    }
 }
