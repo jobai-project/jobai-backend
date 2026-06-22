@@ -3,6 +3,7 @@ package com.jobai.backend.domain.application.dto;
 import com.jobai.backend.domain.application.entity.ApplicationStatus;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 import lombok.*;
 
 import java.time.LocalDate;
@@ -15,9 +16,11 @@ public class ApplicationRequestDTO {
     @Builder
     public static class CreateApplicationDTO {
         @NotBlank(message = "회사명은 필수 입력 항목입니다.")
+        @Size(max = 50, message = "회사명은 50글자 이하여야 합니다.")
         private String companyName;
 
         @NotBlank(message = "공고명(직무)은 필수 입력 항목입니다.")
+        @Size(max = 50, message = "직무명은 50글자 이하여야 합니다.")
         private String jobTitle;
 
         @NotNull(message = "지원 단계는 필수 입력 항목입니다.")

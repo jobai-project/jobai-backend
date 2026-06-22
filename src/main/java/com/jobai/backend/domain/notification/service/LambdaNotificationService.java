@@ -1,6 +1,8 @@
 package com.jobai.backend.domain.notification.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.jobai.backend.global.apiPayload.code.GeneralErrorCode;
+import com.jobai.backend.global.apiPayload.exception.GeneralException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -49,6 +51,7 @@ public class LambdaNotificationService {
 
         } catch (Exception e) {
             log.error("Lambda 알림 호출 중 에러 발생: {}", e.getMessage(), e);
+            throw new GeneralException(GeneralErrorCode.BAD_REQUEST);
         }
     }
 }

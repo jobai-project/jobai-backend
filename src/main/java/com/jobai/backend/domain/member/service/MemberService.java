@@ -6,14 +6,9 @@ import com.jobai.backend.domain.member.entity.Member;
 import com.jobai.backend.domain.member.entity.PreferredJob;
 import com.jobai.backend.domain.member.entity.PreferredRegion;
 import com.jobai.backend.domain.member.repository.MemberRepository;
-import com.jobai.backend.global.apiPayload.ApiResponse;
-import com.jobai.backend.global.apiPayload.code.BaseErrorCode;
 import com.jobai.backend.global.apiPayload.code.GeneralErrorCode;
 import com.jobai.backend.global.apiPayload.exception.GeneralException;
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.Size;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -21,7 +16,6 @@ import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
-import static com.jobai.backend.global.apiPayload.code.GeneralErrorCode.NOT_FOUND;
 
 @Service
 @RequiredArgsConstructor
@@ -75,10 +69,10 @@ public class MemberService {
         List<MemberResponseDTO.ResumeInfo> resumeInfos = member.getResumes().stream()
                 .map(resume -> MemberResponseDTO.ResumeInfo.builder()
                         .resumeId(resume.getId())
-                        .originalFilename(resume.getOriginal_filename()) // 스네이크 표기법 Getter 매핑
-                        .storedFileUrl(resume.getStored_file_url())     // 다운로드에 사용할 S3 주소 등
-                        .updatedAt(resume.getUpdated_at())
-                        .isActive(resume.getIs_active() != null && resume.getIs_active())
+                        .originalFilename(resume.getOriginalFilename()) // 스네이크 표기법 Getter 매핑
+                        .storedFileUrl(resume.getStoredFileUrl())     // 다운로드에 사용할 S3 주소 등
+                        .updatedAt(resume.getUpdatedAt())
+                        .isActive(resume.getIsActive() != null && resume.getIsActive())
                         .build())
                 .collect(Collectors.toList());
 

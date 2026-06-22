@@ -23,7 +23,7 @@ public class ApplicationService {
     public void addApplication(String email, ApplicationRequestDTO.CreateApplicationDTO request) {
         // 1. 유저 조회
         Member member = memberRepository.findByEmail(email)
-                .orElseThrow(() -> new GeneralException(GeneralErrorCode.MEMBER_NOT_FOUND, email + "은 존재하지 않는 회원의 이메일입니다."));
+                .orElseThrow(() -> new GeneralException(GeneralErrorCode.MEMBER_NOT_FOUND, "해당 이메일은 존재하지 않는 회원입니다."));
 
         // 2. 빌더를 활용해 엔티티 생성 (외래키 주인 객체에 member 주입 필수!)
         Application application = Application.builder()

@@ -36,4 +36,10 @@ public class Application {
 
     @Column(columnDefinition = "TEXT")
     private String memo;
+
+    @Column(name = "create_at")
+    private LocalDate createdAt;
+
+    @Column(name = "updated_at")
+    private LocalDate updatedAt;
 }

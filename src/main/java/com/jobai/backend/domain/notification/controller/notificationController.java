@@ -1,5 +1,6 @@
-package com.jobai.backend.domain.notification;
+package com.jobai.backend.domain.notification.controller;
 
+import com.jobai.backend.domain.notification.LambdaTestRequest;
 import com.jobai.backend.domain.notification.service.LambdaNotificationService;
 import com.jobai.backend.global.apiPayload.ApiResponse;
 import com.jobai.backend.global.apiPayload.code.GeneralSuccessCode;
