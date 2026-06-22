@@ -9,6 +9,7 @@ import com.jobai.backend.domain.member.repository.MemberRepository;
 import com.jobai.backend.global.apiPayload.code.GeneralErrorCode;
 import com.jobai.backend.global.apiPayload.exception.GeneralException;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -16,6 +17,8 @@ import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
+
+import static com.jobai.backend.global.apiPayload.code.GeneralErrorCode.NOT_FOUND;
 
 @Service
 @RequiredArgsConstructor
