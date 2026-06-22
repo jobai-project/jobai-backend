@@ -40,4 +40,13 @@ public class ApplicationController implements ApplicationControllerDocs {
         applicationService.modifyApplication(email, applicationId, request);
         return ApiResponse.onSuccess(GeneralSuccessCode.OK, "입사 지원 현황이 성공적으로 수정되었습니다.");
     }
+
+    @DeleteMapping("/{applicationId}") // 💡 삭제 대상을 URI 경로 변수로 받습니다.
+    public ApiResponse<String> deleteApplication(
+            @AuthenticationPrincipal String email,
+            @PathVariable Long applicationId
+    ) {
+        applicationService.removeApplication(email, applicationId);
+        return ApiResponse.onSuccess(GeneralSuccessCode.OK, "입사 지원 기록이 성공적으로 삭제되었습니다.");
+    }
 }

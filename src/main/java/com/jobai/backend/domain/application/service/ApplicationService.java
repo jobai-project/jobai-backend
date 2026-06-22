@@ -63,4 +63,21 @@ public class ApplicationService {
                 request.getMemo()
         );
     }
+
+    // 클래스단에서 ReadOnly = True 해두고 메서드단에서 트랜잭션 안걸면
+    // 영속성 컨텍스트에서는 지워지지만, 트랜잭션 커밋이 일어나지 않아서 delete가 안됨
+    @Transactional // 이거 빼먹어서 왜 DB에서 안사라지나 했네 ㅋㅋ
+    public void removeApplication(String email, Long applicationId) {
+        // 1. 삭제할 공고 조회
+        Application application = applicationRepository.findById(applicationId)
+                .orElseThrow(() -> new GeneralException(GeneralErrorCode.NOT_FOUND, "해당 지원 현황을 찾을 수 없습니다."));
+
+        // 2. 로그인한 유저가 이 공고 주인인지 검증
+        if (!application.getMember().getEmail().equals(email)) {
+            throw new GeneralException(GeneralErrorCode.FORBIDDEN, "해당 지원 기록을 삭제할 권한이 없습니다.");
+        }
+
+        // 3. DB에서 삭제 수행 (Hard Delete)
+        applicationRepository.delete(application);
+    }
 }
