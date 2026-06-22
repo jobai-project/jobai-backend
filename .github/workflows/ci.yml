@@ -64,6 +64,7 @@ jobs:
       - name: Build and test
         run: ./gradlew clean build --no-daemon
         env:
+          SPRING_PROFILES_ACTIVE: local
           POSTGRES_HOST: localhost
           POSTGRES_PORT: 5432
           POSTGRES_DB: jobai_test
