@@ -73,7 +73,10 @@ jobs:
           REDIS_HOST: localhost
           REDIS_PORT: 6379
           JWT_SECRET: test-jwt-secret-key-must-be-at-least-32-bytes-long
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          ANTHROPIC_API_KEY: dummy-anthropic-api-key-for-ci
+          AWS_REGION: ap-northeast-2
+          AWS_ACCESS_KEY_ID: test-access-key
+          AWS_SECRET_ACCESS_KEY: test-secret-key
 
       - name: Upload test reports
         if: failure()
