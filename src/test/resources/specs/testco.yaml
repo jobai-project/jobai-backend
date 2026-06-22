@@ -1,0 +1,18 @@
+company: testco
+company_name_ko: Test Company
+source_type: json
+
+list:
+  url: http://localhost/unused
+  response_path: items
+
+pagination:
+  type: none
+
+fields:
+  job_id: id
+  title: title
+  description: description
+
+apply_url:
+  template: "https://example.com/jobs/{job_id}"

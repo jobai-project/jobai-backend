@@ -17,6 +17,10 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.util.HexFormat;
 import java.util.List;
 
 @Slf4j
@@ -112,6 +116,35 @@ public class GeneralExceptionAdvice {
         String detail = "지원하지 않는 Content-Type 입니다: " + ex.getContentType();
         return ResponseEntity.status(ec.getHttpStatus())
                 .body(ApiResponse.onFailure(ec, List.of(detail)));
+    }
+
+    @ExceptionHandler(com.jobai.backend.domain.ai.exception.AiClientException.class)
+    public ResponseEntity<ApiResponse<?>> handleAiClientException(com.jobai.backend.domain.ai.exception.AiClientException ex) {
+        BaseErrorCode ec = GeneralErrorCode.AI_SERVICE_ERROR;
+
+        String body = ex.getResponseBody();
+        int bodyLength = (body == null) ? 0 : body.length();
+        String bodyDigest = getBodyDigest(body);
+
+        log.warn("[AiClientException] status={}, bodyLength={}, bodyDigest={}",
+                ex.getStatus(), bodyLength, bodyDigest);
+        return ResponseEntity.status(ec.getHttpStatus())
+                .body(ApiResponse.onFailure(ec, List.of("AI 서버 호출 중 오류가 발생했습니다.")));
+    }
+
+    private String getBodyDigest(String body) {
+        if (body == null || body.isBlank()) {
+            return "";
+        }
+
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            byte[] hash = digest.digest(body.getBytes(StandardCharsets.UTF_8));
+            return HexFormat.of().formatHex(hash);
+        } catch (NoSuchAlgorithmException e) {
+            log.warn("Unable to compute body digest", e);
+            return "unavailable";
+        }
     }
 
     // 나머지 전부 (500)
