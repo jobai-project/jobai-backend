@@ -1,0 +1,9 @@
+spring:
+  datasource:
+    driver-class-name: org.postgresql.Driver
+    url: jdbc:postgresql://localhost:5432/jobai_test
+    username: jobai_user
+    password: jobai_password
+
+  flyway:
+    enabled: true
