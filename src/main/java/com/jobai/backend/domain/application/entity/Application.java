@@ -37,7 +37,3 @@ public class Application {
     @Column(columnDefinition = "TEXT")
     private String memo;
 }
-
-enum ApplicationStatus {
-    PLANNED, APPLIED, IN_PROGRESS, REJECTED, ACCEPTED
-}
