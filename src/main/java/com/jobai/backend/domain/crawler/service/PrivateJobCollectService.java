@@ -2,7 +2,10 @@ package com.jobai.backend.domain.crawler.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
+import com.jobai.backend.domain.crawler.classify.JobCategory;
+import com.jobai.backend.domain.crawler.classify.JobClassifier;
 import com.jobai.backend.domain.crawler.engine.DeclarativeCrawler;
+import com.jobai.backend.domain.crawler.entity.PrivateJobPosting;
 import com.jobai.backend.domain.crawler.model.JobRecord;
 import com.jobai.backend.domain.crawler.spec.CrawlSpec;
 import lombok.RequiredArgsConstructor;
@@ -11,6 +14,7 @@ import org.springframework.stereotype.Service;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.time.LocalDateTime;
 import java.util.List;
 
 /**
@@ -35,6 +39,7 @@ public class PrivateJobCollectService {
 
     private final DeclarativeCrawler crawler;
     private final PrivateJobPostingService savingService;
+    private final JobClassifier jobClassifier;
 
     // YAML 파서는 상태 없는 도구라 주입받지 않고 내부에서 직접 생성한다.
     // (기본 JSON ObjectMapper 와 빈이 충돌하는 문제를 피함)
@@ -66,6 +71,10 @@ public class PrivateJobCollectService {
 
         SaveResult result = savingService.saveAll(company, records);  // specCompany → company
         log.info("[{}] 저장 결과 {}", company, result);
+
+        // 신규 공고만 직무 분류 (LLM 1회). 기존 공고는 이미 분류돼 있어 건드리지 않음.
+        classifyNewPostings(company, result);
+
         return result;
     }
 
@@ -80,5 +89,36 @@ public class PrivateJobCollectService {
         } catch (IOException e) {
             throw new IllegalStateException(company + " 스펙 로드 실패: " + e.getMessage(), e);
         }
+    }
+
+    /**
+     * 신규 공고({@link SaveResult#getInserted()})의 제목을 LLM 으로 분류해 jobCategory 를 채운다.
+     * 분류는 저장과 분리돼 있어, 분류가 실패해도 이미 저장된 공고엔 영향이 없다(미분류로 남음).
+     */
+    private void classifyNewPostings(String company, SaveResult result) {
+        List<PrivateJobPosting> inserted = result.getInserted();
+        if (inserted.isEmpty()) {
+            return;   // 신규 없음 → LLM 호출 안 함
+        }
+
+        // 제목 목록 추출 (입력 순서 == inserted 순서)
+        List<String> titles = inserted.stream()
+                .map(PrivateJobPosting::getTitle)
+                .toList();
+
+        List<JobCategory> categories = jobClassifier.classify(titles);
+
+        // 분류 결과를 각 엔티티에 반영 (순서 1:1 대응)
+        LocalDateTime now = LocalDateTime.now();
+        int classified = 0;
+        for (int i = 0; i < inserted.size(); i++) {
+            JobCategory category = categories.get(i);
+            inserted.get(i).classifyAs(category.getLabel());
+            if (category.isMatchTarget()) classified++;
+        }
+        // @Transactional 범위가 아니면 변경 감지가 안 먹으므로 명시 저장
+        savingService.saveClassified(inserted);
+
+        log.info("[{}] 분류 완료 — 신규 {}건 중 매칭대상 {}건", company, inserted.size(), classified);
     }
 }

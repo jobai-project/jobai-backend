@@ -1,5 +1,6 @@
 package com.jobai.backend.domain.crawler.service;
 
+import com.jobai.backend.domain.crawler.classify.JobClassifier;
 import com.jobai.backend.domain.crawler.engine.DeclarativeCrawler;
 import com.jobai.backend.domain.crawler.model.JobRecord;
 import com.jobai.backend.domain.crawler.spec.CrawlSpec;
@@ -36,8 +37,11 @@ class PrivateJobCollectServiceTest {
     @Mock
     private PrivateJobPostingService savingService;
 
+    @Mock
+    private JobClassifier jobClassifier;
+
     private PrivateJobCollectService service() {
-        return new PrivateJobCollectService(crawler, savingService);
+        return new PrivateJobCollectService(crawler, savingService, jobClassifier);
     }
 
     private JobRecord record(String jobId, String title) {

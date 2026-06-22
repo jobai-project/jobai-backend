@@ -6,10 +6,12 @@ import org.redisson.config.Config;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Profile;
 
 import java.time.Duration;
 
 @Configuration
+//@Profile("!classify & !export")
 public class RedissonConfig {
 
     @Bean(destroyMethod = "shutdown")

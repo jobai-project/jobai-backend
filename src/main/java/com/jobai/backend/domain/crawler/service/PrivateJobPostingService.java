@@ -1,10 +1,16 @@
 package com.jobai.backend.domain.crawler.service;
 
+import com.jobai.backend.domain.crawler.classify.JobCategory;
+import com.jobai.backend.domain.crawler.classify.JobClassifier;
 import com.jobai.backend.domain.crawler.entity.PrivateJobPosting;
 import com.jobai.backend.domain.crawler.model.JobRecord;
 import com.jobai.backend.domain.crawler.repository.PrivateJobPostingRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -24,6 +30,7 @@ import java.util.Set;
 public class PrivateJobPostingService {
 
     private final PrivateJobPostingRepository repository;
+    private final JobClassifier jobClassifier;
 
     /**
      * 한 회사의 수집 결과를 DB 에 반영하고, 무엇이 바뀌었는지 {@link SaveResult} 로 돌려준다.
@@ -70,7 +77,6 @@ public class PrivateJobPostingService {
             String title = str(r.getTitle());
             String location = str(r.get("location"));
             String employmentType = str(r.get("employee_type"));
-            String jobCategory = str(r.get("job_category"));
             String description = str(r.getDescription());
             String applyUrl = str(r.getApplyUrl());
             LocalDate deadline = parseDeadline(r.get("deadline"));
@@ -81,12 +87,12 @@ public class PrivateJobPostingService {
                 // 기존: 내용이 같고 + 이미 열려있으면(마감 아님) UPDATE 스킵, lastSeenAt 만 갱신.
                 // 마감(isClosed=true)됐던 공고가 다시 보이면 내용 같아도 되살려야 하므로 update.
                 boolean sameContent = existing.hasSameContent(
-                        title, location, employmentType, jobCategory, description, applyUrl, deadline);
+                        title, location, employmentType, description, applyUrl, deadline);
                 if (sameContent && !existing.isClosed()) {
                     existing.touch(now);
                 } else {
                     existing.updateDetail(title, location, employmentType,
-                            jobCategory, description, applyUrl, deadline, now);
+                             description, applyUrl, deadline, now);
                     updatedCount++;
                 }
                 // save 안 해도 @Transactional 변경 감지로 자동 UPDATE
@@ -98,7 +104,6 @@ public class PrivateJobPostingService {
                         .title(title)
                         .location(location)
                         .employmentType(employmentType)
-                        .jobCategory(jobCategory)
                         .description(description)
                         .applyUrl(applyUrl)
                         .deadline(deadline)
@@ -159,4 +164,52 @@ public class PrivateJobPostingService {
         }
         return null;   // 다 실패하면 null (저장은 되게)
     }
+
+    /** 분류 결과(jobCategory)가 갱신된 엔티티들을 저장한다. */
+    @Transactional
+    public void saveClassified(List<PrivateJobPosting> postings) {
+        repository.saveAll(postings);
+    }
+
+    /**
+     * 아직 분류 안 된(jobCategory=null) 공고들을 일괄 분류한다.
+     * 페이지 단위로 끊어 읽고, 각 페이지를 LLM 으로 분류해 jobCategory 를 채운다.
+     *
+     * @param batchPageSize 한 번에 읽어 분류할 공고 수
+     * @return 분류한 총 공고 수
+     */
+    @Transactional
+    public int classifyUnclassified(int batchPageSize) {
+        int total = 0;
+        Pageable pageable = PageRequest.of(0, batchPageSize, Sort.by("id").ascending());
+
+        while (true) {
+            Page<PrivateJobPosting> page =
+                    repository.findNeedsClassification(VALID_LABELS, pageable);
+            List<PrivateJobPosting> batch = page.getContent();
+            if (batch.isEmpty()) {
+                break;   // 더 분류할 게 없음
+            }
+
+            List<String> titles = batch.stream()
+                    .map(PrivateJobPosting::getTitle)
+                    .toList();
+            List<JobCategory> categories = jobClassifier.classify(titles);
+
+            for (int i = 0; i < batch.size(); i++) {
+                batch.get(i).classifyAs(categories.get(i).getLabel());
+            }
+            repository.saveAll(batch);
+            total += batch.size();
+            log.info("[분류] {}건 처리 (누적 {})", batch.size(), total);
+        }
+        return total;
+    }
+
+    // 우리 택소노미 라벨 (재분류 판단 기준). "미분류"는 제외 — 미분류도 다시 분류해야 하므로.
+    private static final List<String> VALID_LABELS = List.of(
+            "백엔드", "프론트엔드", "풀스택", "모바일", "AI/ML", "데이터엔지니어링",
+            "DevOps/인프라", "보안", "QA/테스트", "임베디드", "기타개발",
+            "디자이너", "PM/기획", "비대상", "미분류"
+    );
 }

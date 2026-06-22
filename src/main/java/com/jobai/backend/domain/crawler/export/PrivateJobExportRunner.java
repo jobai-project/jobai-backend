@@ -1,6 +1,7 @@
 package com.jobai.backend.domain.crawler.export;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.jobai.backend.domain.crawler.classify.JobCategory;
 import com.jobai.backend.domain.crawler.entity.PrivateJobPosting;
 import com.jobai.backend.domain.crawler.repository.PrivateJobPostingRepository;
 import org.slf4j.Logger;
@@ -78,8 +79,9 @@ public class PrivateJobExportRunner implements ApplicationRunner {
                 if (j.isClosed()) {
                     continue;                                   // 마감 공고 제외
                 }
-                if (!ItJobFilter.isItJob(j.getTitle(), j.getJobCategory())) {
-                    continue;                                   // 비IT 제외
+                JobCategory category = JobCategory.fromLabel(j.getJobCategory());
+                if (!category.isMatchTarget()) {
+                    continue;                                   // 비대상·미분류 제외
                 }
                 exported.add(toExportMap(j));                   // 정제 + 매핑
             }
@@ -99,6 +101,7 @@ public class PrivateJobExportRunner implements ApplicationRunner {
         Map<String, Object> m = new LinkedHashMap<>();
         m.put("source_job_id", j.getSourceJobId());   // 식별자 (매칭 결과 → 실제 공고 되짚기)
         m.put("title", j.getTitle());                 // 매칭 신호
+        m.put("job_category", j.getJobCategory());
         m.put("description", cleanser.clean(j.getDescription()));  // 매칭 신호 (본문, HTML 정제)
         return m;
     }
