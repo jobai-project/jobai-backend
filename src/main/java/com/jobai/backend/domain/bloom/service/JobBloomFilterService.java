@@ -4,10 +4,12 @@ import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import org.redisson.api.RBloomFilter;
 import org.redisson.api.RedissonClient;
+import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Service;
 
 @Service
 @RequiredArgsConstructor
+//@Profile("!classify & !export")
 public class JobBloomFilterService {
 
     private static final String JOB_BLOOM_FILTER_NAME = "job:posting:bloom";

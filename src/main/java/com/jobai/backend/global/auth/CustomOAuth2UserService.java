@@ -2,6 +2,7 @@ package com.jobai.backend.global.auth;
 
 import com.jobai.backend.domain.member.entity.Member;
 import com.jobai.backend.domain.member.repository.MemberRepository;
+import org.springframework.context.annotation.Profile;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;

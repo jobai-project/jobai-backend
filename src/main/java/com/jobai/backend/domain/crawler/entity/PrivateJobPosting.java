@@ -1,5 +1,6 @@
 package com.jobai.backend.domain.crawler.entity;
 
+import com.jobai.backend.domain.crawler.classify.JobCategory;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
@@ -67,12 +68,11 @@ public class PrivateJobPosting {
 
     // --- upsert 의 update 부분 -
     public void updateDetail(String title, String location, String employmentType,
-                             String jobCategory, String description, String applyUrl,
+                             String description, String applyUrl,
                              LocalDate deadline, LocalDateTime now) {
         this.title = title;
         this.location = location;
         this.employmentType = employmentType;
-        this.jobCategory = jobCategory;
         this.description = description;
         this.applyUrl = applyUrl;
         this.deadline = deadline;
@@ -99,12 +99,11 @@ public class PrivateJobPosting {
      * deadline 은 null 일 수 있어 Objects.equals 로 null 안전 비교한다.
      */
     public boolean hasSameContent(String title, String location, String employmentType,
-                                  String jobCategory, String description, String applyUrl,
+                                  String description, String applyUrl,
                                   LocalDate deadline) {
         return Objects.equals(this.title, title)
                 && Objects.equals(this.location, location)
                 && Objects.equals(this.employmentType, employmentType)
-                && Objects.equals(this.jobCategory, jobCategory)
                 && Objects.equals(this.description, description)
                 && Objects.equals(this.applyUrl, applyUrl)
                 && Objects.equals(this.deadline, deadline);
@@ -119,5 +118,14 @@ public class PrivateJobPosting {
      */
     public void touch(LocalDateTime now) {
         this.lastSeenAt = now;
+    }
+
+    /**
+     * LLM 직무 분류 결과를 반영한다. jobCategory 만 갱신한다.
+     * 분류는 수집 내용 변경이 아니므로 updatedAt 은 건드리지 않는다
+     * (updatedAt 은 "수집 내용이 바뀐 시각"으로만 의미를 둔다).
+     */
+    public void classifyAs(JobCategory category) {
+        this.jobCategory = Objects.requireNonNull(category, "category").getLabel();
     }
 }

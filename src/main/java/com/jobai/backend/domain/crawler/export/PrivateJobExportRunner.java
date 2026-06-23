@@ -1,6 +1,7 @@
 package com.jobai.backend.domain.crawler.export;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.jobai.backend.domain.crawler.classify.JobCategory;
 import com.jobai.backend.domain.crawler.entity.PrivateJobPosting;
 import com.jobai.backend.domain.crawler.repository.PrivateJobPostingRepository;
 import org.slf4j.Logger;
@@ -78,10 +79,11 @@ public class PrivateJobExportRunner implements ApplicationRunner {
                 if (j.isClosed()) {
                     continue;                                   // 마감 공고 제외
                 }
-                if (!ItJobFilter.isItJob(j.getTitle(), j.getJobCategory())) {
-                    continue;                                   // 비IT 제외
+                JobCategory category = JobCategory.fromLabel(j.getJobCategory());
+                if (!category.isMatchTarget()) {
+                    continue;                                   // 비대상·미분류 제외
                 }
-                exported.add(toExportMap(j));                   // 정제 + 매핑
+                exported.add(toExportMap(j, category));                   // 정제 + 매핑
             }
             pageable = page.nextPageable();
         } while (page.hasNext());
@@ -95,11 +97,12 @@ public class PrivateJobExportRunner implements ApplicationRunner {
     }
 
     /** 엔티티 → export용 Map (AI 매칭 입력: 식별자 + 매칭 신호 필드). */
-    private Map<String, Object> toExportMap(PrivateJobPosting j) {
+    private Map<String, Object> toExportMap(PrivateJobPosting j, JobCategory category) {
         Map<String, Object> m = new LinkedHashMap<>();
-        m.put("source_job_id", j.getSourceJobId());   // 식별자 (매칭 결과 → 실제 공고 되짚기)
-        m.put("title", j.getTitle());                 // 매칭 신호
-        m.put("description", cleanser.clean(j.getDescription()));  // 매칭 신호 (본문, HTML 정제)
+        m.put("source_job_id", j.getSourceJobId());
+        m.put("title", j.getTitle());
+        m.put("job_category", category.getLabel());   // 원본 대신 정규화된 라벨
+        m.put("description", cleanser.clean(j.getDescription()));
         return m;
     }
 }
