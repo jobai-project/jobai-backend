@@ -10,7 +10,7 @@ import org.springframework.security.web.SecurityFilterChain;
 
 @Configuration
 @EnableWebSecurity
-//@Profile("local & !classify")
+@Profile("local & !classify")
 public class LocalSecurityConfig {
 
     @Bean
