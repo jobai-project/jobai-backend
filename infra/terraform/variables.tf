@@ -31,7 +31,7 @@ variable "db_engine" {
 
 variable "db_engine_version" {
   description = "RDS 엔진 버전"
-  default     = "16.8"
+  default     = "16.14"
 }
 
 variable "db_name" {
@@ -53,4 +53,9 @@ variable "db_password" {
 variable "db_port" {
   description = "RDS 포트"
   default     = 5432
+}
+variable "db_backup_retention_period" {
+  description = "RDS backup retention period in days. Use 0 for free-tier-limited initial deployment, 7 for production."
+  type        = number
+  default     = 0
 }
