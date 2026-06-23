@@ -41,10 +41,27 @@ class JobCategoryTest {
     }
 
     @Test
-    @DisplayName("labelsForPrompt: 모든 라벨이 콤마로 이어진다")
-    void labelsForPrompt() {
-        String labels = JobCategory.labelsForPrompt();
-        assertThat(labels).contains("백엔드", "AI/ML", "비대상", "미분류");
-        assertThat(labels).contains(", ");
+    @DisplayName("labelsForPrompt: 전체 라벨이 정의 순서대로 정확히 이어진다")
+    void labelsForPromptExact() {
+        String expected = "백엔드, 프론트엔드, 풀스택, 모바일, AI/ML, 데이터엔지니어링, "
+                + "DevOps/인프라, 보안, QA/테스트, 임베디드, 기타개발, "
+                + "디자이너, PM/기획, 비대상, 미분류";
+
+        assertThat(JobCategory.labelsForPrompt()).isEqualTo(expected);
+    }
+
+    @Test
+    @DisplayName("택소노미는 정확히 15개 라벨로 고정된다")
+    void taxonomyIsFixed() {
+        assertThat(JobCategory.values()).hasSize(15);
+    }
+
+    @Test
+    @DisplayName("매칭 대상은 정확히 13개(개발 11 + 디자이너 + PM)")
+    void matchTargetsAreFixed() {
+        long matchTargets = java.util.Arrays.stream(JobCategory.values())
+                .filter(JobCategory::isMatchTarget)
+                .count();
+        assertThat(matchTargets).isEqualTo(13);
     }
 }

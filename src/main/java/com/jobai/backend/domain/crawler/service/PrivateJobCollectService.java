@@ -101,24 +101,28 @@ public class PrivateJobCollectService {
             return;   // 신규 없음 → LLM 호출 안 함
         }
 
-        // 제목 목록 추출 (입력 순서 == inserted 순서)
         List<String> titles = inserted.stream()
                 .map(PrivateJobPosting::getTitle)
                 .toList();
 
-        List<JobCategory> categories = jobClassifier.classify(titles);
+        try {
+            List<JobCategory> categories = jobClassifier.classify(titles);
 
-        // 분류 결과를 각 엔티티에 반영 (순서 1:1 대응)
-        LocalDateTime now = LocalDateTime.now();
-        int classified = 0;
-        for (int i = 0; i < inserted.size(); i++) {
-            JobCategory category = categories.get(i);
-            inserted.get(i).classifyAs(category.getLabel());
-            if (category.isMatchTarget()) classified++;
+            int classified = 0;
+            for (int i = 0; i < inserted.size(); i++) {
+                JobCategory category = categories.get(i);
+                if (category == null) {
+                    continue;   // 호출 실패분 → jobCategory 안 건드림(다음에 재분류)
+                }
+                inserted.get(i).classifyAs(category);
+                if (category.isMatchTarget()) classified++;
+            }
+            savingService.saveClassified(inserted);
+
+            log.info("[{}] 분류 완료 — 신규 {}건 중 매칭대상 {}건", company, inserted.size(), classified);
+        } catch (RuntimeException e) {
+            // 저장은 이미 끝났으므로 분류 실패는 삼킨다(미분류로 남고 다음에 재분류).
+            log.warn("[{}] 신규 공고 분류 실패 — {}건은 미분류로 남김", company, inserted.size(), e);
         }
-        // @Transactional 범위가 아니면 변경 감지가 안 먹으므로 명시 저장
-        savingService.saveClassified(inserted);
-
-        log.info("[{}] 분류 완료 — 신규 {}건 중 매칭대상 {}건", company, inserted.size(), classified);
     }
 }

@@ -1,5 +1,6 @@
 package com.jobai.backend.domain.crawler.entity;
 
+import com.jobai.backend.domain.crawler.classify.JobCategory;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
@@ -124,7 +125,7 @@ public class PrivateJobPosting {
      * 분류는 수집 내용 변경이 아니므로 updatedAt 은 건드리지 않는다
      * (updatedAt 은 "수집 내용이 바뀐 시각"으로만 의미를 둔다).
      */
-    public void classifyAs(String category) {
-        this.jobCategory = category;
+    public void classifyAs(JobCategory category) {
+        this.jobCategory = Objects.requireNonNull(category, "category").getLabel();
     }
 }

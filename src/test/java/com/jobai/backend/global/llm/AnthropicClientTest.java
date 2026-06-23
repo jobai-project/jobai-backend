@@ -9,6 +9,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
+import java.util.concurrent.TimeUnit;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -79,7 +80,8 @@ class AnthropicClientTest {
 
         client.complete("system", "user", 100);
 
-        var recorded = server.takeRequest();
+        var recorded = server.takeRequest(2, TimeUnit.SECONDS);;
+        assertThat(recorded).isNotNull();
         assertThat(recorded.getHeader("x-api-key")).isEqualTo("test-key");
         assertThat(recorded.getHeader("anthropic-version")).isEqualTo("2023-06-01");
         assertThat(recorded.getPath()).isEqualTo("/v1/messages");

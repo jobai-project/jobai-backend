@@ -10,6 +10,9 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import com.jobai.backend.domain.crawler.classify.JobCategory;
+import com.jobai.backend.domain.crawler.entity.PrivateJobPosting;
+import java.time.LocalDateTime;
 
 import java.util.List;
 
@@ -112,4 +115,75 @@ class PrivateJobCollectServiceTest {
         verify(savingService, never()).saveAll(any(), any());
     }
 
+    @Test
+    @DisplayName("신규 공고가 있으면 분류기를 호출하고 분류 결과를 저장한다")
+    void classifiesNewPostings() {
+        when(crawler.collect(any(CrawlSpec.class)))
+                .thenReturn(List.of(record("1", "백엔드 개발자")));
+
+        PrivateJobPosting newPosting = posting("백엔드 개발자");
+        when(savingService.saveAll(eq("testco"), any()))
+                .thenReturn(new SaveResult(List.of(newPosting), 0, 0));
+        when(jobClassifier.classify(any()))
+                .thenReturn(List.of(JobCategory.BACKEND));
+
+        service().collectAndSave("testco");
+
+        // 1) 분류기가 신규 제목으로 호출됐는지
+        ArgumentCaptor<List<String>> titlesCaptor = ArgumentCaptor.forClass(List.class);
+        verify(jobClassifier).classify(titlesCaptor.capture());
+        assertThat(titlesCaptor.getValue()).containsExactly("백엔드 개발자");
+
+        // 2) 분류 결과가 엔티티에 반영됐는지
+        assertThat(newPosting.getJobCategory()).isEqualTo("백엔드");
+
+        // 3) 분류 결과 저장 루틴이 이어졌는지
+        verify(savingService).saveClassified(any());
+    }
+
+    @Test
+    @DisplayName("신규 공고가 없으면 분류기를 호출하지 않는다")
+    void skipsClassificationWhenNoInserted() {
+        when(crawler.collect(any(CrawlSpec.class)))
+                .thenReturn(List.of(record("1", "x")));
+        // inserted 가 비어있음 (전부 기존 공고였던 경우)
+        when(savingService.saveAll(eq("testco"), any()))
+                .thenReturn(new SaveResult(List.of(), 2, 0));
+
+        service().collectAndSave("testco");
+
+        // 신규 없음 → 분류기·분류저장 모두 호출 안 됨 (LLM 비용 절약)
+        verify(jobClassifier, never()).classify(any());
+        verify(savingService, never()).saveClassified(any());
+    }
+
+    @Test
+    @DisplayName("분류가 실패해도 saveAll 결과는 정상 반환된다(예외 격리)")
+    void classificationFailureDoesNotBreakSave() {
+        when(crawler.collect(any(CrawlSpec.class)))
+                .thenReturn(List.of(record("1", "백엔드 개발자")));
+        PrivateJobPosting newPosting = posting("백엔드 개발자");
+        SaveResult saveResult = new SaveResult(List.of(newPosting), 0, 0);
+        when(savingService.saveAll(eq("testco"), any())).thenReturn(saveResult);
+        when(jobClassifier.classify(any()))
+                .thenThrow(new RuntimeException("LLM 장애"));
+
+        // collectAndSave 는 예외 없이 SaveResult 를 반환해야 함
+        SaveResult result = service().collectAndSave("testco");
+
+        assertThat(result).isSameAs(saveResult);
+    }
+
+    private PrivateJobPosting posting(String title) {
+        LocalDateTime now = LocalDateTime.now();
+        return PrivateJobPosting.builder()
+                .company("testco")
+                .sourceJobId(title)
+                .title(title)
+                .isClosed(false)
+                .lastSeenAt(now)
+                .createdAt(now)
+                .updatedAt(now)
+                .build();
+    }
 }

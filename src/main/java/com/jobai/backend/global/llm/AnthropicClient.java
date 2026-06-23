@@ -36,7 +36,6 @@ public class AnthropicClient {
                 .baseUrl(baseUrl)
                 .build();
 
-        log.info("Anthropic 키 길이: {}", apiKey != null ? apiKey.length() : 0);
     }
 
     /**

@@ -178,7 +178,7 @@ public class PrivateJobPostingService {
      * @param batchPageSize 한 번에 읽어 분류할 공고 수
      * @return 분류한 총 공고 수
      */
-    @Transactional
+    // @Transactional 없음 — LLM 호출이 DB 트랜잭션을 잡지 않게
     public int classifyUnclassified(int batchPageSize) {
         int total = 0;
         Pageable pageable = PageRequest.of(0, batchPageSize, Sort.by("id").ascending());
@@ -188,28 +188,41 @@ public class PrivateJobPostingService {
                     repository.findNeedsClassification(VALID_LABELS, pageable);
             List<PrivateJobPosting> batch = page.getContent();
             if (batch.isEmpty()) {
-                break;   // 더 분류할 게 없음
+                break;
             }
 
             List<String> titles = batch.stream()
                     .map(PrivateJobPosting::getTitle)
                     .toList();
-            List<JobCategory> categories = jobClassifier.classify(titles);
+            List<JobCategory> categories = jobClassifier.classify(titles);   // 트랜잭션 밖
 
+            int classifiedThisRound = 0;
             for (int i = 0; i < batch.size(); i++) {
-                batch.get(i).classifyAs(categories.get(i).getLabel());
+                JobCategory category = categories.get(i);
+                if (category == null) {
+                    continue;   // 호출 실패분 → 건너뜀(다음 실행에 재분류)
+                }
+                batch.get(i).classifyAs(category);
+                classifiedThisRound++;
             }
-            repository.saveAll(batch);
-            total += batch.size();
-            log.info("[분류] {}건 처리 (누적 {})", batch.size(), total);
+            repository.saveAll(batch);   // Spring Data 자체 트랜잭션으로 저장
+            total += classifiedThisRound;
+
+            if (classifiedThisRound == 0) {
+                log.warn("[분류] 이번 배치 전부 실패 — 중단(키/네트워크 확인 후 재실행). 누적 {}", total);
+                break;
+            }
+            log.info("[분류] {}건 처리 (누적 {})", classifiedThisRound, total);
         }
         return total;
     }
 
-    // 우리 택소노미 라벨 (재분류 판단 기준). "미분류"는 제외 — 미분류도 다시 분류해야 하므로.
+    // 재분류 대상 판별 기준: jobCategory 가 이 목록에 없으면(= null 또는 회사원본명) 재분류.
+    // "미분류"를 포함하는 이유: 진짜 판단불가(LLM 이 "미분류" 응답)는 최종 상태로 두어 무한 재분류를 막는다.
+    // 호출 실패분은 "미분류"가 아니라 null 로 남으므로(JobClassifier 가 실패 시 null 반환), 다음 실행에 자동 재시도된다.
     private static final List<String> VALID_LABELS = List.of(
             "백엔드", "프론트엔드", "풀스택", "모바일", "AI/ML", "데이터엔지니어링",
             "DevOps/인프라", "보안", "QA/테스트", "임베디드", "기타개발",
-            "디자이너", "PM/기획", "비대상", "미분류"
+            "디자이너", "PM/기획", "비대상", "미분류"   // "미분류" = 최종 상태(재시도 안 함)
     );
 }
