@@ -121,7 +121,7 @@ resource "aws_security_group" "jobai" {
 # EC2
 resource "aws_instance" "jobai" {
   ami                    = var.ami_id
-  instance_type          = "t2.micro"
+  instance_type          = "t3.micro"
   subnet_id              = aws_subnet.jobai_public.id
   vpc_security_group_ids = [aws_security_group.jobai.id]
   key_name               = var.key_name
@@ -202,7 +202,7 @@ resource "aws_db_instance" "jobai" {
   publicly_accessible     = false
   storage_type            = "gp3"
   storage_encrypted       = true
-  backup_retention_period = 7
+  backup_retention_period = var.db_backup_retention_period
   deletion_protection     = false
   apply_immediately       = true
   auto_minor_version_upgrade = true

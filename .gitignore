@@ -55,6 +55,7 @@ out/
 
 
 # terraform
+*.tfvars
 infra/terraform/.terraform/
 **/*.tfstate
 **/*.tfstate.backup
