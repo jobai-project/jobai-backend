@@ -18,8 +18,7 @@ fields:
   job_id: id
   title: name
   deadline: postingEndDatetime
-  updated_at: postingStaDatetime
   location: name
-  is_closed: postingYn
+  posted_at: postingStaDatetime
 apply_url:
   template: "https://careers.nhn.com/recruits/{job_id}"
