@@ -21,16 +21,18 @@ public class Resumes {
     @JoinColumn(name = "member_id", nullable = false)
     private Member member;
 
-    @Column(length = 255)
-    private String original_filename;
+    @Column(length = 255, name = "original_filename")
+    private String originalFilename;
 
-    @Column(length = 512)
-    private String stored_file_url;
+    @Column(length = 512, name = "stored_file_url")
+    private String storedFileUrl;
 
-    @Column(length = 255)
-    private String file_size;
+    @Column(length = 255, name = "file_size")
+    private String fileSize;
 
-    private Boolean is_active;
+    @Column(name = "is_active")
+    private Boolean isActive;
 
-    private LocalDate updated_at;
+    @Column(name = "updated_at")
+    private LocalDate updatedAt;
 }

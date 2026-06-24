@@ -7,8 +7,6 @@ import com.jobai.backend.global.apiPayload.ApiResponse;
 import com.jobai.backend.global.apiPayload.code.GeneralErrorCode;
 import com.jobai.backend.global.apiPayload.code.GeneralSuccessCode;
 import com.jobai.backend.global.auth.CookieProvider;
-import io.swagger.v3.oas.annotations.Operation;
-import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpHeaders;
@@ -21,16 +19,14 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.util.Optional;
 
-@Tag(name = "Auth", description = "인증 관련 API")
 @RestController
 @RequestMapping("/api/v1/auth")
 @RequiredArgsConstructor
-public class AuthController {
+public class AuthController implements AuthControllerDocs {
 
     private final MemberService memberService;
     private final CookieProvider cookieProvider;
 
-    @Operation(summary = "구글 로그인 URL 조회", description = "구글 소셜 로그인을 시작하기 위한 URL을 반환합니다.")
     @GetMapping("/login/google")
     public ApiResponse<AuthResponse.LoginUrl> getGoogleLoginUrl() {
         // Spring Security 기본 OAuth2 인증 시작 경로
@@ -39,7 +35,6 @@ public class AuthController {
                 AuthResponse.LoginUrl.builder().googleLoginUrl(url).build());
     }
 
-    @Operation(summary = "로그아웃", description = "accessToken 쿠키를 삭제하여 로그아웃 처리를 합니다.")
     @PostMapping("/logout")
     public ApiResponse<Void> logout(HttpServletResponse response) {
 
@@ -49,7 +44,6 @@ public class AuthController {
         return ApiResponse.onSuccess(GeneralSuccessCode.OK);
     }
 
-    @Operation(summary = "내 정보 조회", description = "현재 로그인된 사용자의 정보를 조회합니다.")
     @GetMapping("/me")
     public ApiResponse<AuthResponse.MemberInfo> getMyInfo(@AuthenticationPrincipal String email) {
         if (email == null) {

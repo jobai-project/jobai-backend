@@ -1,10 +1,11 @@
 package com.jobai.backend.domain.member.service;
 
 import com.jobai.backend.domain.member.dto.MemberRequestDTO;
+import com.jobai.backend.domain.member.dto.MemberResponseDTO;
 import com.jobai.backend.domain.member.entity.Member;
+import com.jobai.backend.domain.member.entity.PreferredJob;
+import com.jobai.backend.domain.member.entity.PreferredRegion;
 import com.jobai.backend.domain.member.repository.MemberRepository;
-import com.jobai.backend.global.apiPayload.ApiResponse;
-import com.jobai.backend.global.apiPayload.code.BaseErrorCode;
 import com.jobai.backend.global.apiPayload.code.GeneralErrorCode;
 import com.jobai.backend.global.apiPayload.exception.GeneralException;
 import lombok.RequiredArgsConstructor;
@@ -12,7 +13,10 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
+
 
 import static com.jobai.backend.global.apiPayload.code.GeneralErrorCode.NOT_FOUND;
 
@@ -39,7 +43,56 @@ public class MemberService {
                 request.getJobCategories(),
                 request.getLocations()
         );
+    }
+    
+    // 마이페이지의 모든 정보를 조회하는 함수
+    public MemberResponseDTO.MyPageDTO getMyPageData(String email) {
+        // 1. 이메일 기반 회원 조회
+        Member member = memberRepository.findByEmail(email)
+                .orElseThrow(() -> new GeneralException(GeneralErrorCode.MEMBER_NOT_FOUND, "해당 이메일은 존재하지 않는 회원입니다."));
 
-        // 트랜잭션이 종료되면서 Dirty Checking에 의해 수정 사항이 자동으로 DB에 반영됩니다.
+        // 2. 프로필 정보 조립
+        MemberResponseDTO.ProfileInfo profile = MemberResponseDTO.ProfileInfo.builder()
+                .name(member.getName())
+                .email(member.getEmail())
+                .build();
+
+        // 3. 선호 조건 정보 조립
+        MemberResponseDTO.JobPreferenceInfo jobPreference = MemberResponseDTO.JobPreferenceInfo.builder()
+                .careerType(member.getCareerType()) // TODO: 온보딩에서 신입/경력(CareerType) 넣어줘야함
+                .jobCategories(member.getPrefJobs().stream()
+                        .map(PreferredJob::getJobCategory)
+                        .collect(Collectors.toList()))
+                .locations(member.getPrefLocations().stream()
+                        .map(PreferredRegion::getLocation)
+                        .collect(Collectors.toList()))
+                .build();
+
+        // 4. 실제 DB 이력서 리스트 바인딩
+        List<MemberResponseDTO.ResumeInfo> resumeInfos = member.getResumes().stream()
+                .map(resume -> MemberResponseDTO.ResumeInfo.builder()
+                        .resumeId(resume.getId())
+                        .originalFilename(resume.getOriginalFilename()) // 스네이크 표기법 Getter 매핑
+                        .storedFileUrl(resume.getStoredFileUrl())     // 다운로드에 사용할 S3 주소 등
+                        .updatedAt(resume.getUpdatedAt())
+                        .isActive(resume.getIsActive() != null && resume.getIsActive())
+                        .build())
+                .collect(Collectors.toList());
+
+        // 5. 전체 마이페이지 데이터 웅합 반환
+        return MemberResponseDTO.MyPageDTO.builder()
+                .profile(profile)
+                .jobPreference(jobPreference)
+                .resumes(resumeInfos)
+                .build();
+    }
+
+    @Transactional // 더티체크를 활용한 이름변경 로직
+    public void updateMemberName(String email, String newName) {
+
+        Member member = memberRepository.findByEmail(email)
+                .orElseThrow(() -> new GeneralException(GeneralErrorCode.MEMBER_NOT_FOUND, "해당 이메일은 존재하지 않는 회원입니다."));
+
+        member.update(newName);
     }
 }

@@ -57,6 +57,13 @@ public class Member {
     @OneToMany(mappedBy = "member", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<PreferredRegion> prefLocations = new ArrayList<>();
 
+    @Builder.Default // 빌더로 객체를 만들 때도 이 필드는 기본적으로 빈 리스트로 초기화하라는 어노테이션
+    // mappedBy를 통해 연관관계의 주인을 지정.
+    // cascade를 통해 Member 엔티티의 영속상 상태를 전파시킴.
+    // orphanRemoval을 통해 부모 객체와 관계가 끊어진 엔티티를 자동으로 삭제.
+    @OneToMany(mappedBy = "member", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<Resumes> resumes = new ArrayList<>();
+
     // --- 비즈니스 로직 (통 업데이트 편의 메서드) ---
     public void updateJobPreferences(String careerType, List<String> jobCategories, List<String> locations) {
         this.careerType = careerType;
