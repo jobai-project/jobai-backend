@@ -1,0 +1,17 @@
+.git
+.github
+.gradle
+build
+out
+
+.env
+.env.*
+!.env.example
+
+infra/terraform/.terraform
+infra/terraform/*.tfvars
+infra/terraform/terraform.tfstate
+infra/terraform/terraform.tfstate.*
+
+*.log
+.DS_Store

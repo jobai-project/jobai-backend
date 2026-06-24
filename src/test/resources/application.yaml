@@ -11,10 +11,10 @@ spring:
       - org.springframework.boot.autoconfigure.data.elasticsearch.ElasticsearchRepositoriesAutoConfiguration
 
   datasource:
+    url: jdbc:postgresql://${TEST_POSTGRES_HOST:localhost}:${TEST_POSTGRES_PORT:5432}/${TEST_POSTGRES_DB:jobai}
+    username: ${TEST_POSTGRES_USER:jobai_user}
+    password: ${TEST_POSTGRES_PASSWORD:jobai_password}
     driver-class-name: org.postgresql.Driver
-    url: jdbc:postgresql://${POSTGRES_HOST:localhost}:${POSTGRES_PORT:5432}/${POSTGRES_DB:jobai}
-    username: ${POSTGRES_USER:jobai_user}
-    password: ${POSTGRES_PASSWORD:jobai_password}
 
   jpa:
     hibernate:
@@ -53,7 +53,7 @@ spring:
       api-key: dummy-anthropic-api-key-for-tests
 
 ai-server:
-  base-url: http://localhost:8001
+  base-url: ${AI_SERVER_BASE_URL:http://localhost:8001}
 
 redis:
   host: ${REDIS_HOST:localhost}

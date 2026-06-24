@@ -65,11 +65,11 @@ jobs:
         run: ./gradlew clean build --no-daemon --stacktrace
         env:
           SPRING_PROFILES_ACTIVE: test
-          POSTGRES_HOST: localhost
-          POSTGRES_PORT: 5432
-          POSTGRES_DB: jobai_test
-          POSTGRES_USER: jobai_user
-          POSTGRES_PASSWORD: jobai_password
+          TEST_POSTGRES_HOST: localhost
+          TEST_POSTGRES_PORT: 5432
+          TEST_POSTGRES_DB: jobai_test
+          TEST_POSTGRES_USER: jobai_user
+          TEST_POSTGRES_PASSWORD: jobai_password
           REDIS_HOST: localhost
           REDIS_PORT: 6379
           JWT_SECRET: test-jwt-secret-key-must-be-at-least-32-bytes-long
