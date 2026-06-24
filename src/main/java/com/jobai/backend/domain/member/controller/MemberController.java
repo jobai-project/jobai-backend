@@ -1,9 +1,11 @@
 package com.jobai.backend.domain.member.controller;
 
 import com.jobai.backend.domain.member.dto.MemberRequestDTO;
+import com.jobai.backend.domain.member.dto.MemberResponseDTO;
 import com.jobai.backend.domain.member.service.MemberService;
 import com.jobai.backend.global.apiPayload.ApiResponse;
 import com.jobai.backend.global.apiPayload.code.GeneralSuccessCode;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
@@ -11,7 +13,7 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/api/v1/members")
-public class MemberController {
+public class MemberController implements MemberControllerDocs {
 
     private final MemberService memberService;
 
@@ -24,5 +26,24 @@ public class MemberController {
         memberService.updateMyJobPreferences(email, request);
 
         return ApiResponse.onSuccess(GeneralSuccessCode.OK, "공고 조건 설정이 성공적으로 변경되었습니다.");
+    }
+
+    @GetMapping("/me")
+    public ApiResponse<MemberResponseDTO.MyPageDTO> getMyPage(
+            @AuthenticationPrincipal String email) {
+
+        MemberResponseDTO.MyPageDTO myPageData = memberService.getMyPageData(email);
+
+        return ApiResponse.onSuccess(GeneralSuccessCode.OK, myPageData);
+    }
+
+    @PatchMapping("/me/name") // 💡 특정 필드 수정이므로 PATCH 활용
+    public ApiResponse<String> updateName(
+            @AuthenticationPrincipal String email,
+            @Valid @RequestBody MemberRequestDTO.UpdateNameDTO request
+    ) {
+        memberService.updateMemberName(email, request.getName());
+
+        return ApiResponse.onSuccess(GeneralSuccessCode.OK, "이름이 성공적으로 수정되었습니다.");
     }
 }

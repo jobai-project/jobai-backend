@@ -1,20 +1,19 @@
-package com.jobai.backend.domain.notification;
+package com.jobai.backend.domain.notification.controller;
 
+import com.jobai.backend.domain.notification.LambdaTestRequest;
 import com.jobai.backend.domain.notification.service.LambdaNotificationService;
 import com.jobai.backend.global.apiPayload.ApiResponse;
 import com.jobai.backend.global.apiPayload.code.GeneralSuccessCode;
-import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-@Tag(name = "Notification", description = "알림 기능 테스트용 API")
 @RestController
 @RequestMapping("/api/v1/notification")
 @RequiredArgsConstructor
-public class notificationController {
+public class notificationController implements NotificationControllerDocs {
 
     private final LambdaNotificationService lambdaNotificationService;
 

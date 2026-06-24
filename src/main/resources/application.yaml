@@ -35,7 +35,7 @@ spring:
 
   datasource:
     driver-class-name: org.postgresql.Driver
-    url: jdbc:postgresql://localhost:${POSTGRES_PORT:5432}/${POSTGRES_DB:jobai}
+    url: jdbc:postgresql://${POSTGRES_HOST:localhost}:${POSTGRES_PORT:5432}/${POSTGRES_DB:jobai}
     username: ${POSTGRES_USER:jobai_user}
     password: ${POSTGRES_PASSWORD:jobai_password}
 
