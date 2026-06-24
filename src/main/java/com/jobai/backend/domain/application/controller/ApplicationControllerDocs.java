@@ -433,4 +433,132 @@ public interface ApplicationControllerDocs {
             )
     })
     ApiResponse<String> deleteApplication(String email, Long applicationId);
+
+    @Operation(
+            summary = "입사 지원 현황 요약 조회",
+            description = """
+                    로그인한 사용자의 전체 지원 현황을 분석해 평균 진행도와 계산 대상 공고 수를 반환합니다.
+
+                    **인증 필요**: 유효한 `accessToken` 쿠키가 있어야 합니다.
+
+                    **계산 제외 대상**: `PLANNED`(지원 예정), `DOCUMENT_REJECTED`(서류 불합격), `INTERVIEW_REJECTED`(면접 불합격)
+
+                    **진행도 점수 기준 (status별):**
+                    | status | 점수 |
+                    |---|---|
+                    | `APPLIED` | 10 |
+                    | `DOCUMENT_PASSED` | 40 |
+                    | `INTERVIEW_PASSED` | 70 |
+                    | `FINAL_ACCEPTED` | 100 |
+
+                    계산 대상 공고가 없으면 `averageProgress: 0.0`, `totalCalculatedCount: 0` 으로 반환됩니다.
+                    """
+    )
+    @ApiResponses(value = {
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "200",
+                    description = "요약 조회 성공",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = @ExampleObject(value = """
+                                    {
+                                      "isSuccess": true,
+                                      "code": "COMMON_200_001",
+                                      "message": "요청이 성공적으로 처리되었습니다.",
+                                      "result": {
+                                        "averageProgress": 40.0,
+                                        "totalCalculatedCount": 3
+                                      }
+                                    }
+                                    """)
+                    )
+            ),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "401",
+                    description = "인증되지 않은 사용자 (로그인 필요)",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = @ExampleObject(value = """
+                                    {
+                                      "isSuccess": false,
+                                      "code": "COMMON_401_001",
+                                      "message": "인증이 필요합니다.",
+                                      "result": null
+                                    }
+                                    """)
+                    )
+            )
+    })
+    ApiResponse<ApplicationResponseDTO.ApplicationSummaryDTO> getApplicationSummary(String email);
+
+    @Operation(
+            summary = "다가오는 면접 일정 조회",
+            description = """
+                    로그인한 사용자의 면접 일정 중 오늘 이후(오늘 포함)인 항목을 가장 빠른 순으로 최대 3개 반환합니다.
+
+                    **인증 필요**: 유효한 `accessToken` 쿠키가 있어야 합니다.
+
+                    **반환 데이터 (`schedules` 배열 내 각 항목):**
+                    | 필드 | 타입 | 설명 |
+                    |---|---|---|
+                    | `applicationId` | Long | 지원 현황 고유 ID |
+                    | `companyName` | String | 회사명 |
+                    | `jobTitle` | String | 지원 직무명 |
+                    | `interviewAt` | String | 면접일 (`yyyy-MM-dd`) |
+                    | `daysLeft` | Long | 남은 일수 (0 = D-Day, 3 = D-3) |
+
+                    `interviewAt`이 설정되지 않은 지원 현황은 결과에 포함되지 않습니다.
+                    면접 일정이 없으면 `schedules`는 빈 배열(`[]`)로 반환됩니다.
+                    """
+    )
+    @ApiResponses(value = {
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "200",
+                    description = "다가오는 일정 조회 성공",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = @ExampleObject(value = """
+                                    {
+                                      "isSuccess": true,
+                                      "code": "COMMON_200_001",
+                                      "message": "요청이 성공적으로 처리되었습니다.",
+                                      "result": {
+                                        "schedules": [
+                                          {
+                                            "applicationId": 3,
+                                            "companyName": "카카오",
+                                            "jobTitle": "백엔드 개발자",
+                                            "interviewAt": "2026-06-24",
+                                            "daysLeft": 0
+                                          },
+                                          {
+                                            "applicationId": 9,
+                                            "companyName": "토스",
+                                            "jobTitle": "백엔드 개발자",
+                                            "interviewAt": "2026-06-27",
+                                            "daysLeft": 3
+                                          }
+                                        ]
+                                      }
+                                    }
+                                    """)
+                    )
+            ),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "401",
+                    description = "인증되지 않은 사용자 (로그인 필요)",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = @ExampleObject(value = """
+                                    {
+                                      "isSuccess": false,
+                                      "code": "COMMON_401_001",
+                                      "message": "인증이 필요합니다.",
+                                      "result": null
+                                    }
+                                    """)
+                    )
+            )
+    })
+    ApiResponse<ApplicationResponseDTO.UpcomingScheduleListDTO> getUpcomingSchedules(String email);
 }
