@@ -38,4 +38,33 @@ public class ApplicationResponseDTO {
     public static class ApplicationListDTO {
         private List<ApplicationListItemDTO> applications; // 리스트를 오브젝트로 한 번 감싸서 확장성 확보
     }
+
+    @Getter
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class ApplicationSummaryDTO {
+        private double averageProgress;   // 모든 지원 목록의 진행도 평균치
+        private int totalCalculatedCount; // 계산에 포함된 공고 개수
+    }
+
+    @Getter
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class UpcomingScheduleItemDTO {
+        private Long applicationId;
+        private String companyName;
+        private String jobTitle;
+        private LocalDate interviewAt;
+        private long daysLeft; // 디데이 계산용 필드 (ex. 0이면 D-Day, 3이면 D-3)
+    }
+
+    @Getter
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class UpcomingScheduleListDTO {
+        private List<UpcomingScheduleItemDTO> schedules;
+    }
 }

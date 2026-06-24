@@ -3,6 +3,7 @@ package com.jobai.backend.domain.application.service;
 import com.jobai.backend.domain.application.dto.ApplicationRequestDTO;
 import com.jobai.backend.domain.application.dto.ApplicationResponseDTO;
 import com.jobai.backend.domain.application.entity.Application;
+import com.jobai.backend.domain.application.entity.ApplicationStatus;
 import com.jobai.backend.domain.application.repository.ApplicationRepository;
 import com.jobai.backend.domain.member.entity.Member;
 import com.jobai.backend.domain.member.repository.MemberRepository;
@@ -12,6 +13,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -107,6 +110,70 @@ public class ApplicationService {
         // 3. 객체 조립 후 반환
         return ApplicationResponseDTO.ApplicationListDTO.builder()
                 .applications(itemDTOs)
+                .build();
+    }
+
+    public ApplicationResponseDTO.ApplicationSummaryDTO getApplicationSummary(String email) {
+        // 1. 해당 유저의 모든 지원 현황 조회
+        List<Application> allApplications = applicationRepository.findByMemberEmailOrderByAppliedAtDesc(email);
+
+        // 2. 탈락 및 지원 예정 공고 필터링
+        List<Application> validApplications = allApplications.stream()
+                .filter(app -> app.getStatus() != ApplicationStatus.DOCUMENT_REJECTED
+                        && app.getStatus() != ApplicationStatus.INTERVIEW_REJECTED
+                        && app.getStatus() != ApplicationStatus.PLANNED)
+                .toList();
+
+        // 3. 예외 처리: 계산 대상 공고가 하나도 없는 경우 0% 리턴하여 에러(NaN) 방지
+        if (validApplications.isEmpty()) {
+            return ApplicationResponseDTO.ApplicationSummaryDTO.builder()
+                    .averageProgress(0.0)
+                    .totalCalculatedCount(0)
+                    .build();
+        }
+
+        // 4. 진행도 점수 추출 및 평균 계산 (Stream API 활용)
+        double averageProgress = validApplications.stream()
+                .mapToInt(app -> app.getStatus().getProgress()) // Enum에 정의된 점수(10, 40, 70, 100) 가져오기
+                .average() // 평균 계산 (OptionalDouble 반환)
+                .orElse(0.0);
+
+        // 반올림 처리 (예: 45.3333... -> 45)
+        averageProgress = Math.round(averageProgress);
+
+        // 5. 결과 DTO 반환
+        return ApplicationResponseDTO.ApplicationSummaryDTO.builder()
+                .averageProgress(averageProgress)
+                .totalCalculatedCount(validApplications.size())
+                .build();
+    }
+
+    public ApplicationResponseDTO.UpcomingScheduleListDTO getUpcomingSchedules(String email) {
+        LocalDate today = LocalDate.now();
+
+        // 1. 오늘 이후의 면접 일정 Top 3 조회
+        List<Application> upcomingApplications =
+                applicationRepository.findTop3ByMemberEmailAndInterviewAtGreaterThanEqualOrderByInterviewAtAsc(email, today);
+
+        // 2. 엔티티 -> DTO 변환 및 디데이 연산
+        List<ApplicationResponseDTO.UpcomingScheduleItemDTO> scheduleItems = upcomingApplications.stream()
+                .map(app -> {
+                    // 오늘과 면접일 사이의 남은 일수 계산
+                    long daysLeft = ChronoUnit.DAYS.between(today, app.getInterviewAt());
+
+                    return ApplicationResponseDTO.UpcomingScheduleItemDTO.builder()
+                            .applicationId(app.getId())
+                            .companyName(app.getCompanyName())
+                            .jobTitle(app.getJobTitle())
+                            .interviewAt(app.getInterviewAt())
+                            .daysLeft(daysLeft)
+                            .build();
+                })
+                .collect(Collectors.toList());
+
+        // 3. 최종 리스트 DTO 조립
+        return ApplicationResponseDTO.UpcomingScheduleListDTO.builder()
+                .schedules(scheduleItems)
                 .build();
     }
 }

@@ -41,7 +41,7 @@ public class ApplicationController implements ApplicationControllerDocs {
         return ApiResponse.onSuccess(GeneralSuccessCode.OK, "입사 지원 현황이 성공적으로 수정되었습니다.");
     }
 
-    @DeleteMapping("/{applicationId}") // 💡 삭제 대상을 URI 경로 변수로 받습니다.
+    @DeleteMapping("/{applicationId}") // 삭제 대상을 URI 경로 변수로 받음
     public ApiResponse<String> deleteApplication(
             @AuthenticationPrincipal String email,
             @PathVariable Long applicationId
@@ -50,12 +50,28 @@ public class ApplicationController implements ApplicationControllerDocs {
         return ApiResponse.onSuccess(GeneralSuccessCode.OK, "입사 지원 기록이 성공적으로 삭제되었습니다.");
     }
 
-    @GetMapping // 💡 목록 조회의 RESTful 명세 규격 규칙 적용
+    @GetMapping
     public ApiResponse<ApplicationResponseDTO.ApplicationListDTO> getApplications(
             @AuthenticationPrincipal String email
     ) {
         ApplicationResponseDTO.ApplicationListDTO response = applicationService.getApplicationList(email);
 
+        return ApiResponse.onSuccess(GeneralSuccessCode.OK, response);
+    }
+
+    @GetMapping("/summary") // 요약 대시보드 API
+    public ApiResponse<ApplicationResponseDTO.ApplicationSummaryDTO> getApplicationSummary(
+            @AuthenticationPrincipal String email
+    ) {
+        ApplicationResponseDTO.ApplicationSummaryDTO response = applicationService.getApplicationSummary(email);
+        return ApiResponse.onSuccess(GeneralSuccessCode.OK, response);
+    }
+
+    @GetMapping("/upcoming") // 다가오는 일정 전용 API
+    public ApiResponse<ApplicationResponseDTO.UpcomingScheduleListDTO> getUpcomingSchedules(
+            @AuthenticationPrincipal String email
+    ) {
+        ApplicationResponseDTO.UpcomingScheduleListDTO response = applicationService.getUpcomingSchedules(email);
         return ApiResponse.onSuccess(GeneralSuccessCode.OK, response);
     }
 }

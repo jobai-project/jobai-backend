@@ -1,5 +1,6 @@
 package com.jobai.backend.domain.application.dto;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
 import com.jobai.backend.domain.application.entity.ApplicationStatus;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -26,7 +27,10 @@ public class ApplicationRequestDTO {
         @NotNull(message = "지원 단계는 필수 입력 항목입니다.")
         private ApplicationStatus status; // 프론트엔드에서 "DOCUMENT_SUBMITTED" 문자열을 보내면 자동 바인딩
 
+        @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd", timezone = "Asia/Seoul")
         private LocalDate appliedAt;   // 지원일 (선택 가능)
+
+        @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd", timezone = "Asia/Seoul")
         private LocalDate interviewAt; // 면접일 (선택 가능)
         private String memo;           // 메모 (선택 가능)
     }

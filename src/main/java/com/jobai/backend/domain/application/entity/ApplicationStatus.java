@@ -6,10 +6,11 @@ import lombok.RequiredArgsConstructor;
 @Getter
 @RequiredArgsConstructor
 public enum ApplicationStatus {
-    PLANNED("지원 예정"), APPLIED("지원 완료"),
-    DOCUMENT_PASSED("서류 합격"), INTERVIEW_PASSED("면접 합격"), FINAL_ACCEPTED("최종 합격")
-    , DOCUMENT_REJECTED("서류 탈락"), INTERVIEW_REJECTED("면접 탈락");
+    PLANNED("지원 예정", 0), APPLIED("지원 완료", 10),
+    DOCUMENT_PASSED("서류 합격", 40), INTERVIEW_PASSED("면접 합격", 70), FINAL_ACCEPTED("최종 합격", 100)
+    , DOCUMENT_REJECTED("서류 탈락", 0), INTERVIEW_REJECTED("면접 탈락", 0);
 
     private final String description;
+    private final int progress; // 각 단계별 누적 진행도 (%)
 
 }
