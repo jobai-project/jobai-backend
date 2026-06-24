@@ -26,7 +26,7 @@ class GeneralExceptionAdviceTest {
     @BeforeEach
     void setup() {
         mockMvc = MockMvcBuilders
-                .standaloneSetup(new TestController())
+                .standaloneSetup(new GeneralExceptionAdviceTestController())
                 .setControllerAdvice(new GeneralExceptionAdvice())
                 .build();
     }
@@ -39,7 +39,7 @@ class GeneralExceptionAdviceTest {
     @RestController
     @Profile("general-exception-advice-test-only")
     @RequestMapping("/test")
-    static class TestController {
+    static class GeneralExceptionAdviceTestController {
 
         record TestRequest(@NotBlank(message = "이름은 필수입니다") String name) {}
 
