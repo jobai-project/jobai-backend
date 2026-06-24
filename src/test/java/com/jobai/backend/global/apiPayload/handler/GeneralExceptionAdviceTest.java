@@ -8,6 +8,7 @@ import jakarta.validation.Validation;
 import jakarta.validation.constraints.NotBlank;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.context.annotation.Profile;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
@@ -36,6 +37,7 @@ class GeneralExceptionAdviceTest {
 
     @Validated
     @RestController
+    @Profile("general-exception-advice-test-only")
     @RequestMapping("/test")
     static class TestController {
 
