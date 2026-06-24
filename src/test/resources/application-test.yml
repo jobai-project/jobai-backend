@@ -14,12 +14,12 @@ spring:
 
   datasource:
     driver-class-name: org.postgresql.Driver
-    url: jdbc:postgresql://localhost:5432/jobai_test
-    username: jobai_user
-    password: jobai_password
+    url: jdbc:postgresql://${TEST_POSTGRES_HOST:localhost}:${TEST_POSTGRES_PORT:5432}/${TEST_POSTGRES_DB:jobai_test}
+    username: ${TEST_POSTGRES_USER:jobai_user}
+    password: ${TEST_POSTGRES_PASSWORD:jobai_password}
 
   flyway:
-    enabled: true
+    enabled: false
 
   ai:
     anthropic:
@@ -29,14 +29,37 @@ spring:
 
   cloud:
     aws:
+      region:
+        static: ap-northeast-2
+      credentials:
+        access-key: test-access-key
+        secret-key: test-secret-key
       s3:
         enabled: false
 
 redis:
-  host: localhost
-  port: 6379
+  host: ${REDIS_HOST:localhost}
+  port: ${REDIS_PORT:6379}
+
+ai-server:
+  base-url: ${AI_SERVER_BASE_URL:http://localhost:8001}
+
+api:
+  data-go-kr:
+    service-key: dummy-data-go-kr-service-key
+
+app:
+  auth:
+    cookie:
+      secure: false
+    frontend-redirect-url: http://localhost:3000/oauth2/redirect
+
+websocket:
+  allowed-origins: http://localhost:3000
 
 management:
   health:
     elasticsearch:
       enabled: false
+
+JWT_SECRET: test-jwt-secret-key-must-be-at-least-32-bytes-long
