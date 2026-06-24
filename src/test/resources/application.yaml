@@ -11,7 +11,7 @@ spring:
       - org.springframework.boot.autoconfigure.data.elasticsearch.ElasticsearchRepositoriesAutoConfiguration
 
   datasource:
-    url: jdbc:postgresql://${TEST_POSTGRES_HOST:localhost}:${TEST_POSTGRES_PORT:5432}/${TEST_POSTGRES_DB:jobai}
+    url: jdbc:postgresql://${TEST_POSTGRES_HOST:localhost}:${TEST_POSTGRES_PORT:5432}/${TEST_POSTGRES_DB:jobai_test}
     username: ${TEST_POSTGRES_USER:jobai_user}
     password: ${TEST_POSTGRES_PASSWORD:jobai_password}
     driver-class-name: org.postgresql.Driver
