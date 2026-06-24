@@ -13,6 +13,8 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -47,34 +49,62 @@ public class JobSearchService {
         }
 
         // 3. DB 검색 수행
-        int offset = page * size;
         int halfSize = Math.max(size / 2, 1);
+        int publicSize = Math.max(size - halfSize, 0);
+        int privateOffset = page * halfSize;
+        int publicOffset = page * publicSize;
 
-        List<JobSummary> privateResults = jobSearchRepository.searchPrivate(condition, offset, halfSize);
-        List<JobSummary> publicResults = jobSearchRepository.searchPublic(condition, offset, size - halfSize);
+        List<JobSummary> privateResults = jobSearchRepository.searchPrivate(condition, privateOffset, halfSize);
+        List<JobSummary> publicResults = jobSearchRepository.searchPublic(condition, publicOffset, publicSize);
 
         // primary 결과가 부족하고 fallback 카테고리가 있으면 추가 검색
         List<JobSummary> allResults = new ArrayList<>(privateResults);
         allResults.addAll(publicResults);
 
+        boolean usedFallback = false;
+        SearchCondition fallback = null;
+
         if (allResults.size() < size && condition.fallbackCategories() != null
                 && !condition.fallbackCategories().isEmpty()) {
-            SearchCondition fallback = new SearchCondition(
+            fallback = new SearchCondition(
                     condition.fallbackCategories(),
                     List.of(),
-                    condition.titleKeywords(),
+                    List.of(),
                     condition.location(),
                     condition.experience(),
                     condition.method()
             );
+
+            Set<Long> seenIds = allResults.stream()
+                    .map(JobSummary::id)
+                    .collect(Collectors.toSet());
+
             int remaining = size - allResults.size();
             int fallbackHalf = Math.max(remaining / 2, 1);
-            allResults.addAll(jobSearchRepository.searchPrivate(fallback, 0, fallbackHalf));
-            allResults.addAll(jobSearchRepository.searchPublic(fallback, 0, remaining - fallbackHalf));
+
+            List<JobSummary> fallbackPrivate = jobSearchRepository.searchPrivate(fallback, 0, fallbackHalf + seenIds.size())
+                    .stream()
+                    .filter(job -> !seenIds.contains(job.id()))
+                    .limit(fallbackHalf)
+                    .toList();
+
+            List<JobSummary> fallbackPublic = jobSearchRepository.searchPublic(fallback, 0, (remaining - fallbackHalf) + seenIds.size())
+                    .stream()
+                    .filter(job -> !seenIds.contains(job.id()))
+                    .limit(remaining - fallbackHalf)
+                    .toList();
+
+            allResults.addAll(fallbackPrivate);
+            allResults.addAll(fallbackPublic);
+            usedFallback = true;
         }
 
         long totalCount = jobSearchRepository.countPrivate(condition)
                 + jobSearchRepository.countPublic(condition);
+        if (usedFallback) {
+            totalCount += jobSearchRepository.countPrivate(fallback)
+                    + jobSearchRepository.countPublic(fallback);
+        }
 
         // 4. 응답 조립
         List<String> matchedCategories = new ArrayList<>(condition.categories());
