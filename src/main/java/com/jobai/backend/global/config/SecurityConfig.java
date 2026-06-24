@@ -6,6 +6,7 @@ import com.jobai.backend.global.auth.JwtAuthenticationFilter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Profile;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
@@ -16,6 +17,7 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 @Configuration
 @EnableWebSecurity
 @RequiredArgsConstructor
+@Profile("!local")
 public class SecurityConfig {
 
     private final CustomOAuth2UserService customOAuth2UserService;
@@ -50,7 +52,7 @@ public class SecurityConfig {
                         ).permitAll()
 
                         // 비로그인 상태에서도 접근해야 하는 비즈니스 API 경로 (회원가입/로그인 등)
-                        .requestMatchers("/api/v1/auth/**").permitAll()
+                        //.requestMatchers("/api/v1/auth/**").permitAll()
                         .anyRequest().authenticated() // 위에서 명시한 경로 외의 모든 요청은 무조건 인증(로그인)을 거쳐야 함
                 )
                         // 5. OAuth2 로그인 설정 추가

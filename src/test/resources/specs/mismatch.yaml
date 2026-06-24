@@ -1,0 +1,14 @@
+company: anothercompany
+company_name_ko: Mismatch Company
+source_type: json
+
+list:
+  url: http://localhost/unused
+  response_path: items
+
+pagination:
+  type: none
+
+fields:
+  job_id: id
+  title: title

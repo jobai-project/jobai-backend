@@ -23,6 +23,9 @@ bin/
 *.iml
 *.ipr
 *.yaml
+!src/test/resources/application.yaml
+!src/test/resources/specs/
+!src/test/resources/specs/*.yaml
 out/
 !**/src/main/**/out/
 !**/src/test/**/out/
@@ -44,3 +47,16 @@ out/
 
 ### md 파일
 *.md
+
+### Environment ###
+.env
+.env.*
+!.env.example
+
+
+# terraform
+*.tfvars
+infra/terraform/.terraform/
+**/*.tfstate
+**/*.tfstate.backup
+*.tfvars

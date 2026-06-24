@@ -63,6 +63,7 @@ dependencies {
 
 	// ── WebClient (FastAPI 비동기 HTTP 호출) ──────────────────
 	implementation 'org.springframework.boot:spring-boot-starter-webflux'
+	implementation 'org.springframework.boot:spring-boot-starter-websocket'
 
 	// ── Redis + Cache (Bloom Filter, LLM 캐싱) ───────────────
 	implementation 'org.springframework.boot:spring-boot-starter-cache'
@@ -105,8 +106,24 @@ dependencies {
 	testImplementation 'org.springframework.security:spring-security-test'
 
 	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+
+	// ── Jsoup ─────────────────────────────────────────────────
+	implementation 'org.jsoup:jsoup:1.18.1'
+
+	testImplementation 'com.squareup.okhttp3:mockwebserver:4.12.0'
 }
 
 tasks.named('test') {
-	useJUnitPlatform()
+	useJUnitPlatform {
+		excludeTags 'external'
+	}
+}
+
+tasks.register('externalTest', Test) {
+	description = 'Runs tests that depend on external websites or live third-party services.'
+	group = 'verification'
+	useJUnitPlatform {
+		includeTags 'external'
+	}
+	shouldRunAfter tasks.named('test')
 }

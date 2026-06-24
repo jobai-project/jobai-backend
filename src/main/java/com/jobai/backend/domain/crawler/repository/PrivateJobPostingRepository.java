@@ -1,0 +1,30 @@
+package com.jobai.backend.domain.crawler.repository;
+
+import com.jobai.backend.domain.crawler.entity.PrivateJobPosting;
+import org.springframework.data.repository.query.Param;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+
+
+import java.util.List;
+import java.util.Optional;
+
+public interface PrivateJobPostingRepository extends JpaRepository<PrivateJobPosting, Long> {
+
+    // company + source_job_id 로 기존 공고 찾기 (upsert 판단용)
+    Optional<PrivateJobPosting> findByCompanyAndSourceJobId(String company, String sourceJobId);
+
+    // 특정 회사의 모든 공고 (마감 처리 시, 이번 수집과 비교용)
+    List<PrivateJobPosting> findAllByCompany(String company);
+
+    // 우리 택소노미가 아닌 공고 = 재분류 대상 (null, 미분류, 회사원본명 전부)
+    @Query("""
+        SELECT p FROM PrivateJobPosting p
+        WHERE p.isClosed = false
+          AND (p.jobCategory IS NULL OR p.jobCategory NOT IN :validLabels)
+        """)
+    Page<PrivateJobPosting> findNeedsClassification(
+            @Param("validLabels") List<String> validLabels, Pageable pageable);
+}

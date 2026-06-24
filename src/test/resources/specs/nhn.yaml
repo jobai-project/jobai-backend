@@ -1,0 +1,24 @@
+# 자동 생성됨 (분석 에이전트). 회사=nhn
+# 분류: 자체 JSON 엔드포인트
+# LLM 매핑 근거: id는 공고 고유 ID, name은 공고 제목, postingEndDatetime은 마감 일시, postingStaDatetime은 등록 일시, name에서 지역 정보 추출 가능, postingYn으로 공개 여부 판단 가능(N이면 마감). 상세 링크와 본문은 샘플에 없음.
+company: nhn
+source_type: json
+crawler: declarative
+list:
+  url: https://careers.nhn.com/v1/job-postings?intensive-recruiting=&page=0&size=30
+  method: GET
+  params: {}
+  response_path: result
+pagination:
+  type: none
+required:
+- job_id
+- title
+fields:
+  job_id: id
+  title: name
+  deadline: postingEndDatetime
+  location: name
+  posted_at: postingStaDatetime
+apply_url:
+  template: "https://careers.nhn.com/recruits/{job_id}"

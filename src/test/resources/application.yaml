@@ -1,0 +1,80 @@
+spring:
+  application:
+    name: backend-test
+
+  autoconfigure:
+    exclude:
+      - org.springframework.ai.vectorstore.pgvector.autoconfigure.PgVectorStoreAutoConfiguration
+      - io.awspring.cloud.autoconfigure.s3.S3AutoConfiguration
+      - org.springframework.boot.autoconfigure.elasticsearch.ElasticsearchClientAutoConfiguration
+      - org.springframework.boot.autoconfigure.data.elasticsearch.ElasticsearchDataAutoConfiguration
+      - org.springframework.boot.autoconfigure.data.elasticsearch.ElasticsearchRepositoriesAutoConfiguration
+
+  datasource:
+    driver-class-name: org.postgresql.Driver
+    url: jdbc:postgresql://${POSTGRES_HOST:localhost}:${POSTGRES_PORT:5432}/${POSTGRES_DB:jobai}
+    username: ${POSTGRES_USER:jobai_user}
+    password: ${POSTGRES_PASSWORD:jobai_password}
+
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    show-sql: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+
+  flyway:
+    enabled: false
+
+  security:
+    oauth2:
+      client:
+        registration:
+          google:
+            client-id: dummy-google-client-id
+            client-secret: dummy-google-client-secret
+            scope:
+              - profile
+              - email
+
+  cloud:
+    aws:
+      region:
+        static: ap-northeast-2
+      credentials:
+        access-key: test-access-key
+        secret-key: test-secret-key
+      s3:
+        enabled: false
+
+  ai:
+    anthropic:
+      api-key: dummy-anthropic-api-key-for-tests
+
+ai-server:
+  base-url: http://localhost:8001
+
+redis:
+  host: ${REDIS_HOST:localhost}
+  port: ${REDIS_PORT:6379}
+
+api:
+  data-go-kr:
+    service-key: dummy-data-go-kr-service-key
+
+app:
+  auth:
+    cookie:
+      secure: false
+    frontend-redirect-url: http://localhost:3000/oauth2/redirect
+
+websocket:
+  allowed-origins: http://localhost:3000
+
+management:
+  health:
+    elasticsearch:
+      enabled: false
+
+JWT_SECRET: test-jwt-secret-key-must-be-at-least-32-bytes-long
