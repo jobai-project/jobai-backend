@@ -4,10 +4,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.ActiveProfiles;
 
-@SpringBootTest(
-		classes = BackendApplication.class,
-		properties = "spring.main.allow-bean-definition-overriding=true"
-)
+@SpringBootTest
 @ActiveProfiles("test")
 class BackendApplicationTests {
 
