@@ -66,6 +66,7 @@ jobs:
 
           DEPLOY_DIR="/home/ubuntu/jobai"
           PARAM_PATH="/jobai/prod/env"
+          AWS_REGION="ap-northeast-2"
 
           ensure_runtime_dependencies() {
             local needs_apt_update=false
@@ -101,6 +102,7 @@ jobs:
           get_param() {
             local value
             value=$(aws ssm get-parameter \
+              --region "${AWS_REGION}" \
               --name "${PARAM_PATH}/$1" \
               --with-decryption \
               --query "Parameter.Value" \
@@ -142,7 +144,12 @@ jobs:
           ENV
 
           cd "${DEPLOY_DIR}"
-          aws ecr get-login-password --region "$(get_param AWS_REGION)" \
+          DEPLOY_AWS_REGION="$(get_param AWS_REGION)"
+          if [ -z "${DEPLOY_AWS_REGION}" ]; then
+            DEPLOY_AWS_REGION="${AWS_REGION}"
+          fi
+
+          aws ecr get-login-password --region "${DEPLOY_AWS_REGION}" \
             | docker login --username AWS --password-stdin "$(get_param ECR_REGISTRY)"
           docker-compose -f docker-compose.prod.yml pull
           docker-compose -f docker-compose.prod.yml up -d
