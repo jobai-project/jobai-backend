@@ -24,7 +24,7 @@ public class HwpParserUtil {
             HWPFile hwpFile = HWPReader.fromInputStream(is);
             // InsertControlTextBetweenParagraphText: 표 셀 등 컨트롤 텍스트도 문단 사이에 포함
             String raw = TextExtractor.extract(hwpFile, TextExtractMethod.InsertControlTextBetweenParagraphText);
-            return normalize(raw);
+            return normalize(PdfParserUtil.sanitize(raw));
         } catch (Exception e) {
             log.error("HWP 텍스트 추출 중 에러 발생: {}", e.getMessage());
             return "";

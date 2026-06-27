@@ -4,6 +4,7 @@ package com.jobai.backend.domain.publicInstitution.service;
 import com.jobai.backend.domain.publicInstitution.dto.PublicJobDetailResponse;
 import com.jobai.backend.global.util.HwpParserUtil;
 import com.jobai.backend.global.util.PdfParserUtil;
+import com.jobai.backend.global.util.ZipExtractorUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -23,6 +24,7 @@ public class JobDetailSyncService {
     private final JobPostingPersistenceService jobPostingPersistenceService;
     private final PdfParserUtil pdfParserUtil;
     private final HwpParserUtil hwpParserUtil;
+    private final ZipExtractorUtil zipExtractorUtil;
     private final PublicJobDetailApiClient publicJobDetailApiClient;
     private final AlioPdfDownloader alioPdfDownloader;
 
@@ -46,14 +48,16 @@ public class JobDetailSyncService {
                     }
 
                     String fileUrl = fileItem.url();
-                    boolean isHwp = isHwpFile(fileItem);
+                    FileType fileType = detectFileType(fileItem);
 
                     // 파일 다운로드 및 파싱 (비동기 처리)
                     return alioPdfDownloader.downloadFile(fileUrl)
                             .flatMap(fileBytes -> Mono.fromCallable(() -> {
-                                        String extractedText = isHwp
-                                                ? hwpParserUtil.extractText(fileBytes)
-                                                : pdfParserUtil.extractText(fileBytes);
+                                        String extractedText = switch (fileType) {
+                                            case HWP -> hwpParserUtil.extractText(fileBytes);
+                                            case ZIP -> zipExtractorUtil.extractText(fileBytes);
+                                            default  -> pdfParserUtil.extractText(fileBytes);
+                                        };
                                         String ncsSubCategory = pdfParserUtil.parseNcsSubCategory(extractedText);
                                         return new ParsedFile(extractedText, ncsSubCategory);
                                     }).subscribeOn(Schedulers.boundedElastic())
@@ -70,6 +74,8 @@ public class JobDetailSyncService {
 
     private record ParsedFile(String text, String category) {}
 
+    private enum FileType { PDF, HWP, ZIP }
+
     /**
      * 기존 동기 방식 유지 (필요 시 사용)
      */
@@ -77,7 +83,7 @@ public class JobDetailSyncService {
         fetchAndSaveJobDetailAsync(webClient, sn, serviceKey).block();
     }
 
-    // 직무기술서 파일 추출 (PDF/HWP 모두 포함)
+    // 직무기술서 파일 추출 (PDF/HWP/ZIP 모두 포함)
     private PublicJobDetailResponse.FileItem extractJobDescriptionFile(PublicJobDetailResponse.DetailItem detail) {
         if (detail.files() == null) return null;
         return detail.files().stream()
@@ -86,10 +92,11 @@ public class JobDetailSyncService {
                 .orElse(null);
     }
 
-    private boolean isHwpFile(PublicJobDetailResponse.FileItem fileItem) {
-        String name = fileItem.atchFileNm();
-        String url = fileItem.url();
-        return (name != null && name.toLowerCase().endsWith(".hwp"))
-                || (url != null && url.toLowerCase().contains(".hwp"));
+    private FileType detectFileType(PublicJobDetailResponse.FileItem fileItem) {
+        String name = fileItem.atchFileNm() != null ? fileItem.atchFileNm().toLowerCase() : "";
+        String url  = fileItem.url()        != null ? fileItem.url().toLowerCase()        : "";
+        if (name.endsWith(".hwp") || url.contains(".hwp")) return FileType.HWP;
+        if (name.endsWith(".zip") || url.contains(".zip")) return FileType.ZIP;
+        return FileType.PDF;
     }
 }
