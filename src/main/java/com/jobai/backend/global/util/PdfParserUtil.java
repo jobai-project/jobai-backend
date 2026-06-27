@@ -25,11 +25,17 @@ public class PdfParserUtil {
         try (PDDocument document = Loader.loadPDF(pdfBytes)) {
             PDFTextStripper stripper = new PDFTextStripper();
             stripper.setSortByPosition(true); // 줄바꿈과 표 내부 텍스트 순서 최대한 유지
-            return stripper.getText(document);
+            return sanitize(stripper.getText(document));
         } catch (Exception e) {
             log.error("PDF 텍스트 덤프 중 에러 발생: {}", e.getMessage());
             return "";
         }
+    }
+
+    // PostgreSQL TEXT 컬럼은 null byte(\0)를 허용하지 않으므로 제거
+    public static String sanitize(String text) {
+        if (text == null) return "";
+        return text.replace("\0", "");
     }
 
     /**

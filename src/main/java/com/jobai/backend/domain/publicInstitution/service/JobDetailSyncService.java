@@ -2,7 +2,9 @@ package com.jobai.backend.domain.publicInstitution.service;
 
 
 import com.jobai.backend.domain.publicInstitution.dto.PublicJobDetailResponse;
+import com.jobai.backend.global.util.HwpParserUtil;
 import com.jobai.backend.global.util.PdfParserUtil;
+import com.jobai.backend.global.util.ZipExtractorUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -12,7 +14,7 @@ import reactor.core.scheduler.Schedulers;
 
 
 /**
-    채용공고 상세정보를 가져오고, pdf 파일을 다운받은 후 파싱하는 로직을 총괄함.
+    채용공고 상세정보를 가져오고, 직무기술서 파일(PDF/HWP)을 다운받은 후 파싱하는 로직을 총괄함.
  */
 @Slf4j
 @Service
@@ -21,6 +23,8 @@ public class JobDetailSyncService {
 
     private final JobPostingPersistenceService jobPostingPersistenceService;
     private final PdfParserUtil pdfParserUtil;
+    private final HwpParserUtil hwpParserUtil;
+    private final ZipExtractorUtil zipExtractorUtil;
     private final PublicJobDetailApiClient publicJobDetailApiClient;
     private final AlioPdfDownloader alioPdfDownloader;
 
@@ -36,25 +40,31 @@ public class JobDetailSyncService {
                     }
 
                     PublicJobDetailResponse.DetailItem detail = detailResponse.result();
-                    String pdfUrl = extractPdfUrl(detail);
+                    PublicJobDetailResponse.FileItem fileItem = extractJobDescriptionFile(detail);
 
-                    if (pdfUrl == null) {
+                    if (fileItem == null) {
                         jobPostingPersistenceService.saveOrUpdateJobPosting(detail, null, "", "일반무구분");
                         return Mono.empty();
                     }
 
-                    // PDF 다운로드 및 파싱 (비동기 처리)
-                    return alioPdfDownloader.downloadPdf(pdfUrl)
-                            .flatMap(pdfBytes -> Mono.fromCallable(() -> {
-                                        // CPU 집약적인 PDF 파싱 작업은 별도 스케줄러에서 실행
-                                        String extractedText = pdfParserUtil.extractText(pdfBytes);
+                    String fileUrl = fileItem.url();
+                    FileType fileType = detectFileType(fileItem);
+
+                    // 파일 다운로드 및 파싱 (비동기 처리)
+                    return alioPdfDownloader.downloadFile(fileUrl)
+                            .flatMap(fileBytes -> Mono.fromCallable(() -> {
+                                        String extractedText = switch (fileType) {
+                                            case HWP -> hwpParserUtil.extractText(fileBytes);
+                                            case ZIP -> zipExtractorUtil.extractText(fileBytes);
+                                            default  -> pdfParserUtil.extractText(fileBytes);
+                                        };
                                         String ncsSubCategory = pdfParserUtil.parseNcsSubCategory(extractedText);
-                                        return new ParsedPdf(extractedText, ncsSubCategory);
+                                        return new ParsedFile(extractedText, ncsSubCategory);
                                     }).subscribeOn(Schedulers.boundedElastic())
-                                    .doOnNext(parsed -> jobPostingPersistenceService.saveOrUpdateJobPosting(detail, pdfUrl, parsed.text, parsed.category))
+                                    .doOnNext(parsed -> jobPostingPersistenceService.saveOrUpdateJobPosting(detail, fileUrl, parsed.text, parsed.category))
                             )
-                            .switchIfEmpty(Mono.fromRunnable(() -> 
-                                    jobPostingPersistenceService.saveOrUpdateJobPosting(detail, pdfUrl, "", "일반무구분")
+                            .switchIfEmpty(Mono.fromRunnable(() ->
+                                    jobPostingPersistenceService.saveOrUpdateJobPosting(detail, fileUrl, "", "일반무구분")
                             ))
                             .then();
                 })
@@ -62,7 +72,9 @@ public class JobDetailSyncService {
                 .then();
     }
 
-    private record ParsedPdf(String text, String category) {}
+    private record ParsedFile(String text, String category) {}
+
+    private enum FileType { PDF, HWP, ZIP }
 
     /**
      * 기존 동기 방식 유지 (필요 시 사용)
@@ -71,13 +83,21 @@ public class JobDetailSyncService {
         fetchAndSaveJobDetailAsync(webClient, sn, serviceKey).block();
     }
 
-    // PDF URL 추출 로직
-    private String extractPdfUrl(PublicJobDetailResponse.DetailItem detail) {
+    // 직무기술서 파일 추출 (PDF/HWP/ZIP 모두 포함)
+    private PublicJobDetailResponse.FileItem extractJobDescriptionFile(PublicJobDetailResponse.DetailItem detail) {
         if (detail.files() == null) return null;
         return detail.files().stream()
-                .filter(f -> f.atchFileNm().contains("직무기술서") || "C".equals(f.atchFileType()))
-                .map(PublicJobDetailResponse.FileItem::url)
+                .filter(f -> "C".equals(f.atchFileType())
+                        || (f.atchFileNm() != null && f.atchFileNm().contains("직무기술서")))
                 .findFirst()
                 .orElse(null);
+    }
+
+    private FileType detectFileType(PublicJobDetailResponse.FileItem fileItem) {
+        String name = fileItem.atchFileNm() != null ? fileItem.atchFileNm().toLowerCase() : "";
+        String url  = fileItem.url()        != null ? fileItem.url().toLowerCase()        : "";
+        if (name.endsWith(".hwp") || url.contains(".hwp")) return FileType.HWP;
+        if (name.endsWith(".zip") || url.contains(".zip")) return FileType.ZIP;
+        return FileType.PDF;
     }
 }
