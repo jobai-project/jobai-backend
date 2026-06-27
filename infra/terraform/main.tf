@@ -125,11 +125,12 @@ resource "aws_instance" "jobai" {
   subnet_id              = aws_subnet.jobai_public.id
   vpc_security_group_ids = [aws_security_group.jobai.id]
   key_name               = var.key_name
+  iam_instance_profile   = aws_iam_instance_profile.ec2.name
 
   user_data = <<-EOF
     #!/bin/bash
     apt-get update -y
-    apt-get install -y docker.io
+    apt-get install -y docker.io awscli
     systemctl start docker
     systemctl enable docker
     usermod -aG docker ubuntu
@@ -187,24 +188,24 @@ resource "aws_security_group" "rds" {
 }
 
 resource "aws_db_instance" "jobai" {
-  identifier              = "jobai-db"
-  allocated_storage       = var.db_allocated_storage
-  engine                  = var.db_engine
-  engine_version          = var.db_engine_version
-  instance_class          = var.db_instance_class
-  db_name                 = var.db_name
-  username                = var.db_username
-  password                = var.db_password
-  port                    = var.db_port
-  db_subnet_group_name    = aws_db_subnet_group.jobai.name
-  vpc_security_group_ids  = [aws_security_group.rds.id]
-  skip_final_snapshot     = true
-  publicly_accessible     = false
-  storage_type            = "gp3"
-  storage_encrypted       = true
-  backup_retention_period = var.db_backup_retention_period
-  deletion_protection     = false
-  apply_immediately       = true
+  identifier                 = "jobai-db"
+  allocated_storage          = var.db_allocated_storage
+  engine                     = var.db_engine
+  engine_version             = var.db_engine_version
+  instance_class             = var.db_instance_class
+  db_name                    = var.db_name
+  username                   = var.db_username
+  password                   = var.db_password
+  port                       = var.db_port
+  db_subnet_group_name       = aws_db_subnet_group.jobai.name
+  vpc_security_group_ids     = [aws_security_group.rds.id]
+  skip_final_snapshot        = true
+  publicly_accessible        = false
+  storage_type               = "gp3"
+  storage_encrypted          = true
+  backup_retention_period    = var.db_backup_retention_period
+  deletion_protection        = false
+  apply_immediately          = true
   auto_minor_version_upgrade = true
 
   tags = {
