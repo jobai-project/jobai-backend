@@ -80,15 +80,15 @@ jobs:
             fi
 
             if [ "${needs_apt_update}" = "true" ]; then
-              apt-get update -y
+              DEBIAN_FRONTEND=noninteractive apt-get update -y >/dev/null
             fi
 
             if ! command -v aws >/dev/null 2>&1; then
-              apt-get install -y awscli
+              DEBIAN_FRONTEND=noninteractive apt-get install -y awscli >/dev/null
             fi
 
             if ! command -v docker >/dev/null 2>&1; then
-              apt-get install -y docker.io
+              DEBIAN_FRONTEND=noninteractive apt-get install -y docker.io >/dev/null
               systemctl enable docker
               systemctl start docker
             fi
@@ -221,7 +221,8 @@ jobs:
               "printf '%s' '${compose_b64}' | base64 -d > /tmp/jobai-deploy/docker-compose.prod.yml",
               "printf '%s' '${script_b64}' | base64 -d > /tmp/jobai-deploy/remote-deploy.sh",
               "bash /tmp/jobai-deploy/remote-deploy.sh"
-            ]
+            ],
+            "executionTimeout": ["1800"]
           }
           EOF
 
