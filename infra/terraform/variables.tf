@@ -59,3 +59,15 @@ variable "db_backup_retention_period" {
   type        = number
   default     = 0
 }
+
+variable "ecr_backend_repository_name" {
+  description = "ECR repository name for the Spring Boot backend image"
+  type        = string
+  default     = "jobai-backend"
+}
+
+variable "ecr_ai_server_repository_name" {
+  description = "ECR repository name for the AI server image"
+  type        = string
+  default     = "jobai-ai-server"
+}
