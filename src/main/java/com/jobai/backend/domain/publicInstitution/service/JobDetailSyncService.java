@@ -87,7 +87,8 @@ public class JobDetailSyncService {
     private PublicJobDetailResponse.FileItem extractJobDescriptionFile(PublicJobDetailResponse.DetailItem detail) {
         if (detail.files() == null) return null;
         return detail.files().stream()
-                .filter(f -> f.atchFileNm().contains("직무기술서") || "C".equals(f.atchFileType()))
+                .filter(f -> "C".equals(f.atchFileType())
+                        || (f.atchFileNm() != null && f.atchFileNm().contains("직무기술서")))
                 .findFirst()
                 .orElse(null);
     }

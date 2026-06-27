@@ -26,10 +26,6 @@ public class AlioPdfDownloader {
     private static final String USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
     private static final String REFERER_PAGE = "https://opendata.alio.go.kr/new/odaApiMng/recrutInquiryDetail.do";
 
-    public Mono<byte[]> downloadPdf(String pdfUrl) {
-        return downloadFile(pdfUrl);
-    }
-
     public Mono<byte[]> downloadFile(String fileUrl) {
         log.info("직무기술서 파일 실시간 다운로드 프로세스 시작: {}", fileUrl);
 
