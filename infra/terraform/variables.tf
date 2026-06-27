@@ -71,3 +71,15 @@ variable "ecr_ai_server_repository_name" {
   type        = string
   default     = "jobai-ai-server"
 }
+
+variable "github_oidc_thumbprint_list" {
+  description = "Thumbprint list for the GitHub Actions OIDC provider"
+  type        = list(string)
+  default     = ["6938fd4d98bab03faadb97b34396831e3780aea1"]
+}
+
+variable "github_actions_allowed_subjects" {
+  description = "GitHub Actions OIDC subject claims allowed to assume the deploy role"
+  type        = list(string)
+  default     = ["repo:jobai-project/jobai-backend:ref:refs/heads/develop"]
+}

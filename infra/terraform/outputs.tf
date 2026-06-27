@@ -25,3 +25,7 @@ output "ai_server_ecr_repository_url" {
 output "ecr_registry_url" {
   value = "${data.aws_caller_identity.current.account_id}.dkr.ecr.${var.aws_region}.amazonaws.com"
 }
+
+output "github_actions_deploy_role_arn" {
+  value = aws_iam_role.github_actions_deploy.arn
+}
