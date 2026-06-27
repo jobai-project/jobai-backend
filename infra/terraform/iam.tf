@@ -24,6 +24,11 @@ resource "aws_iam_role_policy_attachment" "ec2_ecr_read_only" {
   policy_arn = "arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly"
 }
 
+resource "aws_iam_role_policy_attachment" "ec2_ssm_managed_instance" {
+  role       = aws_iam_role.ec2.name
+  policy_arn = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
+}
+
 resource "aws_iam_instance_profile" "ec2" {
   name = "jobai-ec2-instance-profile"
   role = aws_iam_role.ec2.name
@@ -103,6 +108,25 @@ resource "aws_iam_policy" "github_actions_ecr_push" {
           aws_ecr_repository.backend.arn,
           aws_ecr_repository.ai_server.arn
         ]
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "ssm:SendCommand"
+        ]
+        Resource = [
+          "arn:aws:ssm:${var.aws_region}::document/AWS-RunShellScript",
+          aws_instance.jobai.arn
+        ]
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "ssm:GetCommandInvocation",
+          "ssm:ListCommandInvocations",
+          "ssm:ListCommands"
+        ]
+        Resource = "*"
       }
     ]
   })
