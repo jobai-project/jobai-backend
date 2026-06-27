@@ -130,7 +130,7 @@ resource "aws_instance" "jobai" {
   user_data = <<-EOF
     #!/bin/bash
     apt-get update -y
-    apt-get install -y docker.io
+    apt-get install -y docker.io awscli
     systemctl start docker
     systemctl enable docker
     usermod -aG docker ubuntu

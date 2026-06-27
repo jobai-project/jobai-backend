@@ -21,3 +21,7 @@ output "backend_ecr_repository_url" {
 output "ai_server_ecr_repository_url" {
   value = aws_ecr_repository.ai_server.repository_url
 }
+
+output "ecr_registry_url" {
+  value = "${data.aws_caller_identity.current.account_id}.dkr.ecr.${var.aws_region}.amazonaws.com"
+}
