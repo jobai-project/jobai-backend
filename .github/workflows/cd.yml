@@ -57,6 +57,66 @@ jobs:
           docker push "${AI_SERVER_IMAGE}:latest"
 
       - name: Prepare deployment files
+        run: |
+          mkdir -p .deploy
+          cp docker-compose.prod.yml .deploy/docker-compose.prod.yml
+
+          cat > .deploy/remote-deploy.sh <<'SCRIPT'
+          set -e
+
+          DEPLOY_DIR="/home/ubuntu/jobai"
+          PARAM_PATH="/jobai/prod/env"
+
+          get_param() {
+            local value
+            value=$(aws ssm get-parameter \
+              --name "${PARAM_PATH}/$1" \
+              --with-decryption \
+              --query "Parameter.Value" \
+              --output text 2>/dev/null || true)
+
+            if [ "${value}" = "__EMPTY__" ]; then
+              value=""
+            fi
+
+            printf '%s' "${value}"
+          }
+
+          mkdir -p "${DEPLOY_DIR}"
+          cp /tmp/jobai-deploy/docker-compose.prod.yml "${DEPLOY_DIR}/docker-compose.prod.yml"
+
+          cat > "${DEPLOY_DIR}/.env" <<ENV
+          ECR_REGISTRY=$(get_param ECR_REGISTRY)
+          IMAGE_TAG=$(get_param IMAGE_TAG)
+          SPRING_PROFILES_ACTIVE=$(get_param SPRING_PROFILES_ACTIVE)
+          SPRING_PORT=$(get_param SPRING_PORT)
+          FASTAPI_PORT=$(get_param FASTAPI_PORT)
+          REDIS_PORT=$(get_param REDIS_PORT)
+          POSTGRES_HOST=$(get_param POSTGRES_HOST)
+          POSTGRES_PORT=$(get_param POSTGRES_PORT)
+          POSTGRES_DB=$(get_param POSTGRES_DB)
+          POSTGRES_USER=$(get_param POSTGRES_USER)
+          POSTGRES_PASSWORD=$(get_param POSTGRES_PASSWORD)
+          JWT_SECRET=$(get_param JWT_SECRET)
+          GOOGLE_CLIENT_ID=$(get_param GOOGLE_CLIENT_ID)
+          GOOGLE_CLIENT_SECRET=$(get_param GOOGLE_CLIENT_SECRET)
+          AWS_REGION=$(get_param AWS_REGION)
+          S3_BUCKET_NAME=$(get_param S3_BUCKET_NAME)
+          ANTHROPIC_API_KEY=$(get_param ANTHROPIC_API_KEY)
+          OPENAI_API_KEY=$(get_param OPENAI_API_KEY)
+          SENDGRID_USERNAME=$(get_param SENDGRID_USERNAME)
+          SENDGRID_PASSWORD=$(get_param SENDGRID_PASSWORD)
+          ENV
+
+          cd "${DEPLOY_DIR}"
+          aws ecr get-login-password --region "$(get_param AWS_REGION)" \
+            | docker login --username AWS --password-stdin "$(get_param ECR_REGISTRY)"
+          docker-compose -f docker-compose.prod.yml pull
+          docker-compose -f docker-compose.prod.yml up -d
+          docker image prune -f
+          SCRIPT
+
+      - name: Sync runtime parameters
         env:
           SPRING_PROFILES_ACTIVE: ${{ secrets.SPRING_PROFILES_ACTIVE || 'prod' }}
           SPRING_PORT: ${{ secrets.SPRING_PORT || '8080' }}
@@ -76,62 +136,92 @@ jobs:
           SENDGRID_USERNAME: ${{ secrets.SENDGRID_USERNAME }}
           SENDGRID_PASSWORD: ${{ secrets.SENDGRID_PASSWORD }}
         run: |
-          mkdir -p .deploy
-          cp docker-compose.prod.yml .deploy/docker-compose.prod.yml
-          cat > .deploy/.env <<EOF
-          ECR_REGISTRY=${ECR_REGISTRY}
-          IMAGE_TAG=${IMAGE_TAG}
-          SPRING_PROFILES_ACTIVE=${SPRING_PROFILES_ACTIVE}
-          SPRING_PORT=${SPRING_PORT}
-          FASTAPI_PORT=${FASTAPI_PORT}
-          REDIS_PORT=${REDIS_PORT}
-          POSTGRES_HOST=${POSTGRES_HOST}
-          POSTGRES_PORT=${POSTGRES_PORT}
-          POSTGRES_DB=${POSTGRES_DB}
-          POSTGRES_USER=${POSTGRES_USER}
-          POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
-          JWT_SECRET=${JWT_SECRET}
-          GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
-          GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
-          AWS_REGION=${AWS_REGION}
-          S3_BUCKET_NAME=${S3_BUCKET_NAME}
-          ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
-          OPENAI_API_KEY=${OPENAI_API_KEY}
-          SENDGRID_USERNAME=${SENDGRID_USERNAME}
-          SENDGRID_PASSWORD=${SENDGRID_PASSWORD}
+          put_param() {
+            local name="$1"
+            local value="${2:-__EMPTY__}"
+
+            aws ssm put-parameter \
+              --name "/jobai/prod/env/${name}" \
+              --type "SecureString" \
+              --value "${value}" \
+              --overwrite >/dev/null
+          }
+
+          put_param ECR_REGISTRY "${ECR_REGISTRY}"
+          put_param IMAGE_TAG "${IMAGE_TAG}"
+          put_param SPRING_PROFILES_ACTIVE "${SPRING_PROFILES_ACTIVE}"
+          put_param SPRING_PORT "${SPRING_PORT}"
+          put_param FASTAPI_PORT "${FASTAPI_PORT}"
+          put_param REDIS_PORT "${REDIS_PORT}"
+          put_param POSTGRES_HOST "${POSTGRES_HOST}"
+          put_param POSTGRES_PORT "${POSTGRES_PORT}"
+          put_param POSTGRES_DB "${POSTGRES_DB}"
+          put_param POSTGRES_USER "${POSTGRES_USER}"
+          put_param POSTGRES_PASSWORD "${POSTGRES_PASSWORD}"
+          put_param JWT_SECRET "${JWT_SECRET}"
+          put_param GOOGLE_CLIENT_ID "${GOOGLE_CLIENT_ID}"
+          put_param GOOGLE_CLIENT_SECRET "${GOOGLE_CLIENT_SECRET}"
+          put_param AWS_REGION "${AWS_REGION}"
+          put_param S3_BUCKET_NAME "${S3_BUCKET_NAME}"
+          put_param ANTHROPIC_API_KEY "${ANTHROPIC_API_KEY}"
+          put_param OPENAI_API_KEY "${OPENAI_API_KEY}"
+          put_param SENDGRID_USERNAME "${SENDGRID_USERNAME}"
+          put_param SENDGRID_PASSWORD "${SENDGRID_PASSWORD}"
+
+      - name: Deploy on EC2 through SSM
+        run: |
+          compose_b64=$(base64 -w 0 .deploy/docker-compose.prod.yml)
+          script_b64=$(base64 -w 0 .deploy/remote-deploy.sh)
+
+          cat > ssm-command.json <<EOF
+          {
+            "commands": [
+              "set -e",
+              "mkdir -p /tmp/jobai-deploy",
+              "printf '%s' '${compose_b64}' | base64 -d > /tmp/jobai-deploy/docker-compose.prod.yml",
+              "printf '%s' '${script_b64}' | base64 -d > /tmp/jobai-deploy/remote-deploy.sh",
+              "bash /tmp/jobai-deploy/remote-deploy.sh"
+            ]
+          }
           EOF
 
-      - name: Set up SSH
-        env:
-          EC2_HOST: ${{ secrets.EC2_HOST }}
-          EC2_HOST_KEY: ${{ secrets.EC2_HOST_KEY }}
-          EC2_SSH_KEY: ${{ secrets.EC2_SSH_KEY }}
-        run: |
-          mkdir -p ~/.ssh
-          printf '%s\n' "${EC2_SSH_KEY}" > ~/.ssh/jobai-ec2.pem
-          chmod 600 ~/.ssh/jobai-ec2.pem
-          printf '%s\n' "${EC2_HOST_KEY}" > ~/.ssh/known_hosts
+          command_id=$(aws ssm send-command \
+            --targets "Key=tag:Name,Values=jobai-ec2" \
+            --document-name "AWS-RunShellScript" \
+            --comment "Deploy JobAI ${IMAGE_TAG}" \
+            --parameters file://ssm-command.json \
+            --query "Command.CommandId" \
+            --output text)
 
-      - name: Upload deployment files to EC2
-        env:
-          EC2_HOST: ${{ secrets.EC2_HOST }}
-          EC2_USER: ${{ secrets.EC2_USER || 'ubuntu' }}
-        run: |
-          ssh -i ~/.ssh/jobai-ec2.pem "${EC2_USER}@${EC2_HOST}" "mkdir -p ${DEPLOY_DIR}"
-          scp -i ~/.ssh/jobai-ec2.pem .deploy/docker-compose.prod.yml "${EC2_USER}@${EC2_HOST}:${DEPLOY_DIR}/docker-compose.prod.yml"
-          scp -i ~/.ssh/jobai-ec2.pem .deploy/.env "${EC2_USER}@${EC2_HOST}:${DEPLOY_DIR}/.env"
+          instance_id=""
+          for _ in {1..30}; do
+            instance_id=$(aws ssm list-command-invocations \
+              --command-id "${command_id}" \
+              --query "CommandInvocations[0].InstanceId" \
+              --output text)
 
-      - name: Deploy on EC2
-        env:
-          EC2_HOST: ${{ secrets.EC2_HOST }}
-          EC2_USER: ${{ secrets.EC2_USER || 'ubuntu' }}
-        run: |
-          ssh -i ~/.ssh/jobai-ec2.pem "${EC2_USER}@${EC2_HOST}" <<EOF
-          set -e
-          cd "${DEPLOY_DIR}"
-          aws ecr get-login-password --region "${AWS_REGION}" \
-            | docker login --username AWS --password-stdin "${ECR_REGISTRY}"
-          docker-compose -f docker-compose.prod.yml pull
-          docker-compose -f docker-compose.prod.yml up -d
-          docker image prune -f
-          EOF
+            if [ "${instance_id}" != "None" ]; then
+              break
+            fi
+
+            sleep 2
+          done
+
+          if [ -z "${instance_id}" ] || [ "${instance_id}" = "None" ]; then
+            echo "No SSM managed EC2 instance matched tag Name=jobai-ec2"
+            exit 1
+          fi
+
+          set +e
+          aws ssm wait command-executed \
+            --command-id "${command_id}" \
+            --instance-id "${instance_id}"
+          wait_status=$?
+
+          aws ssm get-command-invocation \
+            --command-id "${command_id}" \
+            --instance-id "${instance_id}" \
+            --query '{Status:Status,StandardOutputContent:StandardOutputContent,StandardErrorContent:StandardErrorContent}' \
+            --output json || true
+
+          exit "${wait_status}"

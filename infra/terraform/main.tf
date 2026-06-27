@@ -130,10 +130,13 @@ resource "aws_instance" "jobai" {
   user_data = <<-EOF
     #!/bin/bash
     apt-get update -y
-    apt-get install -y docker.io awscli
+    apt-get install -y docker.io awscli snapd
     systemctl start docker
     systemctl enable docker
     usermod -aG docker ubuntu
+    snap install amazon-ssm-agent --classic || true
+    systemctl enable snap.amazon-ssm-agent.amazon-ssm-agent.service || true
+    systemctl start snap.amazon-ssm-agent.amazon-ssm-agent.service || true
     curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
     chmod +x /usr/local/bin/docker-compose
   EOF
