@@ -6,10 +6,6 @@ output "ec2_public_dns" {
   value = aws_instance.jobai.public_dns
 }
 
-output "ec2_instance_id" {
-  value = aws_instance.jobai.id
-}
-
 output "rds_endpoint" {
   value = aws_db_instance.jobai.endpoint
 }
