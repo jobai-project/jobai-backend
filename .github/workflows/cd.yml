@@ -67,6 +67,37 @@ jobs:
           DEPLOY_DIR="/home/ubuntu/jobai"
           PARAM_PATH="/jobai/prod/env"
 
+          ensure_runtime_dependencies() {
+            local needs_apt_update=false
+
+            if ! command -v aws >/dev/null 2>&1; then
+              needs_apt_update=true
+            fi
+
+            if ! command -v docker >/dev/null 2>&1; then
+              needs_apt_update=true
+            fi
+
+            if [ "${needs_apt_update}" = "true" ]; then
+              apt-get update -y
+            fi
+
+            if ! command -v aws >/dev/null 2>&1; then
+              apt-get install -y awscli
+            fi
+
+            if ! command -v docker >/dev/null 2>&1; then
+              apt-get install -y docker.io
+              systemctl enable docker
+              systemctl start docker
+            fi
+
+            if ! command -v docker-compose >/dev/null 2>&1; then
+              curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+              chmod +x /usr/local/bin/docker-compose
+            fi
+          }
+
           get_param() {
             local value
             value=$(aws ssm get-parameter \
@@ -81,6 +112,8 @@ jobs:
 
             printf '%s' "${value}"
           }
+
+          ensure_runtime_dependencies
 
           mkdir -p "${DEPLOY_DIR}"
           cp /tmp/jobai-deploy/docker-compose.prod.yml "${DEPLOY_DIR}/docker-compose.prod.yml"
