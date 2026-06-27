@@ -1,0 +1,133 @@
+name: CD
+
+on:
+  push:
+    branches:
+      - develop
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  AWS_REGION: ap-northeast-2
+  ECR_REGISTRY: 077660206269.dkr.ecr.ap-northeast-2.amazonaws.com
+  BACKEND_IMAGE: 077660206269.dkr.ecr.ap-northeast-2.amazonaws.com/jobai-backend
+  AI_SERVER_IMAGE: 077660206269.dkr.ecr.ap-northeast-2.amazonaws.com/jobai-ai-server
+  IMAGE_TAG: ${{ github.sha }}
+  DEPLOY_DIR: /home/ubuntu/jobai
+
+jobs:
+  deploy:
+    name: Build, Push, and Deploy
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build and push backend image
+        run: |
+          docker build -t "${BACKEND_IMAGE}:${IMAGE_TAG}" -t "${BACKEND_IMAGE}:latest" .
+          docker push "${BACKEND_IMAGE}:${IMAGE_TAG}"
+          docker push "${BACKEND_IMAGE}:latest"
+
+      - name: Build and push AI server image
+        run: |
+          docker build -t "${AI_SERVER_IMAGE}:${IMAGE_TAG}" -t "${AI_SERVER_IMAGE}:latest" ./ai-server
+          docker push "${AI_SERVER_IMAGE}:${IMAGE_TAG}"
+          docker push "${AI_SERVER_IMAGE}:latest"
+
+      - name: Prepare deployment files
+        env:
+          SPRING_PROFILES_ACTIVE: ${{ secrets.SPRING_PROFILES_ACTIVE || 'prod' }}
+          SPRING_PORT: ${{ secrets.SPRING_PORT || '8080' }}
+          FASTAPI_PORT: ${{ secrets.FASTAPI_PORT || '8001' }}
+          REDIS_PORT: ${{ secrets.REDIS_PORT || '6379' }}
+          POSTGRES_HOST: ${{ secrets.POSTGRES_HOST }}
+          POSTGRES_PORT: ${{ secrets.POSTGRES_PORT || '5432' }}
+          POSTGRES_DB: ${{ secrets.POSTGRES_DB }}
+          POSTGRES_USER: ${{ secrets.POSTGRES_USER }}
+          POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
+          JWT_SECRET: ${{ secrets.JWT_SECRET }}
+          GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
+          GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
+          S3_BUCKET_NAME: ${{ secrets.S3_BUCKET_NAME }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          SENDGRID_USERNAME: ${{ secrets.SENDGRID_USERNAME }}
+          SENDGRID_PASSWORD: ${{ secrets.SENDGRID_PASSWORD }}
+        run: |
+          mkdir -p .deploy
+          cp docker-compose.prod.yml .deploy/docker-compose.prod.yml
+          cat > .deploy/.env <<EOF
+          ECR_REGISTRY=${ECR_REGISTRY}
+          IMAGE_TAG=${IMAGE_TAG}
+          SPRING_PROFILES_ACTIVE=${SPRING_PROFILES_ACTIVE}
+          SPRING_PORT=${SPRING_PORT}
+          FASTAPI_PORT=${FASTAPI_PORT}
+          REDIS_PORT=${REDIS_PORT}
+          POSTGRES_HOST=${POSTGRES_HOST}
+          POSTGRES_PORT=${POSTGRES_PORT}
+          POSTGRES_DB=${POSTGRES_DB}
+          POSTGRES_USER=${POSTGRES_USER}
+          POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+          JWT_SECRET=${JWT_SECRET}
+          GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
+          GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
+          AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+          AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+          AWS_REGION=${AWS_REGION}
+          S3_BUCKET_NAME=${S3_BUCKET_NAME}
+          ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+          OPENAI_API_KEY=${OPENAI_API_KEY}
+          SENDGRID_USERNAME=${SENDGRID_USERNAME}
+          SENDGRID_PASSWORD=${SENDGRID_PASSWORD}
+          EOF
+
+      - name: Set up SSH
+        env:
+          EC2_HOST: ${{ secrets.EC2_HOST }}
+          EC2_SSH_KEY: ${{ secrets.EC2_SSH_KEY }}
+        run: |
+          mkdir -p ~/.ssh
+          printf '%s\n' "${EC2_SSH_KEY}" > ~/.ssh/jobai-ec2.pem
+          chmod 600 ~/.ssh/jobai-ec2.pem
+          ssh-keyscan -H "${EC2_HOST}" >> ~/.ssh/known_hosts
+
+      - name: Upload deployment files to EC2
+        env:
+          EC2_HOST: ${{ secrets.EC2_HOST }}
+          EC2_USER: ${{ secrets.EC2_USER || 'ubuntu' }}
+        run: |
+          ssh -i ~/.ssh/jobai-ec2.pem "${EC2_USER}@${EC2_HOST}" "mkdir -p ${DEPLOY_DIR}"
+          scp -i ~/.ssh/jobai-ec2.pem .deploy/docker-compose.prod.yml "${EC2_USER}@${EC2_HOST}:${DEPLOY_DIR}/docker-compose.prod.yml"
+          scp -i ~/.ssh/jobai-ec2.pem .deploy/.env "${EC2_USER}@${EC2_HOST}:${DEPLOY_DIR}/.env"
+
+      - name: Deploy on EC2
+        env:
+          EC2_HOST: ${{ secrets.EC2_HOST }}
+          EC2_USER: ${{ secrets.EC2_USER || 'ubuntu' }}
+        run: |
+          ssh -i ~/.ssh/jobai-ec2.pem "${EC2_USER}@${EC2_HOST}" <<EOF
+          set -e
+          cd "${DEPLOY_DIR}"
+          aws ecr get-login-password --region "${AWS_REGION}" \
+            | docker login --username AWS --password-stdin "${ECR_REGISTRY}"
+          docker-compose -f docker-compose.prod.yml pull
+          docker-compose -f docker-compose.prod.yml up -d
+          docker image prune -f
+          EOF
