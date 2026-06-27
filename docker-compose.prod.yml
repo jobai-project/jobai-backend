@@ -1,0 +1,70 @@
+services:
+  redis:
+    image: redis:7-alpine
+    container_name: jobai-redis
+    ports:
+      - "${REDIS_PORT}:6379"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  ai-server:
+    image: "${ECR_REGISTRY}/jobai-ai-server:${IMAGE_TAG}"
+    container_name: jobai-ai-server
+    ports:
+      - "${FASTAPI_PORT}:8001"
+    restart: unless-stopped
+    environment:
+      FASTAPI_PORT: ${FASTAPI_PORT}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+    depends_on:
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8001/health')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  spring-boot:
+    image: "${ECR_REGISTRY}/jobai-backend:${IMAGE_TAG}"
+    container_name: jobai-spring
+    ports:
+      - "${SPRING_PORT}:8080"
+    restart: unless-stopped
+    environment:
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE}
+
+      POSTGRES_HOST: ${POSTGRES_HOST}
+      POSTGRES_PORT: ${POSTGRES_PORT}
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+
+      AI_SERVER_BASE_URL: http://ai-server:8001
+
+      JWT_SECRET: ${JWT_SECRET}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET}
+
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY}
+      AWS_REGION: ${AWS_REGION}
+      S3_BUCKET_NAME: ${S3_BUCKET_NAME}
+
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      SENDGRID_USERNAME: ${SENDGRID_USERNAME}
+      SENDGRID_PASSWORD: ${SENDGRID_PASSWORD}
+    depends_on:
+      redis:
+        condition: service_healthy
+      ai-server:
+        condition: service_healthy
