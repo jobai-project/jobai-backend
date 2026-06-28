@@ -186,7 +186,8 @@ jobs:
               "if ! command -v curl >/dev/null 2>&1; then apt-get install -y -qq curl; fi",
               "if ! command -v unzip >/dev/null 2>&1; then apt-get install -y -qq unzip; fi",
               "if ! command -v docker >/dev/null 2>&1; then apt-get install -y -qq docker.io; systemctl enable docker; systemctl start docker; fi",
-              "if ! command -v aws >/dev/null 2>&1; then rm -rf /tmp/aws /tmp/awscliv2.zip; curl -fsSL https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip -o /tmp/awscliv2.zip; unzip -q /tmp/awscliv2.zip -d /tmp; /tmp/aws/install --update; fi",
+              "if command -v docker >/dev/null 2>&1; then systemctl enable docker; systemctl start docker; fi",
+              "if ! aws --version 2>&1 | grep -q 'aws-cli/2'; then rm -rf /tmp/aws /tmp/awscliv2.zip; curl -fsSL https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip -o /tmp/awscliv2.zip; unzip -q /tmp/awscliv2.zip -d /tmp; /tmp/aws/install --update; fi",
               "if ! command -v docker-compose >/dev/null 2>&1; then curl -fsSL \"https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)\" -o /usr/local/bin/docker-compose; chmod +x /usr/local/bin/docker-compose; fi",
               "aws --version",
               "docker --version",
@@ -223,11 +224,22 @@ jobs:
             exit 1
           fi
 
-          set +e
-          aws ssm wait command-executed \
-            --command-id "${command_id}" \
-            --instance-id "${instance_id}"
-          wait_status=$?
+          status=""
+          for _ in {1..360}; do
+            status=$(aws ssm get-command-invocation \
+              --command-id "${command_id}" \
+              --instance-id "${instance_id}" \
+              --query "Status" \
+              --output text 2>/dev/null || true)
+
+            case "${status}" in
+              Success|Failed|TimedOut|Cancelled|Cancelling)
+                break
+                ;;
+            esac
+
+            sleep 5
+          done
 
           aws ssm get-command-invocation \
             --command-id "${command_id}" \
@@ -235,7 +247,9 @@ jobs:
             --query '{Status:Status,StandardOutputContent:StandardOutputContent,StandardErrorContent:StandardErrorContent}' \
             --output json || true
 
-          exit "${wait_status}"
+          if [ "${status}" != "Success" ]; then
+            exit 1
+          fi
 
       - name: Deploy on EC2 through SSM
         run: |
@@ -282,11 +296,22 @@ jobs:
             exit 1
           fi
 
-          set +e
-          aws ssm wait command-executed \
-            --command-id "${command_id}" \
-            --instance-id "${instance_id}"
-          wait_status=$?
+          status=""
+          for _ in {1..360}; do
+            status=$(aws ssm get-command-invocation \
+              --command-id "${command_id}" \
+              --instance-id "${instance_id}" \
+              --query "Status" \
+              --output text 2>/dev/null || true)
+
+            case "${status}" in
+              Success|Failed|TimedOut|Cancelled|Cancelling)
+                break
+                ;;
+            esac
+
+            sleep 5
+          done
 
           aws ssm get-command-invocation \
             --command-id "${command_id}" \
@@ -294,4 +319,6 @@ jobs:
             --query '{Status:Status,StandardOutputContent:StandardOutputContent,StandardErrorContent:StandardErrorContent}' \
             --output json || true
 
-          exit "${wait_status}"
+          if [ "${status}" != "Success" ]; then
+            exit 1
+          fi
