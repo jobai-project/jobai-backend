@@ -4,6 +4,7 @@ import com.jobai.backend.domain.crawler.classify.JobCategory;
 import org.springframework.stereotype.Component;
 
 import java.util.*;
+import java.util.regex.Pattern;
 
 @Component
 public class KeywordMatcher {
@@ -12,15 +13,28 @@ public class KeywordMatcher {
     private final Map<String, String> locationKeywords = new HashMap<>();
     private final Map<String, String> experienceKeywords = new HashMap<>();
 
+    private static final Set<String> STOPWORDS = Set.of(
+            "채용", "모집", "구인", "공고", "직무", "직종", "분야", "관련", "포지션",
+            "하는", "있는", "없는", "좋은", "쉬운", "편한"
+    );
+
+    // 한글 조사 패턴: 토큰 끝에 붙는 조사를 제거
+    private static final Pattern PARTICLE_PATTERN = Pattern.compile(
+            "(에서|으로|에서의|에서도|으로서|이나|에게|한테|까지|부터|마다|처럼|만큼|같은|에|을|를|이|가|은|는|의|로|과|와|도|만)$"
+    );
+
     public KeywordMatcher() {
         initCategorySynonyms();
         initLocationKeywords();
         initExperienceKeywords();
     }
 
-    public Optional<SearchCondition> match(String query) {
+    /**
+     * 쿼리에서 카테고리/지역/경력을 추출하고, 매칭되지 않은 토큰도 함께 반환한다.
+     */
+    public MatchResult extract(String query) {
         if (query == null || query.isBlank()) {
-            return Optional.empty();
+            return MatchResult.empty();
         }
 
         String normalized = query.toLowerCase().trim();
@@ -29,44 +43,83 @@ public class KeywordMatcher {
         Set<JobCategory> matchedCategories = new LinkedHashSet<>();
         String matchedLocation = null;
         String matchedExperience = null;
-        List<String> titleKeywords = new ArrayList<>();
+        List<String> unmatchedTokens = new ArrayList<>();
 
-        for (String token : tokens) {
-            JobCategory category = categorySynonyms.get(token);
+        for (String rawToken : tokens) {
+            String stripped = stripParticles(rawToken);
+
+            JobCategory category = findCategory(stripped, rawToken);
             if (category != null) {
                 matchedCategories.add(category);
-                titleKeywords.add(token);
                 continue;
             }
 
-            String location = locationKeywords.get(token);
+            String location = findLocation(stripped, rawToken);
             if (location != null) {
                 matchedLocation = location;
                 continue;
             }
 
-            String experience = experienceKeywords.get(token);
+            String experience = findExperience(stripped, rawToken);
             if (experience != null) {
                 matchedExperience = experience;
+                continue;
             }
-        }
 
-        if (matchedCategories.isEmpty() && matchedLocation == null && matchedExperience == null) {
-            return Optional.empty();
+            // 불용어 제거
+            if (!STOPWORDS.contains(stripped) && !STOPWORDS.contains(rawToken)
+                    && !stripped.isBlank()) {
+                unmatchedTokens.add(rawToken);
+            }
         }
 
         List<String> categoryLabels = matchedCategories.stream()
                 .map(JobCategory::getLabel)
                 .toList();
 
+        return new MatchResult(categoryLabels, matchedLocation, matchedExperience, unmatchedTokens);
+    }
+
+    /**
+     * 기존 호환용: 카테고리/지역/경력 중 하나라도 매칭되면 SearchCondition 반환.
+     */
+    public Optional<SearchCondition> match(String query) {
+        MatchResult result = extract(query);
+
+        if (result.categories().isEmpty() && result.location() == null && result.experience() == null) {
+            return Optional.empty();
+        }
+
         return Optional.of(new SearchCondition(
-                categoryLabels,
+                result.categories(),
                 List.of(),
-                titleKeywords,
-                matchedLocation,
-                matchedExperience,
+                List.of(),
+                result.location(),
+                result.experience(),
                 SearchCondition.METHOD_KEYWORD
         ));
+    }
+
+    private JobCategory findCategory(String stripped, String raw) {
+        JobCategory cat = categorySynonyms.get(stripped);
+        if (cat != null) return cat;
+        return categorySynonyms.get(raw);
+    }
+
+    private String findLocation(String stripped, String raw) {
+        String loc = locationKeywords.get(stripped);
+        if (loc != null) return loc;
+        return locationKeywords.get(raw);
+    }
+
+    private String findExperience(String stripped, String raw) {
+        String exp = experienceKeywords.get(stripped);
+        if (exp != null) return exp;
+        return experienceKeywords.get(raw);
+    }
+
+    static String stripParticles(String token) {
+        return PARTICLE_PATTERN.matcher(token).replaceAll("");
     }
 
     private void initCategorySynonyms() {
@@ -119,8 +172,27 @@ public class KeywordMatcher {
         for (String keyword : List.of("신입", "주니어", "junior", "인턴")) {
             experienceKeywords.put(keyword.toLowerCase(), "신입");
         }
-        for (String keyword : List.of("경력", "시니어", "senior", "미드", "mid")) {
+        for (String keyword : List.of("경력", "시니어", "senior", "미드", "mid", "경력직")) {
             experienceKeywords.put(keyword.toLowerCase(), "경력");
+        }
+    }
+
+    /**
+     * KeywordMatcher의 추출 결과.
+     * unmatchedTokens가 비어있으면 구조화 검색만으로 충분, 있으면 벡터 검색 필요.
+     */
+    public record MatchResult(
+            List<String> categories,
+            String location,
+            String experience,
+            List<String> unmatchedTokens
+    ) {
+        public boolean hasUnmatchedTokens() {
+            return unmatchedTokens != null && !unmatchedTokens.isEmpty();
+        }
+
+        public static MatchResult empty() {
+            return new MatchResult(List.of(), null, null, List.of());
         }
     }
 }

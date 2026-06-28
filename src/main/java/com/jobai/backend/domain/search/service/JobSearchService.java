@@ -4,17 +4,20 @@ import com.jobai.backend.domain.search.dto.JobSearchResponse;
 import com.jobai.backend.domain.search.dto.JobSearchResponse.JobSummary;
 import com.jobai.backend.domain.search.dto.JobSearchResponse.SearchInfo;
 import com.jobai.backend.domain.search.repository.JobSearchRepository;
+import com.jobai.backend.domain.search.repository.VectorSearchRepository;
+import com.jobai.backend.domain.search.service.KeywordMatcher.MatchResult;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
-import java.util.Arrays;
+import java.util.Comparator;
 import java.util.List;
-import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 @Slf4j
 @Service
@@ -23,116 +26,98 @@ import java.util.stream.Collectors;
 public class JobSearchService {
 
     private final KeywordMatcher keywordMatcher;
-    private final QueryInterpreter queryInterpreter;
     private final JobSearchRepository jobSearchRepository;
+    private final EmbeddingService embeddingService;
+    private final VectorSearchRepository vectorSearchRepository;
+
+    @Value("${search.embedding.enabled:true}")
+    private boolean embeddingEnabled;
+
+    private static final double VECTOR_THRESHOLD = 0.4;
 
     public JobSearchResponse search(String query, int page, int size) {
-        // 1. 룰 기반 매칭 시도
-        Optional<SearchCondition> ruleMatch = keywordMatcher.match(query);
-        SearchCondition condition;
+        MatchResult match = keywordMatcher.extract(query);
 
-        if (ruleMatch.isPresent()) {
-            condition = ruleMatch.get();
-            log.info("룰 기반 매칭 성공: query={}, categories={}", query, condition.categories());
-        } else {
-            // 2. LLM 의미 해석
-            log.info("LLM 의미 해석 시작: query={}", query);
+        log.info("키워드 분석: query={}, categories={}, location={}, experience={}, unmatchedTokens={}",
+                query, match.categories(), match.location(), match.experience(), match.unmatchedTokens());
+
+        if (!match.hasUnmatchedTokens()) {
+            // 경로 A: 모든 토큰이 매칭됨 → 기존 검색
+            log.info("구조화 검색 실행: query={}", query);
+            SearchCondition condition = new SearchCondition(
+                    match.categories(), List.of(), List.of(),
+                    match.location(), match.experience(),
+                    SearchCondition.METHOD_KEYWORD);
+            return executeTraditionalSearch(condition, page, size);
+        }
+
+        // 경로 B: 미매칭 토큰 있음 → 벡터 검색
+        if (embeddingEnabled) {
             try {
-                condition = queryInterpreter.interpret(query);
-                log.info("LLM 의미 해석 완료: categories={}, titleKeywords={}",
-                        condition.categories(), condition.titleKeywords());
+                float[] queryVector = embeddingService.embedQuery(query);
+                log.info("벡터 검색 실행: query={}, dimension={}", query, queryVector.length);
+
+                SearchCondition condition = new SearchCondition(
+                        match.categories(), List.of(), List.of(),
+                        match.location(), match.experience(),
+                        SearchCondition.METHOD_VECTOR);
+
+                JobSearchResponse result = executeVectorSearch(queryVector, condition, page, size);
+                log.info("벡터 검색 결과: {} 건", result.jobs().size());
+                return result;
             } catch (Exception e) {
-                // 3. LLM 실패 시 원본 query로 title LIKE 검색 fallback
-                log.warn("LLM 호출 실패, 원본 쿼리로 fallback: query={}", query, e);
-                condition = buildFallbackCondition(query);
+                log.warn("벡터 검색 실패, 기존 검색으로 폴백: query={}", query, e);
             }
         }
 
-        // 3. DB 검색 수행
-        int halfSize = Math.max(size / 2, 1);
-        int publicSize = Math.max(size - halfSize, 0);
-        int privateOffset = page * halfSize;
-        int publicOffset = page * publicSize;
+        // 벡터 검색 비활성화 또는 실패 시 기존 검색 폴백
+        SearchCondition fallback = new SearchCondition(
+                match.categories(), List.of(), List.of(),
+                match.location(), match.experience(),
+                SearchCondition.METHOD_KEYWORD);
+        return executeTraditionalSearch(fallback, page, size);
+    }
 
-        List<JobSummary> privateResults = jobSearchRepository.searchPrivate(condition, privateOffset, halfSize);
-        List<JobSummary> publicResults = jobSearchRepository.searchPublic(condition, publicOffset, publicSize);
+    private JobSearchResponse executeVectorSearch(float[] queryVector, SearchCondition condition,
+                                                   int page, int size) {
+        int offset = page * size;
 
-        // primary 결과가 부족하고 fallback 카테고리가 있으면 추가 검색
-        List<JobSummary> allResults = new ArrayList<>(privateResults);
-        allResults.addAll(publicResults);
+        List<JobSummary> privateResults = vectorSearchRepository.searchPrivateByVector(
+                queryVector, VECTOR_THRESHOLD, condition, offset, size);
+        List<JobSummary> publicResults = vectorSearchRepository.searchPublicByVector(
+                queryVector, VECTOR_THRESHOLD, condition, offset, size);
 
-        boolean usedFallback = false;
-        SearchCondition fallback = null;
+        List<JobSummary> allResults = mergeByCreatedAtDesc(privateResults, publicResults, size);
 
-        if (allResults.size() < size && condition.fallbackCategories() != null
-                && !condition.fallbackCategories().isEmpty()) {
-            fallback = new SearchCondition(
-                    condition.fallbackCategories(),
-                    List.of(),
-                    List.of(),
-                    condition.location(),
-                    condition.experience(),
-                    condition.method()
-            );
+        long totalCount = vectorSearchRepository.countPrivateByVector(queryVector, VECTOR_THRESHOLD, condition)
+                + vectorSearchRepository.countPublicByVector(queryVector, VECTOR_THRESHOLD, condition);
 
-            Set<Long> seenIds = allResults.stream()
-                    .map(JobSummary::id)
-                    .collect(Collectors.toSet());
+        SearchInfo searchInfo = new SearchInfo(
+                condition.method(), condition.categories(), List.of());
+        return new JobSearchResponse(totalCount, allResults, searchInfo);
+    }
 
-            int remaining = size - allResults.size();
-            int fallbackHalf = Math.max(remaining / 2, 1);
+    private JobSearchResponse executeTraditionalSearch(SearchCondition condition, int page, int size) {
+        int offset = page * size;
 
-            List<JobSummary> fallbackPrivate = jobSearchRepository.searchPrivate(fallback, 0, fallbackHalf + seenIds.size())
-                    .stream()
-                    .filter(job -> !seenIds.contains(job.id()))
-                    .limit(fallbackHalf)
-                    .toList();
+        List<JobSummary> privateResults = jobSearchRepository.searchPrivate(condition, offset, size);
+        List<JobSummary> publicResults = jobSearchRepository.searchPublic(condition, offset, size);
 
-            List<JobSummary> fallbackPublic = jobSearchRepository.searchPublic(fallback, 0, (remaining - fallbackHalf) + seenIds.size())
-                    .stream()
-                    .filter(job -> !seenIds.contains(job.id()))
-                    .limit(remaining - fallbackHalf)
-                    .toList();
-
-            allResults.addAll(fallbackPrivate);
-            allResults.addAll(fallbackPublic);
-            usedFallback = true;
-        }
+        List<JobSummary> allResults = mergeByCreatedAtDesc(privateResults, publicResults, size);
 
         long totalCount = jobSearchRepository.countPrivate(condition)
                 + jobSearchRepository.countPublic(condition);
-        if (usedFallback) {
-            totalCount += jobSearchRepository.countPrivate(fallback)
-                    + jobSearchRepository.countPublic(fallback);
-        }
 
-        // 4. 응답 조립
-        List<String> matchedCategories = new ArrayList<>(condition.categories());
-        if (condition.fallbackCategories() != null) {
-            matchedCategories.addAll(condition.fallbackCategories());
-        }
-
-        List<String> expandedKeywords = SearchCondition.METHOD_KEYWORD.equals(condition.method())
-                ? List.of()
-                : condition.titleKeywords();
-
-        SearchInfo searchInfo = new SearchInfo(condition.method(), matchedCategories, expandedKeywords);
+        SearchInfo searchInfo = new SearchInfo(
+                condition.method(), condition.categories(), List.of());
 
         return new JobSearchResponse(totalCount, allResults, searchInfo);
     }
 
-    private SearchCondition buildFallbackCondition(String query) {
-        List<String> keywords = Arrays.stream(query.trim().split("\\s+"))
-                .filter(token -> !token.isBlank())
+    private List<JobSummary> mergeByCreatedAtDesc(List<JobSummary> listA, List<JobSummary> listB, int limit) {
+        return Stream.concat(listA.stream(), listB.stream())
+                .sorted(Comparator.comparing(JobSummary::createdAt, Comparator.nullsLast(Comparator.reverseOrder())))
+                .limit(limit)
                 .toList();
-
-        return new SearchCondition(
-                List.of(),
-                List.of(),
-                keywords,
-                null,
-                null,
-                SearchCondition.METHOD_AI_FALLBACK
-        );
     }
 }

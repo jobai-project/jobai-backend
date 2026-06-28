@@ -64,6 +64,13 @@ spring:
       base-url: https://api.anthropic.com
 ai-server:
   base-url: ${AI_SERVER_BASE_URL:http://localhost:8001}
+search:
+  embedding:
+    enabled: ${SEARCH_EMBEDDING_ENABLED:true}
+    max-text-length: 8000
+    batch-size: 50
+    batch-interval-ms: 60000
+    dimension: 768
 redis:
   host: ${REDIS_HOST:localhost}
   port: ${REDIS_PORT:6379}
