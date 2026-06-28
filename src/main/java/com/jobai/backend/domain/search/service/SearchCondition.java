@@ -11,6 +11,5 @@ public record SearchCondition(
         String method
 ) {
     public static final String METHOD_KEYWORD = "KEYWORD";
-    public static final String METHOD_AI_EXPANDED = "AI_EXPANDED";
-    public static final String METHOD_AI_FALLBACK = "AI_FALLBACK";
+    public static final String METHOD_VECTOR = "VECTOR";
 }
