@@ -122,6 +122,9 @@ spring:
       model: claude-haiku-4-5-20251001
       base-url: https://api.anthropic.com
 
+server:
+  forward-headers-strategy: framework
+
 ai-server:
   base-url: ${AI_SERVER_BASE_URL}
 
