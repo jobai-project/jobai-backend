@@ -13,6 +13,11 @@ import org.springframework.security.config.annotation.web.configurers.AbstractHt
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.web.cors.CorsConfiguration;
+import org.springframework.web.cors.CorsConfigurationSource;
+import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+
+import java.util.Arrays;
 
 @Configuration
 @EnableWebSecurity
@@ -55,6 +60,10 @@ public class SecurityConfig {
                         //.requestMatchers("/api/v1/auth/**").permitAll()
                         .anyRequest().authenticated() // 위에서 명시한 경로 외의 모든 요청은 무조건 인증(로그인)을 거쳐야 함
                 )
+
+                // CORS 설정 연결
+                .cors(cors -> cors.configurationSource(corsConfigurationSource()))
+
                         // 5. OAuth2 로그인 설정 추가
                 .oauth2Login(oauth2 -> oauth2
                         .userInfoEndpoint(userInfo -> userInfo
@@ -66,5 +75,27 @@ public class SecurityConfig {
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
+    }
+
+    // 2. CORS 상세 설정 Bean 생성
+    @Bean
+    public CorsConfigurationSource corsConfigurationSource() {
+        CorsConfiguration configuration = new CorsConfiguration();
+
+        // 허용할 오리진 추가
+        configuration.setAllowedOrigins(Arrays.asList(
+                "http://localhost:5173",
+                "http://api.jobai.site:8080",
+                "http://api.jobai.site",
+                "https://api.jobai.site",
+                "https://jobai.site"
+        ));
+        configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"));
+        configuration.setAllowedHeaders(Arrays.asList("*"));
+        configuration.setAllowCredentials(true); // 쿠키 전송 허용
+
+        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+        source.registerCorsConfiguration("/**", configuration);
+        return source;
     }
 }
