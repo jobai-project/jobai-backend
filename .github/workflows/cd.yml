@@ -96,6 +96,8 @@ jobs:
           JWT_SECRET=$(get_param JWT_SECRET)
           GOOGLE_CLIENT_ID=$(get_param GOOGLE_CLIENT_ID)
           GOOGLE_CLIENT_SECRET=$(get_param GOOGLE_CLIENT_SECRET)
+          APP_FRONTEND_REDIRECT_URL=$(get_param APP_FRONTEND_REDIRECT_URL)
+          WEBSOCKET_ALLOWED_ORIGINS=$(get_param WEBSOCKET_ALLOWED_ORIGINS)
           AWS_REGION=$(get_param AWS_REGION)
           S3_BUCKET_NAME=$(get_param S3_BUCKET_NAME)
           ANTHROPIC_API_KEY=$(get_param ANTHROPIC_API_KEY)
@@ -132,6 +134,8 @@ jobs:
           JWT_SECRET: ${{ secrets.JWT_SECRET }}
           GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
           GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
+          APP_FRONTEND_REDIRECT_URL: ${{ secrets.APP_FRONTEND_REDIRECT_URL || 'https://app.jobai.site/oauth2/redirect' }}
+          WEBSOCKET_ALLOWED_ORIGINS: ${{ secrets.WEBSOCKET_ALLOWED_ORIGINS || 'https://app.jobai.site' }}
           S3_BUCKET_NAME: ${{ secrets.S3_BUCKET_NAME }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
@@ -164,6 +168,8 @@ jobs:
           put_param JWT_SECRET "${JWT_SECRET}"
           put_param GOOGLE_CLIENT_ID "${GOOGLE_CLIENT_ID}"
           put_param GOOGLE_CLIENT_SECRET "${GOOGLE_CLIENT_SECRET}"
+          put_param APP_FRONTEND_REDIRECT_URL "${APP_FRONTEND_REDIRECT_URL}"
+          put_param WEBSOCKET_ALLOWED_ORIGINS "${WEBSOCKET_ALLOWED_ORIGINS}"
           put_param AWS_REGION "${AWS_REGION}"
           put_param S3_BUCKET_NAME "${S3_BUCKET_NAME}"
           put_param ANTHROPIC_API_KEY "${ANTHROPIC_API_KEY}"
