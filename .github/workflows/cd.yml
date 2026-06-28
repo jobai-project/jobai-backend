@@ -68,37 +68,6 @@ jobs:
           PARAM_PATH="/jobai/prod/env"
           AWS_REGION="ap-northeast-2"
 
-          ensure_runtime_dependencies() {
-            local needs_apt_update=false
-
-            if ! command -v aws >/dev/null 2>&1; then
-              needs_apt_update=true
-            fi
-
-            if ! command -v docker >/dev/null 2>&1; then
-              needs_apt_update=true
-            fi
-
-            if [ "${needs_apt_update}" = "true" ]; then
-              DEBIAN_FRONTEND=noninteractive apt-get update -y >/dev/null
-            fi
-
-            if ! command -v aws >/dev/null 2>&1; then
-              DEBIAN_FRONTEND=noninteractive apt-get install -y awscli >/dev/null
-            fi
-
-            if ! command -v docker >/dev/null 2>&1; then
-              DEBIAN_FRONTEND=noninteractive apt-get install -y docker.io >/dev/null
-              systemctl enable docker
-              systemctl start docker
-            fi
-
-            if ! command -v docker-compose >/dev/null 2>&1; then
-              curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
-              chmod +x /usr/local/bin/docker-compose
-            fi
-          }
-
           get_param() {
             local value
             value=$(aws ssm get-parameter \
@@ -114,8 +83,6 @@ jobs:
 
             printf '%s' "${value}"
           }
-
-          ensure_runtime_dependencies
 
           mkdir -p "${DEPLOY_DIR}"
           cp /tmp/jobai-deploy/docker-compose.prod.yml "${DEPLOY_DIR}/docker-compose.prod.yml"
@@ -207,6 +174,68 @@ jobs:
           put_param OPENAI_API_KEY "${OPENAI_API_KEY}"
           put_param SENDGRID_USERNAME "${SENDGRID_USERNAME}"
           put_param SENDGRID_PASSWORD "${SENDGRID_PASSWORD}"
+
+      - name: Bootstrap EC2 deployment dependencies
+        run: |
+          cat > bootstrap-command.json <<'EOF'
+          {
+            "commands": [
+              "set -e",
+              "export DEBIAN_FRONTEND=noninteractive",
+              "if ! command -v docker >/dev/null 2>&1 || ! command -v curl >/dev/null 2>&1 || ! command -v unzip >/dev/null 2>&1; then apt-get update -qq; fi",
+              "if ! command -v curl >/dev/null 2>&1; then apt-get install -y -qq curl; fi",
+              "if ! command -v unzip >/dev/null 2>&1; then apt-get install -y -qq unzip; fi",
+              "if ! command -v docker >/dev/null 2>&1; then apt-get install -y -qq docker.io; systemctl enable docker; systemctl start docker; fi",
+              "if ! command -v aws >/dev/null 2>&1; then rm -rf /tmp/aws /tmp/awscliv2.zip; curl -fsSL https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip -o /tmp/awscliv2.zip; unzip -q /tmp/awscliv2.zip -d /tmp; /tmp/aws/install --update; fi",
+              "if ! command -v docker-compose >/dev/null 2>&1; then curl -fsSL \"https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)\" -o /usr/local/bin/docker-compose; chmod +x /usr/local/bin/docker-compose; fi",
+              "aws --version",
+              "docker --version",
+              "docker-compose --version"
+            ],
+            "executionTimeout": ["1800"]
+          }
+          EOF
+
+          command_id=$(aws ssm send-command \
+            --targets "Key=tag:Name,Values=jobai-ec2" \
+            --document-name "AWS-RunShellScript" \
+            --comment "Bootstrap JobAI deployment dependencies" \
+            --parameters file://bootstrap-command.json \
+            --query "Command.CommandId" \
+            --output text)
+
+          instance_id=""
+          for _ in {1..30}; do
+            instance_id=$(aws ssm list-command-invocations \
+              --command-id "${command_id}" \
+              --query "CommandInvocations[0].InstanceId" \
+              --output text)
+
+            if [ "${instance_id}" != "None" ]; then
+              break
+            fi
+
+            sleep 2
+          done
+
+          if [ -z "${instance_id}" ] || [ "${instance_id}" = "None" ]; then
+            echo "No SSM managed EC2 instance matched tag Name=jobai-ec2"
+            exit 1
+          fi
+
+          set +e
+          aws ssm wait command-executed \
+            --command-id "${command_id}" \
+            --instance-id "${instance_id}"
+          wait_status=$?
+
+          aws ssm get-command-invocation \
+            --command-id "${command_id}" \
+            --instance-id "${instance_id}" \
+            --query '{Status:Status,StandardOutputContent:StandardOutputContent,StandardErrorContent:StandardErrorContent}' \
+            --output json || true
+
+          exit "${wait_status}"
 
       - name: Deploy on EC2 through SSM
         run: |
