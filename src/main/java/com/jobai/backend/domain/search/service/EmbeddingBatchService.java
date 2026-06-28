@@ -13,6 +13,10 @@ import org.springframework.stereotype.Service;
 
 import java.util.List;
 
+/**
+ * 임베딩이 아직 생성되지 않은 공고를 주기적으로 찾아 배치로 임베딩을 생성하는 서비스.
+ * 스케줄러로 동작하며, 설정된 batch-size만큼 처리한다.
+ */
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -29,6 +33,7 @@ public class EmbeddingBatchService {
     @Value("${search.embedding.batch-size:50}")
     private int batchSize;
 
+    /** 임베딩이 없는 공고를 찾아 배치로 임베딩을 생성한다. */
     @Scheduled(fixedDelayString = "${search.embedding.batch-interval-ms:60000}")
     public void generateMissingEmbeddings() {
         if (!embeddingEnabled) return;

@@ -17,6 +17,11 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.stream.Stream;
 
+/**
+ * 채용 공고 검색 서비스.
+ * 키워드 매칭 결과에 따라 구조화 검색(카테고리/지역/경력) 또는
+ * 벡터 유사도 검색(pgvector 코사인 거리)으로 라우팅한다.
+ */
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -33,6 +38,7 @@ public class JobSearchService {
 
     private static final double VECTOR_THRESHOLD = 0.4;
 
+    /** 쿼리를 분석하여 키워드 검색 또는 벡터 검색을 실행한다. */
     public JobSearchResponse search(String query, int page, int size) {
         MatchResult match = keywordMatcher.extract(query);
 

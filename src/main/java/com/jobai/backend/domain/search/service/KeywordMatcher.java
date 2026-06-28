@@ -6,6 +6,11 @@ import org.springframework.stereotype.Component;
 import java.util.*;
 import java.util.regex.Pattern;
 
+/**
+ * 검색 쿼리에서 카테고리, 지역, 경력 키워드를 추출하고
+ * 매칭되지 않은 토큰을 분류하는 컴포넌트.
+ * 한글 조사 제거, 불용어 필터링을 수행한다.
+ */
 @Component
 public class KeywordMatcher {
 

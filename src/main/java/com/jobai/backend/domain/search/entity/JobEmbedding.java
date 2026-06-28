@@ -11,6 +11,10 @@ import org.hibernate.type.SqlTypes;
 
 import java.time.LocalDateTime;
 
+/**
+ * 공고 임베딩 엔티티. 공고의 title + description/htmlContent를 768차원 벡터로 변환하여 저장한다.
+ * 벡터 유사도 검색에 사용되며, source와 sourceId로 원본 공고를 논리적으로 참조한다.
+ */
 @Entity
 @Table(name = "job_embeddings", uniqueConstraints =
     @UniqueConstraint(name = "uk_source_source_id", columnNames = {"source", "source_id"}))
@@ -48,6 +52,7 @@ public class JobEmbedding {
         this.embeddingText = embeddingText;
     }
 
+    /** 임베딩 벡터와 원본 텍스트를 갱신한다. */
     public void updateEmbedding(float[] embedding, String embeddingText) {
         this.embedding = embedding;
         this.embeddingText = embeddingText;

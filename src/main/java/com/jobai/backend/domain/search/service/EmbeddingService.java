@@ -18,6 +18,10 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.List;
 import java.util.Optional;
 
+/**
+ * 공고 및 검색 쿼리의 임베딩 벡터를 생성하고 관리하는 서비스.
+ * ai-server의 /embed 엔드포인트를 호출하여 텍스트를 768차원 벡터로 변환한다.
+ */
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -31,6 +35,7 @@ public class EmbeddingService {
     @Value("${search.embedding.max-text-length:8000}")
     private int maxTextLength;
 
+    /** 사기업 공고의 title + description을 임베딩하여 저장한다. */
     @Transactional
     public void embedPrivatePosting(PrivateJobPosting posting) {
         String text = buildText(posting.getTitle(), posting.getDescription());
@@ -38,6 +43,7 @@ public class EmbeddingService {
         saveOrUpdate(JobSource.PRIVATE, posting.getId(), vector, text);
     }
 
+    /** 공기업 공고의 title + htmlContent(HTML 제거)를 임베딩하여 저장한다. */
     @Transactional
     public void embedPublicPosting(PublicJobPosting posting) {
         String rawContent = posting.getHtmlContent();
@@ -47,6 +53,7 @@ public class EmbeddingService {
         saveOrUpdate(JobSource.PUBLIC, posting.getId(), vector, text);
     }
 
+    /** 사용자 검색 쿼리를 임베딩 벡터로 변환한다. DB에 저장하지 않는다. */
     public float[] embedQuery(String query) {
         return requestEmbedding(query.trim());
     }

@@ -9,6 +9,10 @@ import org.springframework.stereotype.Repository;
 
 import java.util.List;
 
+/**
+ * pgvector 기반 벡터 유사도 검색 레포지토리.
+ * 코사인 거리 연산자({@code <=>})를 사용하여 쿼리 벡터와 공고 임베딩 간 유사도를 비교한다.
+ */
 @Repository
 @RequiredArgsConstructor
 public class VectorSearchRepository {
@@ -21,6 +25,7 @@ public class VectorSearchRepository {
      */
     public record ScoredJob(JobSummary job, double distance) {}
 
+    /** 사기업 공고를 벡터 유사도순으로 검색한다. 카테고리/지역 pre-filter를 적용한다. */
     public List<ScoredJob> searchPrivateByVector(float[] queryEmbedding, double threshold,
                                                    SearchCondition condition, int offset, int limit) {
         StringBuilder sql = new StringBuilder("""
@@ -79,6 +84,7 @@ public class VectorSearchRepository {
                 .toList();
     }
 
+    /** 공기업 공고를 벡터 유사도순으로 검색한다. 지역/경력 pre-filter를 적용한다. */
     public List<ScoredJob> searchPublicByVector(float[] queryEmbedding, double threshold,
                                                   SearchCondition condition, int offset, int limit) {
         StringBuilder sql = new StringBuilder("""
@@ -135,6 +141,7 @@ public class VectorSearchRepository {
                 .toList();
     }
 
+    /** 벡터 유사도 threshold를 만족하는 사기업 공고 수를 반환한다. */
     public long countPrivateByVector(float[] queryEmbedding, double threshold, SearchCondition condition) {
         StringBuilder sql = new StringBuilder("""
             SELECT COUNT(*)
@@ -167,6 +174,7 @@ public class VectorSearchRepository {
         return ((Number) query.getSingleResult()).longValue();
     }
 
+    /** 벡터 유사도 threshold를 만족하는 공기업 공고 수를 반환한다. */
     public long countPublicByVector(float[] queryEmbedding, double threshold, SearchCondition condition) {
         StringBuilder sql = new StringBuilder("""
             SELECT COUNT(*)
