@@ -123,7 +123,7 @@ jobs:
           SPRING_PORT: ${{ secrets.SPRING_PORT || '8080' }}
           FASTAPI_PORT: ${{ secrets.FASTAPI_PORT || '8001' }}
           REDIS_PORT: ${{ secrets.REDIS_PORT || '6379' }}
-          AI_SERVER_BASE_URL: ${{ secrets.AI_SERVER_BASE_URL || 'http://localhost:8001' }}
+          AI_SERVER_BASE_URL: ${{ secrets.AI_SERVER_BASE_URL || 'http://ai-server-disabled.invalid' }}
           POSTGRES_HOST: ${{ secrets.POSTGRES_HOST }}
           POSTGRES_PORT: ${{ secrets.POSTGRES_PORT || '5432' }}
           POSTGRES_DB: ${{ secrets.POSTGRES_DB }}
