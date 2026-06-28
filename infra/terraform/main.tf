@@ -148,7 +148,7 @@ resource "aws_instance" "jobai" {
   root_block_device {
     encrypted   = true
     volume_type = "gp3"
-    volume_size = 20
+    volume_size = 30
   }
 
   tags = {
