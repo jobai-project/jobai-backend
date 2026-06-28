@@ -96,6 +96,12 @@ class KeywordMatcherTest {
         assertThat(result.get().experience()).isEqualTo("경력");
     }
 
+    @Test
+    @DisplayName("애매한 자연어 입력은 match()에서 빈 결과")
+    void matchNaturalLanguageReturnsEmpty() {
+        assertThat(matcher.match("혼자 일하기 편한 직무")).isEmpty();
+    }
+
     // --- 조사 제거 ---
 
     @Test
@@ -120,6 +126,18 @@ class KeywordMatcherTest {
     @DisplayName("조사 제거: 조사가 없으면 그대로 반환")
     void stripParticles_조사없음() {
         assertThat(KeywordMatcher.stripParticles("백엔드")).isEqualTo("백엔드");
+    }
+
+    @Test
+    @DisplayName("복합 조사 제거: '서울에서만' → '서울'")
+    void stripParticles_서울에서만() {
+        assertThat(KeywordMatcher.stripParticles("서울에서만")).isEqualTo("서울");
+    }
+
+    @Test
+    @DisplayName("복합 조사 제거: '경력직으로만' → '경력직'")
+    void stripParticles_경력직으로만() {
+        assertThat(KeywordMatcher.stripParticles("경력직으로만")).isEqualTo("경력직");
     }
 
     // --- extract: 토큰 분류 ---

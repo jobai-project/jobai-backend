@@ -23,6 +23,8 @@ import java.util.Optional;
 @RequiredArgsConstructor
 public class EmbeddingService {
 
+    private static final int EMBEDDING_DIMENSION = 768;
+
     private final AiEmbeddingClient aiEmbeddingClient;
     private final JobEmbeddingRepository jobEmbeddingRepository;
 
@@ -53,6 +55,11 @@ public class EmbeddingService {
         EmbedResponse response = aiEmbeddingClient.embed(new EmbedRequest(text)).block();
         if (response == null || response.vector() == null || response.vector().isEmpty()) {
             throw new IllegalStateException("임베딩 응답이 비어있습니다");
+        }
+        if (response.vector().size() != EMBEDDING_DIMENSION) {
+            throw new IllegalStateException(
+                    "임베딩 차원이 올바르지 않습니다: expected=" + EMBEDDING_DIMENSION
+                            + ", actual=" + response.vector().size());
         }
         return toFloatArray(response.vector());
     }

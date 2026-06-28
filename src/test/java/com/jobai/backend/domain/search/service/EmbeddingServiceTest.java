@@ -111,16 +111,27 @@ class EmbeddingServiceTest {
     @Test
     @DisplayName("embedQuery: ai-server 응답을 float 배열로 변환한다")
     void embedQuery_정상() {
-        List<Double> vector = List.of(0.1, 0.2, 0.3);
+        List<Double> vector = DoubleStream.generate(() -> 0.1)
+                .limit(768).boxed().toList();
         when(aiEmbeddingClient.embed(any()))
                 .thenReturn(Mono.just(new EmbedResponse(vector)));
 
         float[] result = embeddingService.embedQuery("Python 데이터 파이프라인");
 
-        assertThat(result).hasSize(3);
+        assertThat(result).hasSize(768);
         assertThat(result[0]).isEqualTo(0.1f);
-        assertThat(result[1]).isEqualTo(0.2f);
-        assertThat(result[2]).isEqualTo(0.3f);
+    }
+
+    @Test
+    @DisplayName("embedQuery: 차원이 768이 아니면 예외를 던진다")
+    void embedQuery_차원불일치() {
+        List<Double> vector = List.of(0.1, 0.2, 0.3);
+        when(aiEmbeddingClient.embed(any()))
+                .thenReturn(Mono.just(new EmbedResponse(vector)));
+
+        assertThatThrownBy(() -> embeddingService.embedQuery("test"))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("차원이 올바르지 않습니다");
     }
 
     @Test
@@ -141,5 +152,16 @@ class EmbeddingServiceTest {
 
         assertThatThrownBy(() -> embeddingService.embedQuery("test"))
                 .isInstanceOf(IllegalStateException.class);
+    }
+
+    @Test
+    @DisplayName("embedQuery: ai-server 오류는 그대로 전파한다")
+    void embedQuery_ai서버오류() {
+        when(aiEmbeddingClient.embed(any()))
+                .thenReturn(Mono.error(new RuntimeException("ai-server 연결 실패")));
+
+        assertThatThrownBy(() -> embeddingService.embedQuery("test"))
+                .isInstanceOf(RuntimeException.class)
+                .hasMessage("ai-server 연결 실패");
     }
 }

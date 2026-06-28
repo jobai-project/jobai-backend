@@ -5,6 +5,7 @@ import com.jobai.backend.domain.search.dto.JobSearchResponse.JobSummary;
 import com.jobai.backend.domain.search.dto.JobSearchResponse.SearchInfo;
 import com.jobai.backend.domain.search.repository.JobSearchRepository;
 import com.jobai.backend.domain.search.repository.VectorSearchRepository;
+import com.jobai.backend.domain.search.repository.VectorSearchRepository.ScoredJob;
 import com.jobai.backend.domain.search.service.KeywordMatcher.MatchResult;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -12,11 +13,8 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
-import java.util.Set;
-import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 @Slf4j
@@ -70,9 +68,12 @@ public class JobSearchService {
             }
         }
 
-        // 벡터 검색 비활성화 또는 실패 시 기존 검색 폴백
+        // 벡터 검색 비활성화 또는 실패 시 기존 검색 폴백 (미매칭 토큰을 title LIKE 검색에 활용)
+        List<String> fallbackTitleKeywords = match.unmatchedTokens() == null
+                ? List.of()
+                : match.unmatchedTokens();
         SearchCondition fallback = new SearchCondition(
-                match.categories(), List.of(), List.of(),
+                match.categories(), List.of(), fallbackTitleKeywords,
                 match.location(), match.experience(),
                 SearchCondition.METHOD_KEYWORD);
         return executeTraditionalSearch(fallback, page, size);
@@ -81,13 +82,20 @@ public class JobSearchService {
     private JobSearchResponse executeVectorSearch(float[] queryVector, SearchCondition condition,
                                                    int page, int size) {
         int offset = page * size;
+        int fetchLimit = offset + size;
 
-        List<JobSummary> privateResults = vectorSearchRepository.searchPrivateByVector(
-                queryVector, VECTOR_THRESHOLD, condition, offset, size);
-        List<JobSummary> publicResults = vectorSearchRepository.searchPublicByVector(
-                queryVector, VECTOR_THRESHOLD, condition, offset, size);
+        List<ScoredJob> privateResults = vectorSearchRepository.searchPrivateByVector(
+                queryVector, VECTOR_THRESHOLD, condition, 0, fetchLimit);
+        List<ScoredJob> publicResults = vectorSearchRepository.searchPublicByVector(
+                queryVector, VECTOR_THRESHOLD, condition, 0, fetchLimit);
 
-        List<JobSummary> allResults = mergeByCreatedAtDesc(privateResults, publicResults, size);
+        // 유사도순(distance 오름차순)으로 merge 정렬 후 페이지에 맞게 자르기
+        List<JobSummary> allResults = Stream.concat(privateResults.stream(), publicResults.stream())
+                .sorted(Comparator.comparingDouble(ScoredJob::distance))
+                .skip(offset)
+                .limit(size)
+                .map(ScoredJob::job)
+                .toList();
 
         long totalCount = vectorSearchRepository.countPrivateByVector(queryVector, VECTOR_THRESHOLD, condition)
                 + vectorSearchRepository.countPublicByVector(queryVector, VECTOR_THRESHOLD, condition);
@@ -99,11 +107,17 @@ public class JobSearchService {
 
     private JobSearchResponse executeTraditionalSearch(SearchCondition condition, int page, int size) {
         int offset = page * size;
+        int fetchLimit = offset + size;
 
-        List<JobSummary> privateResults = jobSearchRepository.searchPrivate(condition, offset, size);
-        List<JobSummary> publicResults = jobSearchRepository.searchPublic(condition, offset, size);
+        List<JobSummary> privateResults = jobSearchRepository.searchPrivate(condition, 0, fetchLimit);
+        List<JobSummary> publicResults = jobSearchRepository.searchPublic(condition, 0, fetchLimit);
 
-        List<JobSummary> allResults = mergeByCreatedAtDesc(privateResults, publicResults, size);
+        // 기존 검색: 최신순 정렬 후 페이지에 맞게 자르기
+        List<JobSummary> allResults = Stream.concat(privateResults.stream(), publicResults.stream())
+                .sorted(Comparator.comparing(JobSummary::createdAt, Comparator.nullsLast(Comparator.reverseOrder())))
+                .skip(offset)
+                .limit(size)
+                .toList();
 
         long totalCount = jobSearchRepository.countPrivate(condition)
                 + jobSearchRepository.countPublic(condition);
@@ -112,12 +126,5 @@ public class JobSearchService {
                 condition.method(), condition.categories(), List.of());
 
         return new JobSearchResponse(totalCount, allResults, searchInfo);
-    }
-
-    private List<JobSummary> mergeByCreatedAtDesc(List<JobSummary> listA, List<JobSummary> listB, int limit) {
-        return Stream.concat(listA.stream(), listB.stream())
-                .sorted(Comparator.comparing(JobSummary::createdAt, Comparator.nullsLast(Comparator.reverseOrder())))
-                .limit(limit)
-                .toList();
     }
 }

@@ -4,6 +4,7 @@ import com.jobai.backend.domain.search.dto.JobSearchResponse;
 import com.jobai.backend.domain.search.dto.JobSearchResponse.JobSummary;
 import com.jobai.backend.domain.search.repository.JobSearchRepository;
 import com.jobai.backend.domain.search.repository.VectorSearchRepository;
+import com.jobai.backend.domain.search.repository.VectorSearchRepository.ScoredJob;
 import com.jobai.backend.domain.search.service.KeywordMatcher.MatchResult;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -76,7 +77,7 @@ class JobSearchServiceTest {
         JobSummary job = createJobSummary(1L, "PRIVATE", "자율 근무 백엔드",
                 LocalDateTime.of(2025, 6, 1, 10, 0));
         when(vectorSearchRepository.searchPrivateByVector(any(), anyDouble(), any(), anyInt(), anyInt()))
-                .thenReturn(List.of(job));
+                .thenReturn(List.of(new ScoredJob(job, 0.15)));
         when(vectorSearchRepository.searchPublicByVector(any(), anyDouble(), any(), anyInt(), anyInt()))
                 .thenReturn(List.of());
         when(vectorSearchRepository.countPrivateByVector(any(), anyDouble(), any())).thenReturn(1L);
@@ -86,7 +87,6 @@ class JobSearchServiceTest {
 
         assertThat(response.searchInfo().method()).isEqualTo("VECTOR");
         assertThat(response.jobs()).hasSize(1);
-        // 카테고리 pre-filter가 전달됨
         assertThat(response.searchInfo().matchedCategories()).contains("백엔드");
     }
 
@@ -160,11 +160,11 @@ class JobSearchServiceTest {
         verifyNoInteractions(vectorSearchRepository);
     }
 
-    // --- 소스 무관 정렬 ---
+    // --- 유사도순 정렬 ---
 
     @Test
-    @DisplayName("사기업/공기업 createdAt DESC 합산 정렬")
-    void 소스무관_정렬() {
+    @DisplayName("사기업/공기업 유사도순(distance 오름차순) 합산 정렬")
+    void 소스무관_유사도순정렬() {
         when(keywordMatcher.extract(anyString()))
                 .thenReturn(new MatchResult(List.of(), null, null, List.of("혼자")));
 
@@ -173,19 +173,25 @@ class JobSearchServiceTest {
         JobSummary prv1 = createJobSummary(1L, "PRIVATE", "사기업A", LocalDateTime.of(2025, 6, 5, 10, 0));
         JobSummary prv2 = createJobSummary(2L, "PRIVATE", "사기업B", LocalDateTime.of(2025, 6, 3, 10, 0));
         when(vectorSearchRepository.searchPrivateByVector(any(), anyDouble(), any(), anyInt(), anyInt()))
-                .thenReturn(List.of(prv1, prv2));
+                .thenReturn(List.of(
+                        new ScoredJob(prv1, 0.20),   // 유사도 2위
+                        new ScoredJob(prv2, 0.35)    // 유사도 3위
+                ));
 
         JobSummary pub1 = createJobSummary(101L, "PUBLIC", "공기업A", LocalDateTime.of(2025, 6, 4, 10, 0));
         when(vectorSearchRepository.searchPublicByVector(any(), anyDouble(), any(), anyInt(), anyInt()))
-                .thenReturn(List.of(pub1));
+                .thenReturn(List.of(
+                        new ScoredJob(pub1, 0.10)    // 유사도 1위
+                ));
 
         when(vectorSearchRepository.countPrivateByVector(any(), anyDouble(), any())).thenReturn(2L);
         when(vectorSearchRepository.countPublicByVector(any(), anyDouble(), any())).thenReturn(1L);
 
         JobSearchResponse response = jobSearchService.search("혼자 일하기 편한", 0, 3);
 
+        // distance 오름차순: 공기업A(0.10) → 사기업A(0.20) → 사기업B(0.35)
         assertThat(response.jobs().stream().map(JobSummary::title).toList())
-                .containsExactly("사기업A", "공기업A", "사기업B");
+                .containsExactly("공기업A", "사기업A", "사기업B");
     }
 
     // --- embeddingEnabled = false ---

@@ -70,7 +70,6 @@ search:
     max-text-length: 8000
     batch-size: 50
     batch-interval-ms: 60000
-    dimension: 768
 redis:
   host: ${REDIS_HOST:localhost}
   port: ${REDIS_PORT:6379}

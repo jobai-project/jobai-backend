@@ -119,7 +119,15 @@ public class KeywordMatcher {
     }
 
     static String stripParticles(String token) {
-        return PARTICLE_PATTERN.matcher(token).replaceAll("");
+        String current = token;
+        while (!current.isBlank()) {
+            String stripped = PARTICLE_PATTERN.matcher(current).replaceAll("");
+            if (stripped.equals(current)) {
+                return current;
+            }
+            current = stripped;
+        }
+        return current;
     }
 
     private void initCategorySynonyms() {

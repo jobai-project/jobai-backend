@@ -7,9 +7,6 @@ import jakarta.persistence.Query;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
 
-import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.util.ArrayList;
 import java.util.List;
 
 @Repository
@@ -18,11 +15,18 @@ public class VectorSearchRepository {
 
     private final EntityManager em;
 
-    public List<JobSummary> searchPrivateByVector(float[] queryEmbedding, double threshold,
+    /**
+     * 벡터 검색 결과를 유사도 거리와 함께 담는 내부 record.
+     * distance가 작을수록 유사도가 높다.
+     */
+    public record ScoredJob(JobSummary job, double distance) {}
+
+    public List<ScoredJob> searchPrivateByVector(float[] queryEmbedding, double threshold,
                                                    SearchCondition condition, int offset, int limit) {
         StringBuilder sql = new StringBuilder("""
             SELECT p.id, p.title, p.company, p.location, p.job_category,
-                   p.employment_type, p.apply_url, p.deadline, p.created_at
+                   p.employment_type, p.apply_url, p.deadline, p.created_at,
+                   (e.embedding <=> cast(:queryEmbedding as vector)) AS distance
             FROM private_job_postings p
             JOIN job_embeddings e ON e.source = 'PRIVATE' AND e.source_id = p.id
             WHERE p.is_closed = false
@@ -39,7 +43,7 @@ public class VectorSearchRepository {
             sql.append(" AND LOWER(p.location) LIKE :locationPattern");
         }
 
-        sql.append(" ORDER BY p.created_at DESC LIMIT :limit OFFSET :offset");
+        sql.append(" ORDER BY distance LIMIT :limit OFFSET :offset");
 
         Query query = em.createNativeQuery(sql.toString());
         query.setParameter("queryEmbedding", toVectorString(queryEmbedding));
@@ -57,26 +61,30 @@ public class VectorSearchRepository {
         List<Object[]> results = query.getResultList();
 
         return results.stream()
-                .map(row -> new JobSummary(
-                        ((Number) row[0]).longValue(),
-                        "PRIVATE",
-                        (String) row[1],
-                        (String) row[2],
-                        (String) row[3],
-                        (String) row[4],
-                        (String) row[5],
-                        (String) row[6],
-                        row[7] != null ? ((java.sql.Date) row[7]).toLocalDate() : null,
-                        row[8] != null ? ((java.sql.Timestamp) row[8]).toLocalDateTime() : null
+                .map(row -> new ScoredJob(
+                        new JobSummary(
+                                ((Number) row[0]).longValue(),
+                                "PRIVATE",
+                                (String) row[1],
+                                (String) row[2],
+                                (String) row[3],
+                                (String) row[4],
+                                (String) row[5],
+                                (String) row[6],
+                                row[7] != null ? ((java.sql.Date) row[7]).toLocalDate() : null,
+                                row[8] != null ? ((java.sql.Timestamp) row[8]).toLocalDateTime() : null
+                        ),
+                        ((Number) row[9]).doubleValue()
                 ))
                 .toList();
     }
 
-    public List<JobSummary> searchPublicByVector(float[] queryEmbedding, double threshold,
+    public List<ScoredJob> searchPublicByVector(float[] queryEmbedding, double threshold,
                                                   SearchCondition condition, int offset, int limit) {
         StringBuilder sql = new StringBuilder("""
             SELECT jp.id, jp.title, jp.company_name, jp.work_region,
-                   jp.recrut_type, p.apply_link, jp.end_date, jp.created_at
+                   jp.recrut_type, p.apply_link, jp.end_date, jp.created_at,
+                   (e.embedding <=> cast(:queryEmbedding as vector)) AS distance
             FROM public_job_postings p
             JOIN job_postings jp ON jp.id = p.id
             JOIN job_embeddings e ON e.source = 'PUBLIC' AND e.source_id = p.id
@@ -91,7 +99,7 @@ public class VectorSearchRepository {
             sql.append(" AND LOWER(jp.work_experience) LIKE :experiencePattern");
         }
 
-        sql.append(" ORDER BY jp.created_at DESC LIMIT :limit OFFSET :offset");
+        sql.append(" ORDER BY distance LIMIT :limit OFFSET :offset");
 
         Query query = em.createNativeQuery(sql.toString());
         query.setParameter("queryEmbedding", toVectorString(queryEmbedding));
@@ -109,17 +117,20 @@ public class VectorSearchRepository {
         List<Object[]> results = query.getResultList();
 
         return results.stream()
-                .map(row -> new JobSummary(
-                        ((Number) row[0]).longValue(),
-                        "PUBLIC",
-                        (String) row[1],
-                        (String) row[2],
-                        (String) row[3],
-                        null,
-                        (String) row[4],
-                        (String) row[5],
-                        row[6] != null ? ((java.sql.Date) row[6]).toLocalDate() : null,
-                        row[7] != null ? ((java.sql.Timestamp) row[7]).toLocalDateTime() : null
+                .map(row -> new ScoredJob(
+                        new JobSummary(
+                                ((Number) row[0]).longValue(),
+                                "PUBLIC",
+                                (String) row[1],
+                                (String) row[2],
+                                (String) row[3],
+                                null,
+                                (String) row[4],
+                                (String) row[5],
+                                row[6] != null ? ((java.sql.Date) row[6]).toLocalDate() : null,
+                                row[7] != null ? ((java.sql.Timestamp) row[7]).toLocalDateTime() : null
+                        ),
+                        ((Number) row[8]).doubleValue()
                 ))
                 .toList();
     }
