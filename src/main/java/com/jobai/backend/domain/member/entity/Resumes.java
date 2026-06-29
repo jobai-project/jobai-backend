@@ -35,4 +35,12 @@ public class Resumes {
 
     @Column(name = "updated_at")
     private LocalDate updatedAt;
+
+    public void activate() {
+        this.isActive = true;
+    }
+
+    public void deactivate() {
+        this.isActive = false;
+    }
 }
