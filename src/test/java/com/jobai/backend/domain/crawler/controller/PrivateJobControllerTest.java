@@ -74,10 +74,11 @@ class PrivateJobControllerTest {
     // -------------------------------------------------------
 
     @Test
-    @DisplayName("상세 조회: 존재하는 공고 → 200 + 원문 description 포함")
+    @DisplayName("상세 조회: 존재하는 공고 (요약 없음) → 200 + 원문 description 포함, summary 미포함")
     void getDetail_success() throws Exception {
         PrivateJobPosting posting = createPosting(1L, "상세 공고 본문 텍스트");
         when(jobPostingRepository.findById(1L)).thenReturn(Optional.of(posting));
+        when(summaryRepository.findByJobPostingId(1L)).thenReturn(Optional.empty());
 
         mockMvc.perform(get("/api/v1/private-jobs/1"))
                 .andExpect(status().isOk())
@@ -86,7 +87,28 @@ class PrivateJobControllerTest {
                 .andExpect(jsonPath("$.result.title").value("백엔드 개발자"))
                 .andExpect(jsonPath("$.result.company").value("테스트회사"))
                 .andExpect(jsonPath("$.result.description").value("상세 공고 본문 텍스트"))
-                .andExpect(jsonPath("$.result.applyUrl").value("https://example.com/apply"));
+                .andExpect(jsonPath("$.result.applyUrl").value("https://example.com/apply"))
+                .andExpect(jsonPath("$.result.summary").doesNotExist());
+    }
+
+    @Test
+    @DisplayName("상세 조회: 캐시된 요약이 있으면 summary를 함께 반환한다")
+    void getDetail_withCachedSummary() throws Exception {
+        PrivateJobPosting posting = createPosting(1L, "상세 공고 본문 텍스트");
+        JobPostingSummary cached = JobPostingSummary.builder()
+                .jobPostingId(1L)
+                .summaryJson(VALID_SUMMARY_JSON)
+                .sourceUpdatedAt(LocalDateTime.of(2025, 1, 1, 12, 0))
+                .build();
+
+        when(jobPostingRepository.findById(1L)).thenReturn(Optional.of(posting));
+        when(summaryRepository.findByJobPostingId(1L)).thenReturn(Optional.of(cached));
+
+        mockMvc.perform(get("/api/v1/private-jobs/1"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.result.description").value("상세 공고 본문 텍스트"))
+                .andExpect(jsonPath("$.result.summary.techStack[0]").value("Java"))
+                .andExpect(jsonPath("$.result.summary.responsibilities[0]").value("백엔드 API 개발"));
     }
 
     @Test

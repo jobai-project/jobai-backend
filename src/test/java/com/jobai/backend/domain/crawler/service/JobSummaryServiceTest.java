@@ -66,16 +66,39 @@ class JobSummaryServiceTest {
     }
 
     @Test
-    @DisplayName("상세 조회: 공고가 존재하면 PrivateJobDetailResponse를 반환한다")
-    void getDetailReturnsResponse() {
+    @DisplayName("상세 조회: 요약 캐시 없으면 summary null로 반환한다")
+    void getDetailReturnsResponseWithoutSummary() {
         PrivateJobPosting posting = createPosting(1L, "상세 설명", null);
         when(jobPostingRepository.findById(1L)).thenReturn(Optional.of(posting));
+        when(summaryRepository.findByJobPostingId(1L)).thenReturn(Optional.empty());
 
         PrivateJobDetailResponse result = service.getDetail(1L);
 
         assertThat(result.getId()).isEqualTo(1L);
         assertThat(result.getTitle()).isEqualTo("백엔드 개발자");
         assertThat(result.getDescription()).isEqualTo("상세 설명");
+        assertThat(result.getSummary()).isNull();
+    }
+
+    @Test
+    @DisplayName("상세 조회: 요약 캐시가 있으면 summary를 함께 반환한다")
+    void getDetailReturnsResponseWithSummary() {
+        PrivateJobPosting posting = createPosting(1L, "상세 설명",
+                LocalDateTime.of(2025, 1, 1, 12, 0));
+        JobPostingSummary cached = JobPostingSummary.builder()
+                .jobPostingId(1L)
+                .summaryJson(VALID_SUMMARY_JSON)
+                .sourceUpdatedAt(LocalDateTime.of(2025, 1, 1, 12, 0))
+                .build();
+
+        when(jobPostingRepository.findById(1L)).thenReturn(Optional.of(posting));
+        when(summaryRepository.findByJobPostingId(1L)).thenReturn(Optional.of(cached));
+
+        PrivateJobDetailResponse result = service.getDetail(1L);
+
+        assertThat(result.getId()).isEqualTo(1L);
+        assertThat(result.getSummary()).isNotNull();
+        assertThat(result.getSummary().getTechStack()).contains("Java", "Spring");
     }
 
     @Test
