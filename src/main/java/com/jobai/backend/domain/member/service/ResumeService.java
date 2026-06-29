@@ -13,6 +13,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
@@ -52,16 +53,21 @@ public class ResumeService {
         String key = "resumes/" + member.getId() + "/" + UUID.randomUUID() + "_" + file.getOriginalFilename();
         String fileUrl = fileStorageService.upload(file, key);
 
-        Resumes resume = Resumes.builder()
-                .member(member)
-                .originalFilename(file.getOriginalFilename())
-                .storedFileUrl(fileUrl)
-                .fileSize(formatFileSize(file.getSize()))
-                .isActive(false)
-                .updatedAt(LocalDate.now())
-                .build();
-
-        return resumesRepository.save(resume).getId();
+        try {
+            Resumes resume = Resumes.builder()
+                    .member(member)
+                    .originalFilename(file.getOriginalFilename())
+                    .storedFileUrl(fileUrl)
+                    .fileSize(formatFileSize(file.getSize()))
+                    .isActive(false)
+                    .updatedAt(LocalDate.now())
+                    .build();
+            return resumesRepository.save(resume).getId();
+        } catch (Exception e) {
+            // DB 저장 실패 시 S3에 올라간 파일 제거
+            fileStorageService.delete(fileUrl);
+            throw e;
+        }
     }
 
     @Transactional
@@ -86,17 +92,26 @@ public class ResumeService {
             throw new GeneralException(GeneralErrorCode.FORBIDDEN, "해당 이력서에 대한 권한이 없습니다.");
         }
 
-        fileStorageService.delete(resume.getStoredFileUrl());
+        // DB를 먼저 삭제 후 S3 삭제: DB 실패 시 파일은 보존되어 재시도 가능
+        String storedFileUrl = resume.getStoredFileUrl();
         resumesRepository.delete(resume);
+        fileStorageService.delete(storedFileUrl);
     }
 
     private void validatePdf(MultipartFile file) {
         if (file.isEmpty()) {
             throw new GeneralException(GeneralErrorCode.BAD_REQUEST, "파일이 비어 있습니다.");
         }
-        String contentType = file.getContentType();
-        if (contentType == null || !contentType.equals("application/pdf")) {
-            throw new GeneralException(GeneralErrorCode.BAD_REQUEST, "PDF 파일만 업로드할 수 있습니다.");
+        try {
+            // Content-Type은 클라이언트가 위조 가능하므로 실제 파일 시그니처(%PDF-)로 검증
+            byte[] header = file.getInputStream().readNBytes(5);
+            if (header.length < 5 || !new String(header).startsWith("%PDF-")) {
+                throw new GeneralException(GeneralErrorCode.BAD_REQUEST, "PDF 파일만 업로드할 수 있습니다.");
+            }
+        } catch (GeneralException e) {
+            throw e;
+        } catch (IOException e) {
+            throw new GeneralException(GeneralErrorCode.INTERNAL_SERVER_ERROR, "파일을 읽는 중 오류가 발생했습니다.");
         }
     }
 

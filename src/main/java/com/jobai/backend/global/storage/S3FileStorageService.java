@@ -6,14 +6,14 @@ import io.awspring.cloud.s3.ObjectMetadata;
 import io.awspring.cloud.s3.S3Template;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.context.annotation.Profile;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
 
 @Service
-@Profile("!local")
+@ConditionalOnProperty(name = "app.s3.bucket")
 @RequiredArgsConstructor
 @SuppressWarnings("SpringJavaInjectionPointsAutowiringInspection")
 public class S3FileStorageService implements FileStorageService {

@@ -108,6 +108,7 @@ public interface ResumeControllerDocs {
                             }
                             """))
             ),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "인증 필요"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "본인 소유가 아닌 이력서"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "이력서를 찾을 수 없음")
     })
@@ -136,6 +137,7 @@ public interface ResumeControllerDocs {
                             }
                             """))
             ),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "인증 필요"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "본인 소유가 아닌 이력서"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "이력서를 찾을 수 없음")
     })
