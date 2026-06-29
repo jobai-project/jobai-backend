@@ -44,6 +44,21 @@ resource "aws_iam_policy" "ec2_resume_s3_access" {
       {
         Effect = "Allow"
         Action = [
+          "s3:ListBucket"
+        ]
+        Resource = aws_s3_bucket.resume_files.arn
+        Condition = {
+          StringLike = {
+            "s3:prefix" = [
+              "resumes",
+              "resumes/*"
+            ]
+          }
+        }
+      },
+      {
+        Effect = "Allow"
+        Action = [
           "s3:DeleteObject",
           "s3:GetObject",
           "s3:PutObject"
