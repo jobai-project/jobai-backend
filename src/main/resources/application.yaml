@@ -2,6 +2,11 @@ spring:
   application:
     name: backend
 
+  servlet:
+    multipart:
+      max-file-size: 10MB
+      max-request-size: 11MB
+
   security:
     oauth2:
       client:
@@ -147,6 +152,9 @@ app:
     cookie:
       secure: true
     frontend-redirect-url: ${APP_FRONTEND_REDIRECT_URL:http://localhost:3000/oauth2/redirect}
+  s3:
+    bucket: ${S3_BUCKET_NAME}
+    region: ${AWS_REGION:ap-northeast-2}
 
 management:
   health:
