@@ -19,7 +19,10 @@ public enum GeneralErrorCode implements BaseErrorCode {
 
     METHOD_NOT_ALLOWED(HttpStatus.METHOD_NOT_ALLOWED, "COMMON_405_001", "지원하지 않는 HTTP 메서드입니다."),
     UNSUPPORTED_MEDIA_TYPE(HttpStatus.UNSUPPORTED_MEDIA_TYPE, "COMMON_415_001", "지원하지 않는 Content-Type입니다."),
-    AI_SERVICE_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "AI_500_001", "AI 서버 호출 중 오류가 발생했습니다.");
+    AI_SERVICE_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "AI_500_001", "AI 서버 호출 중 오류가 발생했습니다."),
+
+    SUMMARY_GENERATION_FAILED(HttpStatus.SERVICE_UNAVAILABLE, "SUMMARY_503_001",
+            "공고 요약 생성에 실패했습니다. 잠시 후 다시 시도해주세요.");
 
     private final HttpStatus httpStatus;
     private final String code;
