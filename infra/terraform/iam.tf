@@ -34,6 +34,31 @@ resource "aws_iam_role_policy_attachment" "ec2_ssm_read_only" {
   policy_arn = "arn:aws:iam::aws:policy/AmazonSSMReadOnlyAccess"
 }
 
+resource "aws_iam_policy" "ec2_resume_s3_access" {
+  name        = "jobai-ec2-resume-s3-access"
+  description = "Allow EC2 application to manage resume files in S3"
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "s3:DeleteObject",
+          "s3:GetObject",
+          "s3:PutObject"
+        ]
+        Resource = "${aws_s3_bucket.resume_files.arn}/resumes/*"
+      }
+    ]
+  })
+}
+
+resource "aws_iam_role_policy_attachment" "ec2_resume_s3_access" {
+  role       = aws_iam_role.ec2.name
+  policy_arn = aws_iam_policy.ec2_resume_s3_access.arn
+}
+
 resource "aws_iam_instance_profile" "ec2" {
   name = "jobai-ec2-instance-profile"
   role = aws_iam_role.ec2.name
