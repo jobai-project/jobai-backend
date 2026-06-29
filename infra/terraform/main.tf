@@ -129,8 +129,18 @@ resource "aws_instance" "jobai" {
 
   user_data = <<-EOF
     #!/bin/bash
+    set -e
     apt-get update -y
     apt-get install -y docker.io awscli snapd
+    if [ ! -f /swapfile ]; then
+      fallocate -l 2G /swapfile
+      chmod 600 /swapfile
+      mkswap /swapfile
+      swapon /swapfile
+      echo '/swapfile none swap sw 0 0' >> /etc/fstab
+    elif ! swapon --show=NAME --noheadings | grep -qx /swapfile; then
+      swapon /swapfile
+    fi
     systemctl start docker
     systemctl enable docker
     usermod -aG docker ubuntu
