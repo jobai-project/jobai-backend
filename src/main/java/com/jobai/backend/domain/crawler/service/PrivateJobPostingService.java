@@ -223,6 +223,7 @@ public class PrivateJobPostingService {
     private static final List<String> VALID_LABELS = List.of(
             "백엔드", "프론트엔드", "풀스택", "모바일", "AI/ML", "데이터엔지니어링",
             "DevOps/인프라", "보안", "QA/테스트", "임베디드", "기타개발",
-            "디자이너", "PM/기획", "비대상", "미분류"   // "미분류" = 최종 상태(재시도 안 함)
+            "UX리서처", "UX/UI디자이너", "프로덕트디자이너", "웹디자이너",
+            "PM/PO", "서비스기획", "비대상", "미분류"
     );
 }

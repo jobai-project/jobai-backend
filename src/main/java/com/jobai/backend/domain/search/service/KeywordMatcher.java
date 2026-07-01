@@ -158,10 +158,18 @@ public class KeywordMatcher {
                 "임베디드", "embedded", "펌웨어", "firmware", "iot");
         addSynonyms(JobCategory.ETC_DEV,
                 "개발", "developer", "엔지니어", "engineer", "프로그래머");
-        addSynonyms(JobCategory.DESIGNER,
-                "디자이너", "designer", "ux", "ui", "디자인");
-        addSynonyms(JobCategory.PM,
-                "pm", "po", "기획", "planner", "프로덕트", "product", "서비스기획");
+        addSynonyms(JobCategory.UX_RESEARCHER,
+                "ux리서처", "ux리서치", "사용자리서치");
+        addSynonyms(JobCategory.UXUI_DESIGNER,
+                "ux", "ui", "ux/ui", "uxui");
+        addSynonyms(JobCategory.PRODUCT_DESIGNER,
+                "프로덕트디자이너", "제품디자이너");
+        addSynonyms(JobCategory.WEB_DESIGNER,
+                "웹디자이너", "디자이너", "designer", "디자인", "그래픽디자이너");
+        addSynonyms(JobCategory.PM_PO,
+                "pm", "po", "프로덕트매니저", "product");
+        addSynonyms(JobCategory.SERVICE_PLANNER,
+                "기획", "서비스기획", "planner", "기획자");
     }
 
     private void addSynonyms(JobCategory category, String... synonyms) {
