@@ -40,6 +40,10 @@ public class Member {
     @Column(name = "career_type", length = 20) // 네이밍 컨벤션 수정
     private String careerType;
 
+    @Builder.Default
+    @Column(nullable = false)
+    private boolean onboardingCompleted = false;
+
     private LocalDateTime lastLoginAt;
 
     @CreationTimestamp
@@ -93,5 +97,10 @@ public class Member {
     public Member update(String name) {
         this.name = name;
         return this;
+    }
+
+    // 온보딩 4단계(알림설정) 저장 완료 시 호출: 온보딩 전체 완료 처리
+    public void completeOnboarding() {
+        this.onboardingCompleted = true;
     }
 }
