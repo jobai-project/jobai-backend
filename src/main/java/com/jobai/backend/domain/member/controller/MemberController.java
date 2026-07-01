@@ -37,6 +37,16 @@ public class MemberController implements MemberControllerDocs {
         return ApiResponse.onSuccess(GeneralSuccessCode.OK, myPageData);
     }
 
+    @Override
+    @GetMapping("/me/home")
+    public ApiResponse<MemberResponseDTO.HomeProfileDTO> getHomeProfile(
+            @AuthenticationPrincipal String email) {
+
+        MemberResponseDTO.HomeProfileDTO homeProfileData = memberService.getHomeProfileData(email);
+
+        return ApiResponse.onSuccess(GeneralSuccessCode.OK, homeProfileData);
+    }
+
     @PatchMapping("/me/name") // 💡 특정 필드 수정이므로 PATCH 활용
     public ApiResponse<String> updateName(
             @AuthenticationPrincipal String email,

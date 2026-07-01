@@ -85,4 +85,10 @@ public class Member {
         this.name = name;
         return this;
     }
+
+    public Member updateOAuthProfile(String name, String profileImageUrl) {
+        this.name = name;
+        this.profileImageUrl = profileImageUrl;
+        return this;
+    }
 }

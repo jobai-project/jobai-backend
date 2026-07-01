@@ -18,6 +18,15 @@ public class MemberResponseDTO {
     }
 
     @Getter
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @Builder
+    public static class HomeProfileDTO {
+        private String name;
+        private String jobCategory;
+    }
+
+    @Getter
     @Builder
     public static class ProfileInfo {
         private String name;

@@ -102,6 +102,72 @@ public interface MemberControllerDocs {
     ApiResponse<MemberResponseDTO.MyPageDTO> getMyPage(String email);
 
     @Operation(
+            summary = "홈 프로필 정보 조회",
+            description = """
+                    홈 화면 상단 카드에 필요한 사용자 이름과 대표 희망 직무를 반환합니다.
+
+                    **인증 필요**: 유효한 `accessToken` 쿠키가 있어야 합니다.
+
+                    **반환 데이터**
+                    - `name`: 구글 소셜 로그인에서 저장된 사용자 이름
+                    - `jobCategory`: 온보딩에서 선택한 희망 직무 중 첫 번째 값
+
+                    온보딩에서 희망 직무를 아직 선택하지 않은 경우 `jobCategory`는 `null`로 반환됩니다.
+                    """
+    )
+    @ApiResponses(value = {
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "200",
+                    description = "홈 프로필 정보 조회 성공",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = @ExampleObject(value = """
+                                    {
+                                      "isSuccess": true,
+                                      "code": "COMMON_200_001",
+                                      "message": "요청이 성공적으로 처리되었습니다.",
+                                      "result": {
+                                        "name": "김주훈",
+                                        "jobCategory": "백엔드 개발자"
+                                      }
+                                    }
+                                    """)
+                    )
+            ),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "401",
+                    description = "인증되지 않은 사용자",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = @ExampleObject(value = """
+                                    {
+                                      "isSuccess": false,
+                                      "code": "COMMON_401_001",
+                                      "message": "인증이 필요합니다.",
+                                      "result": null
+                                    }
+                                    """)
+                    )
+            ),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "404",
+                    description = "존재하지 않는 회원",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = @ExampleObject(value = """
+                                    {
+                                      "isSuccess": false,
+                                      "code": "MEMBER_404_001",
+                                      "message": "존재하지 않는 회원입니다.",
+                                      "result": null
+                                    }
+                                    """)
+                    )
+            )
+    })
+    ApiResponse<MemberResponseDTO.HomeProfileDTO> getHomeProfile(String email);
+
+    @Operation(
             summary = "희망 공고 조건 설정 (전체 교체)",
             description = """
                     로그인한 사용자의 희망 공고 조건(경력 구분, 직무, 지역)을 업데이트합니다.

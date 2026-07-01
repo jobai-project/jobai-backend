@@ -43,10 +43,11 @@ public class CustomOAuth2UserService implements OAuth2UserService<OAuth2UserRequ
 
         String email = (String) attributes.get("email");
         String name = (String) attributes.get("name");
+        String profileImageUrl = (String) attributes.get("picture");
         String providerId = (String) attributes.get(userNameAttributeName);
 
         // DB 저장 혹은 업데이트 로직
-        Member member = saveOrUpdate(email, name, registrationId, providerId);
+        Member member = saveOrUpdate(email, name, profileImageUrl, registrationId, providerId);
 
         return new DefaultOAuth2User(
                 Collections.singleton(new SimpleGrantedAuthority("ROLE_USER")),
@@ -55,14 +56,15 @@ public class CustomOAuth2UserService implements OAuth2UserService<OAuth2UserRequ
         );
     }
 
-    private Member saveOrUpdate(String email, String name, String provider, String providerId) {
+    private Member saveOrUpdate(String email, String name, String profileImageUrl, String provider, String providerId) {
         return memberRepository.findByEmail(email)
-                .map(existingMember -> memberRepository.save(existingMember.update(name)))
+                .map(existingMember -> memberRepository.save(existingMember.updateOAuthProfile(name, profileImageUrl)))
 
                 .orElseGet(() -> memberRepository.save(
                         Member.builder()
                                 .email(email)
                                 .name(name)
+                                .profileImageUrl(profileImageUrl)
                                 .provider(provider)
                                 .providerId(providerId)
                                 .build()

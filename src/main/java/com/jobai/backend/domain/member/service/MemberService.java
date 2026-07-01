@@ -55,6 +55,7 @@ public class MemberService {
         MemberResponseDTO.ProfileInfo profile = MemberResponseDTO.ProfileInfo.builder()
                 .name(member.getName())
                 .email(member.getEmail())
+                .profileImageUrl(member.getProfileImageUrl())
                 .build();
 
         // 3. 선호 조건 정보 조립
@@ -84,6 +85,21 @@ public class MemberService {
                 .profile(profile)
                 .jobPreference(jobPreference)
                 .resumes(resumeInfos)
+                .build();
+    }
+
+    public MemberResponseDTO.HomeProfileDTO getHomeProfileData(String email) {
+        Member member = memberRepository.findByEmail(email)
+                .orElseThrow(() -> new GeneralException(GeneralErrorCode.MEMBER_NOT_FOUND, "해당 이메일은 존재하지 않는 회원입니다."));
+
+        String jobCategory = member.getPrefJobs().stream()
+                .findFirst()
+                .map(PreferredJob::getJobCategory)
+                .orElse(null);
+
+        return MemberResponseDTO.HomeProfileDTO.builder()
+                .name(member.getName())
+                .jobCategory(jobCategory)
                 .build();
     }
 
