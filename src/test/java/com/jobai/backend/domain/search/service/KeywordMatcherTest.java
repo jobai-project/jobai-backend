@@ -213,4 +213,43 @@ class KeywordMatcherTest {
         assertThat(matcher.extract("").hasUnmatchedTokens()).isFalse();
         assertThat(matcher.extract("   ").hasUnmatchedTokens()).isFalse();
     }
+
+    // --- bigram (공백 포함 phrase) 매칭 ---
+
+    @Test
+    @DisplayName("bigram 매칭: '프로덕트 디자이너' → 프로덕트디자이너")
+    void extract_프로덕트_디자이너() {
+        MatchResult result = matcher.extract("프로덕트 디자이너");
+
+        assertThat(result.categories()).containsExactly("프로덕트디자이너");
+        assertThat(result.hasUnmatchedTokens()).isFalse();
+    }
+
+    @Test
+    @DisplayName("bigram 매칭: 'UX 리서처' → UX리서처")
+    void extract_UX_리서처() {
+        MatchResult result = matcher.extract("UX 리서처");
+
+        assertThat(result.categories()).containsExactly("UX리서처");
+        assertThat(result.hasUnmatchedTokens()).isFalse();
+    }
+
+    @Test
+    @DisplayName("bigram 매칭: '프로덕트 매니저' → PM/PO")
+    void extract_프로덕트_매니저() {
+        MatchResult result = matcher.extract("프로덕트 매니저");
+
+        assertThat(result.categories()).containsExactly("PM/PO");
+        assertThat(result.hasUnmatchedTokens()).isFalse();
+    }
+
+    @Test
+    @DisplayName("bigram + 다른 토큰: '서울 프로덕트 디자이너' → 지역 + 카테고리")
+    void extract_서울_프로덕트_디자이너() {
+        MatchResult result = matcher.extract("서울 프로덕트 디자이너");
+
+        assertThat(result.categories()).containsExactly("프로덕트디자이너");
+        assertThat(result.location()).isEqualTo("서울");
+        assertThat(result.hasUnmatchedTokens()).isFalse();
+    }
 }
