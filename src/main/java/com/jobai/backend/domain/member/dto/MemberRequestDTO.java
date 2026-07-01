@@ -25,6 +25,23 @@ public class MemberRequestDTO {
     @NoArgsConstructor
     @AllArgsConstructor
     @Builder
+    public static class UpdateBasicInfoDTO {
+        private String careerType;      // 인턴/신입/경력직/계약직
+        private List<String> locations; // 희망 근무 지역 리스트
+    }
+
+    @Getter
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @Builder
+    public static class UpdateJobCategoryDTO {
+        private List<String> jobCategories; // 희망 직무 리스트
+    }
+
+    @Getter
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @Builder
     public static class UpdateNameDTO {
 
         @NotBlank(message = "이름은 공백일 수 없습니다.")

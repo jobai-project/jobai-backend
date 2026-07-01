@@ -44,7 +44,25 @@ public class MemberService {
                 request.getLocations()
         );
     }
-    
+
+    // 온보딩 1단계: 희망 근무 지역 + 희망 채용 형태
+    @Transactional
+    public void updateOnboardingBasicInfo(String email, MemberRequestDTO.UpdateBasicInfoDTO request) {
+        Member member = memberRepository.findByEmail(email)
+                .orElseThrow(() -> new GeneralException(GeneralErrorCode.MEMBER_NOT_FOUND, "해당 이메일은 존재하지 않는 회원입니다."));
+
+        member.updateBasicInfo(request.getCareerType(), request.getLocations());
+    }
+
+    // 온보딩 2단계: 희망 직무
+    @Transactional
+    public void updateOnboardingJobCategory(String email, MemberRequestDTO.UpdateJobCategoryDTO request) {
+        Member member = memberRepository.findByEmail(email)
+                .orElseThrow(() -> new GeneralException(GeneralErrorCode.MEMBER_NOT_FOUND, "해당 이메일은 존재하지 않는 회원입니다."));
+
+        member.updateJobCategories(request.getJobCategories());
+    }
+
     // 마이페이지의 모든 정보를 조회하는 함수
     public MemberResponseDTO.MyPageDTO getMyPageData(String email) {
         // 1. 이메일 기반 회원 조회

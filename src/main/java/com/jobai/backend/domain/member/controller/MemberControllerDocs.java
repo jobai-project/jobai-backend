@@ -271,4 +271,163 @@ public interface MemberControllerDocs {
             )
     })
     ApiResponse<String> updateName(String email, MemberRequestDTO.UpdateNameDTO request);
+
+    @Operation(
+            summary = "[온보딩 1단계] 희망 근무 지역 + 채용 형태 저장",
+            description = """
+                    온보딩 1단계(기본정보)에서 선택한 희망 근무 지역과 채용 형태를 저장합니다.
+
+                    **인증 필요**: 유효한 `accessToken` 쿠키가 있어야 합니다.
+
+                    **동작 방식**: 이 API가 다루는 두 필드(`careerType`, `locations`)만 교체합니다.
+                    희망 직무(`jobCategories`)는 건드리지 않으므로, 온보딩 2단계 API와 독립적으로 호출해도 안전합니다.
+
+                    **careerType 예시 값**: `"인턴"`, `"신입"`, `"경력직"`, `"계약직"` (자유 텍스트이므로 서버에서 별도 검증 없음)
+
+                    **locations**: 빈 배열(`[]`) 전송 시 기존 지역 설정이 모두 삭제됩니다.
+                    """
+    )
+    @RequestBody(
+            required = true,
+            content = @Content(
+                    mediaType = "application/json",
+                    schema = @Schema(implementation = MemberRequestDTO.UpdateBasicInfoDTO.class),
+                    examples = @ExampleObject(
+                            name = "온보딩 기본정보 예시",
+                            value = """
+                                    {
+                                      "careerType": "신입",
+                                      "locations": ["서울", "경기"]
+                                    }
+                                    """
+                    )
+            )
+    )
+    @ApiResponses(value = {
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "200",
+                    description = "기본 정보 저장 성공",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = @ExampleObject(value = """
+                                    {
+                                      "isSuccess": true,
+                                      "code": "COMMON_200_001",
+                                      "message": "요청이 성공적으로 처리되었습니다.",
+                                      "result": "기본 정보가 저장되었습니다."
+                                    }
+                                    """)
+                    )
+            ),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "401",
+                    description = "인증되지 않은 사용자",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = @ExampleObject(value = """
+                                    {
+                                      "isSuccess": false,
+                                      "code": "COMMON_401_001",
+                                      "message": "인증이 필요합니다.",
+                                      "result": null
+                                    }
+                                    """)
+                    )
+            ),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "404",
+                    description = "존재하지 않는 회원",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = @ExampleObject(value = """
+                                    {
+                                      "isSuccess": false,
+                                      "code": "MEMBER_404_001",
+                                      "message": "존재하지 않는 회원입니다.",
+                                      "result": null
+                                    }
+                                    """)
+                    )
+            )
+    })
+    ApiResponse<String> updateOnboardingBasicInfo(String email, MemberRequestDTO.UpdateBasicInfoDTO request);
+
+    @Operation(
+            summary = "[온보딩 2단계] 희망 직무 저장",
+            description = """
+                    온보딩 2단계(직무설정)에서 선택한 희망 직무를 저장합니다.
+
+                    **인증 필요**: 유효한 `accessToken` 쿠키가 있어야 합니다.
+
+                    **동작 방식**: `jobCategories`만 교체합니다. 희망 지역/채용 형태는 건드리지 않으므로,
+                    온보딩 1단계 API와 독립적으로 호출해도 안전합니다.
+
+                    **jobCategories 예시 값**: `"개발자"`, `"디자이너"`, `"기획자"` (자유 텍스트이므로 서버에서 별도 검증 없음)
+
+                    빈 배열(`[]`) 전송 시 기존 직무 설정이 모두 삭제됩니다.
+                    """
+    )
+    @RequestBody(
+            required = true,
+            content = @Content(
+                    mediaType = "application/json",
+                    schema = @Schema(implementation = MemberRequestDTO.UpdateJobCategoryDTO.class),
+                    examples = @ExampleObject(
+                            name = "온보딩 직무설정 예시",
+                            value = """
+                                    {
+                                      "jobCategories": ["개발자"]
+                                    }
+                                    """
+                    )
+            )
+    )
+    @ApiResponses(value = {
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "200",
+                    description = "희망 직무 저장 성공",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = @ExampleObject(value = """
+                                    {
+                                      "isSuccess": true,
+                                      "code": "COMMON_200_001",
+                                      "message": "요청이 성공적으로 처리되었습니다.",
+                                      "result": "희망 직무가 저장되었습니다."
+                                    }
+                                    """)
+                    )
+            ),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "401",
+                    description = "인증되지 않은 사용자",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = @ExampleObject(value = """
+                                    {
+                                      "isSuccess": false,
+                                      "code": "COMMON_401_001",
+                                      "message": "인증이 필요합니다.",
+                                      "result": null
+                                    }
+                                    """)
+                    )
+            ),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "404",
+                    description = "존재하지 않는 회원",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = @ExampleObject(value = """
+                                    {
+                                      "isSuccess": false,
+                                      "code": "MEMBER_404_001",
+                                      "message": "존재하지 않는 회원입니다.",
+                                      "result": null
+                                    }
+                                    """)
+                    )
+            )
+    })
+    ApiResponse<String> updateOnboardingJobCategory(String email, MemberRequestDTO.UpdateJobCategoryDTO request);
 }

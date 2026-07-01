@@ -46,4 +46,24 @@ public class MemberController implements MemberControllerDocs {
 
         return ApiResponse.onSuccess(GeneralSuccessCode.OK, "이름이 성공적으로 수정되었습니다.");
     }
+
+    @PatchMapping("/me/onboarding/basic-info")
+    public ApiResponse<String> updateOnboardingBasicInfo(
+            @AuthenticationPrincipal String email,
+            @RequestBody MemberRequestDTO.UpdateBasicInfoDTO request
+    ) {
+        memberService.updateOnboardingBasicInfo(email, request);
+
+        return ApiResponse.onSuccess(GeneralSuccessCode.OK, "기본 정보가 저장되었습니다.");
+    }
+
+    @PatchMapping("/me/onboarding/job-category")
+    public ApiResponse<String> updateOnboardingJobCategory(
+            @AuthenticationPrincipal String email,
+            @RequestBody MemberRequestDTO.UpdateJobCategoryDTO request
+    ) {
+        memberService.updateOnboardingJobCategory(email, request);
+
+        return ApiResponse.onSuccess(GeneralSuccessCode.OK, "희망 직무가 저장되었습니다.");
+    }
 }
