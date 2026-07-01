@@ -14,6 +14,7 @@ public class AuthResponse {
     public static class MemberInfo {
         private String email;
         private String name;
+        private boolean onboardingCompleted;
     }
 
     @Getter

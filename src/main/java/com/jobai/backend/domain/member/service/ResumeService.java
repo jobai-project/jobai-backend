@@ -59,10 +59,13 @@ public class ResumeService {
                     .originalFilename(file.getOriginalFilename())
                     .storedFileUrl(fileUrl)
                     .fileSize(formatFileSize(file.getSize()))
-                    .isActive(false)
+                    .isActive(true) // 새로 업로드한 이력서를 항상 활성 이력서로 설정
                     .updatedAt(LocalDate.now())
                     .build();
-            return resumesRepository.save(resume).getId();
+            Long resumeId = resumesRepository.save(resume).getId();
+            // 같은 회원의 기존 이력서는 모두 비활성화
+            resumesRepository.deactivateOthersByMemberId(member.getId(), resumeId);
+            return resumeId;
         } catch (Exception e) {
             // DB 저장 실패 시 S3에 올라간 파일 제거
             fileStorageService.delete(fileUrl);
