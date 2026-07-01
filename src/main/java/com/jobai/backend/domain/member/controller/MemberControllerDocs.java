@@ -285,7 +285,8 @@ public interface MemberControllerDocs {
 
                     **careerType 예시 값**: `"인턴"`, `"신입"`, `"경력직"`, `"계약직"` (자유 텍스트이므로 서버에서 별도 검증 없음)
 
-                    **locations**: 빈 배열(`[]`) 전송 시 기존 지역 설정이 모두 삭제됩니다.
+                    **locations**: 두 필드 모두 필수입니다. 지역을 모두 삭제하려면 빈 배열(`[]`)을 명시적으로 보내주세요.
+                    필드 자체를 누락하면 400으로 거부되며, 기존 데이터는 삭제되지 않습니다.
                     """
     )
     @RequestBody(
@@ -316,6 +317,21 @@ public interface MemberControllerDocs {
                                       "code": "COMMON_200_001",
                                       "message": "요청이 성공적으로 처리되었습니다.",
                                       "result": "기본 정보가 저장되었습니다."
+                                    }
+                                    """)
+                    )
+            ),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "400",
+                    description = "입력값 검증 실패 (careerType 또는 locations 필드 누락)",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = @ExampleObject(value = """
+                                    {
+                                      "isSuccess": false,
+                                      "code": "COMMON_400_002",
+                                      "message": "요청 값 검증에 실패했습니다.",
+                                      "errorDetail": ["locations: 희망 근무 지역은 필수입니다. 모두 삭제하려면 빈 배열을 보내주세요."]
                                     }
                                     """)
                     )
@@ -365,7 +381,8 @@ public interface MemberControllerDocs {
 
                     **jobCategories 예시 값**: `"개발자"`, `"디자이너"`, `"기획자"` (자유 텍스트이므로 서버에서 별도 검증 없음)
 
-                    빈 배열(`[]`) 전송 시 기존 직무 설정이 모두 삭제됩니다.
+                    필드는 필수입니다. 직무를 모두 삭제하려면 빈 배열(`[]`)을 명시적으로 보내주세요.
+                    필드 자체를 누락하면 400으로 거부되며, 기존 데이터는 삭제되지 않습니다.
                     """
     )
     @RequestBody(
@@ -395,6 +412,21 @@ public interface MemberControllerDocs {
                                       "code": "COMMON_200_001",
                                       "message": "요청이 성공적으로 처리되었습니다.",
                                       "result": "희망 직무가 저장되었습니다."
+                                    }
+                                    """)
+                    )
+            ),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "400",
+                    description = "입력값 검증 실패 (jobCategories 필드 누락)",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = @ExampleObject(value = """
+                                    {
+                                      "isSuccess": false,
+                                      "code": "COMMON_400_002",
+                                      "message": "요청 값 검증에 실패했습니다.",
+                                      "errorDetail": ["jobCategories: 희망 직무는 필수입니다. 모두 삭제하려면 빈 배열을 보내주세요."]
                                     }
                                     """)
                     )

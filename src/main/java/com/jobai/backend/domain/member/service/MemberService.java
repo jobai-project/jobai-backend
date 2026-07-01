@@ -31,13 +31,15 @@ public class MemberService {
         return memberRepository.findByEmail(email);
     }
 
+    private Member findMemberOrThrow(String email) {
+        return memberRepository.findByEmail(email)
+                .orElseThrow(() -> new GeneralException(GeneralErrorCode.MEMBER_NOT_FOUND, "해당 이메일은 존재하지 않는 회원입니다."));
+    }
+
     @Transactional
     public void updateMyJobPreferences(String email, MemberRequestDTO.UpdateJobPreferenceDTO request) {
-        // 1. findByEmail을 사용해 유저를 조회
-        Member member = memberRepository.findByEmail(email)
-                .orElseThrow(() -> new GeneralException(GeneralErrorCode.MEMBER_NOT_FOUND, "해당 이메일은 존재하지 않는 회원입니다."));
+        Member member = findMemberOrThrow(email);
 
-        // 2. 엔티티 내부 비즈니스 로직(통 업데이트) 호출
         member.updateJobPreferences(
                 request.getCareerType(),
                 request.getJobCategories(),
@@ -48,8 +50,7 @@ public class MemberService {
     // 온보딩 1단계: 희망 근무 지역 + 희망 채용 형태
     @Transactional
     public void updateOnboardingBasicInfo(String email, MemberRequestDTO.UpdateBasicInfoDTO request) {
-        Member member = memberRepository.findByEmail(email)
-                .orElseThrow(() -> new GeneralException(GeneralErrorCode.MEMBER_NOT_FOUND, "해당 이메일은 존재하지 않는 회원입니다."));
+        Member member = findMemberOrThrow(email);
 
         member.updateBasicInfo(request.getCareerType(), request.getLocations());
     }
@@ -57,17 +58,14 @@ public class MemberService {
     // 온보딩 2단계: 희망 직무
     @Transactional
     public void updateOnboardingJobCategory(String email, MemberRequestDTO.UpdateJobCategoryDTO request) {
-        Member member = memberRepository.findByEmail(email)
-                .orElseThrow(() -> new GeneralException(GeneralErrorCode.MEMBER_NOT_FOUND, "해당 이메일은 존재하지 않는 회원입니다."));
+        Member member = findMemberOrThrow(email);
 
         member.updateJobCategories(request.getJobCategories());
     }
 
     // 마이페이지의 모든 정보를 조회하는 함수
     public MemberResponseDTO.MyPageDTO getMyPageData(String email) {
-        // 1. 이메일 기반 회원 조회
-        Member member = memberRepository.findByEmail(email)
-                .orElseThrow(() -> new GeneralException(GeneralErrorCode.MEMBER_NOT_FOUND, "해당 이메일은 존재하지 않는 회원입니다."));
+        Member member = findMemberOrThrow(email);
 
         // 2. 프로필 정보 조립
         MemberResponseDTO.ProfileInfo profile = MemberResponseDTO.ProfileInfo.builder()
@@ -107,9 +105,7 @@ public class MemberService {
 
     @Transactional // 더티체크를 활용한 이름변경 로직
     public void updateMemberName(String email, String newName) {
-
-        Member member = memberRepository.findByEmail(email)
-                .orElseThrow(() -> new GeneralException(GeneralErrorCode.MEMBER_NOT_FOUND, "해당 이메일은 존재하지 않는 회원입니다."));
+        Member member = findMemberOrThrow(email);
 
         member.update(newName);
     }

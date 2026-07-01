@@ -31,7 +31,7 @@ public class Notification {
     private String discordWebhookUrl;
 
     // 홈 화면 노출 기준: 이 점수 이상인 매칭 공고만 추천 알림/노출 대상
-    @Column(nullable = false)
+    @Column(nullable = false, columnDefinition = "integer default 70")
     private Integer matchScoreThreshold;
 
     public static Notification createDefault(Member member) {

@@ -41,7 +41,7 @@ public class Member {
     private String careerType;
 
     @Builder.Default
-    @Column(nullable = false)
+    @Column(nullable = false, columnDefinition = "boolean default false")
     private boolean onboardingCompleted = false;
 
     private LocalDateTime lastLoginAt;

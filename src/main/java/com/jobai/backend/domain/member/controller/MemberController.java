@@ -53,7 +53,7 @@ public class MemberController implements MemberControllerDocs {
     @PatchMapping("/me/onboarding/basic-info")
     public ApiResponse<String> updateOnboardingBasicInfo(
             @AuthenticationPrincipal String email,
-            @RequestBody MemberRequestDTO.UpdateBasicInfoDTO request
+            @Valid @RequestBody MemberRequestDTO.UpdateBasicInfoDTO request
     ) {
         memberService.updateOnboardingBasicInfo(email, request);
 
@@ -63,7 +63,7 @@ public class MemberController implements MemberControllerDocs {
     @PatchMapping("/me/onboarding/job-category")
     public ApiResponse<String> updateOnboardingJobCategory(
             @AuthenticationPrincipal String email,
-            @RequestBody MemberRequestDTO.UpdateJobCategoryDTO request
+            @Valid @RequestBody MemberRequestDTO.UpdateJobCategoryDTO request
     ) {
         memberService.updateOnboardingJobCategory(email, request);
 
