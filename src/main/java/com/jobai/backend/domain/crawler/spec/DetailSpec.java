@@ -37,10 +37,4 @@ public class DetailSpec {
     private Map<String, Object> fields;
     private String bodySelector;
 
-    /** html 상세: 섹션 반복 요소 셀렉터 (네이버 등). */
-    private String sectionBox;
-    /** html 상세: 섹션 제목 셀렉터. */
-    private String sectionTitle;
-    /** html 상세: 섹션 본문 셀렉터. */
-    private String sectionText;
 }

@@ -18,6 +18,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -218,12 +219,10 @@ public class PrivateJobPostingService {
     }
 
     // 재분류 대상 판별 기준: jobCategory 가 이 목록에 없으면(= null 또는 회사원본명) 재분류.
+    // JobCategory enum 에서 라벨을 추출해 택소노미 변경 시 자동 반영되도록 한다.
     // "미분류"를 포함하는 이유: 진짜 판단불가(LLM 이 "미분류" 응답)는 최종 상태로 두어 무한 재분류를 막는다.
     // 호출 실패분은 "미분류"가 아니라 null 로 남으므로(JobClassifier 가 실패 시 null 반환), 다음 실행에 자동 재시도된다.
-    private static final List<String> VALID_LABELS = List.of(
-            "백엔드", "프론트엔드", "풀스택", "모바일", "AI/ML", "데이터엔지니어링",
-            "DevOps/인프라", "보안", "QA/테스트", "임베디드", "기타개발",
-            "UX리서처", "UX/UI디자이너", "프로덕트디자이너", "웹디자이너",
-            "PM/PO", "서비스기획", "비대상", "미분류"
-    );
+    private static final List<String> VALID_LABELS = Arrays.stream(JobCategory.values())
+            .map(JobCategory::getLabel)
+            .toList();
 }

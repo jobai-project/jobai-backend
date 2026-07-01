@@ -50,7 +50,25 @@ public class KeywordMatcher {
         String matchedExperience = null;
         List<String> unmatchedTokens = new ArrayList<>();
 
-        for (String rawToken : tokens) {
+        // 인접 토큰 결합(bigram) 매칭을 위해 소비 여부 추적
+        boolean[] consumed = new boolean[tokens.length];
+
+        // 1차: bigram 매칭 (인접 2개 토큰을 합쳐서 phrase 매칭)
+        for (int i = 0; i < tokens.length - 1; i++) {
+            String combined = stripParticles(tokens[i]) + stripParticles(tokens[i + 1]);
+            JobCategory category = categorySynonyms.get(combined);
+            if (category != null) {
+                matchedCategories.add(category);
+                consumed[i] = true;
+                consumed[i + 1] = true;
+            }
+        }
+
+        // 2차: 단일 토큰 매칭 (bigram에서 소비되지 않은 토큰만)
+        for (int i = 0; i < tokens.length; i++) {
+            if (consumed[i]) continue;
+
+            String rawToken = tokens[i];
             String stripped = stripParticles(rawToken);
 
             JobCategory category = findCategory(stripped, rawToken);
@@ -159,15 +177,15 @@ public class KeywordMatcher {
         addSynonyms(JobCategory.ETC_DEV,
                 "개발", "developer", "엔지니어", "engineer", "프로그래머");
         addSynonyms(JobCategory.UX_RESEARCHER,
-                "ux리서처", "ux리서치", "사용자리서치");
+                "ux리서처", "ux리서치", "사용자리서치", "유저리서처", "유저리서치");
         addSynonyms(JobCategory.UXUI_DESIGNER,
-                "ux", "ui", "ux/ui", "uxui");
+                "ux", "ui", "ux/ui", "uxui", "ux디자이너", "ui디자이너");
         addSynonyms(JobCategory.PRODUCT_DESIGNER,
-                "프로덕트디자이너", "제품디자이너");
+                "프로덕트디자이너", "제품디자이너", "productdesigner");
         addSynonyms(JobCategory.WEB_DESIGNER,
                 "웹디자이너", "디자이너", "designer", "디자인", "그래픽디자이너");
         addSynonyms(JobCategory.PM_PO,
-                "pm", "po", "프로덕트매니저", "product");
+                "pm", "po", "프로덕트매니저", "프로덕트오너", "product", "productmanager");
         addSynonyms(JobCategory.SERVICE_PLANNER,
                 "기획", "서비스기획", "planner", "기획자");
     }

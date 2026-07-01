@@ -35,9 +35,6 @@ detail:
   source_type: html
   url_from: apply_url               # 레코드의 apply_url(=jobDetailLink)을 상세 URL로
   body_selector: "div.detail_wrap"  # 전체 본문(원본) → description
-  section_box: "div.detail_box"     # 섹션 반복 요소
-  section_title: "h4.detail_title"  # 섹션 제목 (Who We Are / Required Skills ...)
-  section_text: "p.detail_text"     # (참고용; 엔진은 박스 전체 텍스트에서 제목을 떼 sections 생성)
 
 # === 필드 매핑 ===
 fields:
