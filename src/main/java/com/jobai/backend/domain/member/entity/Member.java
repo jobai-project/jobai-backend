@@ -40,6 +40,10 @@ public class Member {
     @Column(name = "career_type", length = 20) // 네이밍 컨벤션 수정
     private String careerType;
 
+    @Builder.Default
+    @Column(nullable = false, columnDefinition = "boolean default false")
+    private boolean onboardingCompleted = false;
+
     private LocalDateTime lastLoginAt;
 
     @CreationTimestamp
@@ -66,18 +70,27 @@ public class Member {
 
     // --- 비즈니스 로직 (통 업데이트 편의 메서드) ---
     public void updateJobPreferences(String careerType, List<String> jobCategories, List<String> locations) {
+        updateBasicInfo(careerType, locations);
+        updateJobCategories(jobCategories);
+    }
+
+    // 온보딩 1단계: 희망 근무 지역 + 희망 채용 형태 (다른 필드는 건드리지 않음)
+    public void updateBasicInfo(String careerType, List<String> locations) {
         this.careerType = careerType;
 
-        // 1. 기존 직무 리스트 비우고 새 리스트로 교체 (JPA orphanRemoval 작동)
-        this.prefJobs.clear();
-        if (jobCategories != null) {
-            jobCategories.forEach(category -> this.prefJobs.add(new PreferredJob(this, category)));
-        }
-
-        // 2. 기존 지역 리스트 비우고 새 리스트로 교체
+        // 기존 지역 리스트 비우고 새 리스트로 교체 (JPA orphanRemoval 작동)
         this.prefLocations.clear();
         if (locations != null) {
             locations.forEach(loc -> this.prefLocations.add(new PreferredRegion(this, loc)));
+        }
+    }
+
+    // 온보딩 2단계: 희망 직무 (다른 필드는 건드리지 않음)
+    public void updateJobCategories(List<String> jobCategories) {
+        // 기존 직무 리스트 비우고 새 리스트로 교체 (JPA orphanRemoval 작동)
+        this.prefJobs.clear();
+        if (jobCategories != null) {
+            jobCategories.forEach(category -> this.prefJobs.add(new PreferredJob(this, category)));
         }
     }
 
@@ -90,5 +103,8 @@ public class Member {
         this.name = name;
         this.profileImageUrl = profileImageUrl;
         return this;
+    // 온보딩 4단계(알림설정) 저장 완료 시 호출: 온보딩 전체 완료 처리
+    public void completeOnboarding() {
+        this.onboardingCompleted = true;
     }
 }

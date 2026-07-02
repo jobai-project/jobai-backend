@@ -67,7 +67,7 @@ public interface ResumeControllerDocs {
                     **인증 필요**: 유효한 `accessToken` 쿠키가 있어야 합니다.
 
                     - PDF 파일만 허용됩니다.
-                    - 업로드된 이력서의 기본 활성화 상태는 `false`입니다.
+                    - 새로 업로드한 이력서는 자동으로 활성화(`isActive = true`)되며, 기존에 활성화되어 있던 이력서는 자동으로 비활성화됩니다.
                     """
     )
     @ApiResponses({

@@ -3,6 +3,8 @@ package com.jobai.backend.domain.member.controller;
 import com.jobai.backend.domain.member.dto.MemberRequestDTO;
 import com.jobai.backend.domain.member.dto.MemberResponseDTO;
 import com.jobai.backend.domain.member.service.MemberService;
+import com.jobai.backend.domain.notification.dto.NotificationRequestDTO;
+import com.jobai.backend.domain.notification.service.NotificationSettingsService;
 import com.jobai.backend.global.apiPayload.ApiResponse;
 import com.jobai.backend.global.apiPayload.code.GeneralSuccessCode;
 import jakarta.validation.Valid;
@@ -16,6 +18,7 @@ import org.springframework.web.bind.annotation.*;
 public class MemberController implements MemberControllerDocs {
 
     private final MemberService memberService;
+    private final NotificationSettingsService notificationSettingsService;
 
     @PutMapping("/me/job-preferences")
     public ApiResponse<String> updateJobPreferences(
@@ -55,5 +58,35 @@ public class MemberController implements MemberControllerDocs {
         memberService.updateMemberName(email, request.getName());
 
         return ApiResponse.onSuccess(GeneralSuccessCode.OK, "이름이 성공적으로 수정되었습니다.");
+    }
+
+    @PatchMapping("/me/onboarding/basic-info")
+    public ApiResponse<String> updateOnboardingBasicInfo(
+            @AuthenticationPrincipal String email,
+            @Valid @RequestBody MemberRequestDTO.UpdateBasicInfoDTO request
+    ) {
+        memberService.updateOnboardingBasicInfo(email, request);
+
+        return ApiResponse.onSuccess(GeneralSuccessCode.OK, "기본 정보가 저장되었습니다.");
+    }
+
+    @PatchMapping("/me/onboarding/job-category")
+    public ApiResponse<String> updateOnboardingJobCategory(
+            @AuthenticationPrincipal String email,
+            @Valid @RequestBody MemberRequestDTO.UpdateJobCategoryDTO request
+    ) {
+        memberService.updateOnboardingJobCategory(email, request);
+
+        return ApiResponse.onSuccess(GeneralSuccessCode.OK, "희망 직무가 저장되었습니다.");
+    }
+
+    @PatchMapping("/me/onboarding/notification-settings")
+    public ApiResponse<String> updateOnboardingNotificationSettings(
+            @AuthenticationPrincipal String email,
+            @Valid @RequestBody NotificationRequestDTO.UpdateSettingsDTO request
+    ) {
+        notificationSettingsService.updateOnboardingNotificationSettings(email, request);
+
+        return ApiResponse.onSuccess(GeneralSuccessCode.OK, "알림 설정이 저장되었습니다.");
     }
 }

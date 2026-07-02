@@ -5,6 +5,7 @@ import com.jobai.backend.domain.member.service.ResumeService;
 import com.jobai.backend.global.apiPayload.ApiResponse;
 import com.jobai.backend.global.apiPayload.code.GeneralSuccessCode;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
@@ -25,6 +26,7 @@ public class ResumeController implements ResumeControllerDocs {
     }
 
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @ResponseStatus(HttpStatus.CREATED) // ApiResponse는 ResponseEntity가 아니므로 명시하지 않으면 200이 반환됨
     public ApiResponse<ResumeResponseDTO.UploadResultDTO> uploadResume(
             @AuthenticationPrincipal String email,
             @RequestPart("file") MultipartFile file

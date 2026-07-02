@@ -89,6 +89,8 @@ public interface AuthControllerDocs {
 
                     로그인 여부 확인 또는 헤더에 사용자 이름을 표시할 때 활용하세요.
                     상세 프로필은 `/api/v1/members/me`를 사용하세요.
+
+                    **onboardingCompleted**: 온보딩(4단계) 완료 여부입니다. `false`이면 온보딩 화면으로 안내하세요.
                     """
     )
     @SecurityRequirement(name = "cookieAuth")
@@ -105,7 +107,8 @@ public interface AuthControllerDocs {
                                       "message": "요청이 성공적으로 처리되었습니다.",
                                       "result": {
                                         "email": "user@gmail.com",
-                                        "name": "홍길동"
+                                        "name": "홍길동",
+                                        "onboardingCompleted": false
                                       }
                                     }
                                     """)

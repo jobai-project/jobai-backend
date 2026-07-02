@@ -55,6 +55,7 @@ public class AuthController implements AuthControllerDocs {
                         AuthResponse.MemberInfo.builder()
                                 .email(m.getEmail())
                                 .name(m.getName())
+                                .onboardingCompleted(m.isOnboardingCompleted())
                                 .build()))
                 .orElse(ApiResponse.onFailure(GeneralErrorCode.NOT_FOUND, null));
     }
