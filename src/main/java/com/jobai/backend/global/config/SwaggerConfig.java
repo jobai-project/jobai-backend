@@ -13,25 +13,23 @@ public class SwaggerConfig {
 
     @Bean
     public OpenAPI openAPI() {
-        // Swagger UI에서 JWT 토큰 인증을 테스트할 수 있도록 보안 스키마 이름을 정의
-        String jwtSchemeName = "JWT_Auth";
+        // 실제 인증은 로그인 성공 시 발급되는 accessToken이 HttpOnly 쿠키로 전달되는 방식이라,
+        // Authorization 헤더에 토큰을 붙이는 Bearer 방식이 아니라 쿠키 기반 스킴으로 정의한다.
+        String cookieSchemeName = "cookieAuth";
 
-        // 1. 모든 API 요청 시 자동으로 Authorization 헤더에 JWT가 붙도록 전역 보안 요구사항 설정
-        SecurityRequirement securityRequirement = new SecurityRequirement().addList(jwtSchemeName);
+        // 1. 모든 API 요청에 이 보안 요구사항을 기본 적용 (개별 API에서 SecurityRequirement로 재선언)
+        SecurityRequirement securityRequirement = new SecurityRequirement().addList(cookieSchemeName);
 
-        // 2. JWT Bearer 방식의 SecurityScheme 정의 (Authorization: Bearer <TOKEN> 규격 적용)
+        // 2. accessToken 쿠키 기반 SecurityScheme 정의 (Swagger UI에서 로그인 상태의 브라우저로 호출 시 자동 적용됨)
         SecurityScheme securityScheme = new SecurityScheme()
-                .name(jwtSchemeName)
-                .type(SecurityScheme.Type.HTTP)
-                .scheme("bearer")
-                .bearerFormat("JWT")
-                .in(SecurityScheme.In.HEADER)
-                .name("Authorization");
+                .name("accessToken")
+                .type(SecurityScheme.Type.APIKEY)
+                .in(SecurityScheme.In.COOKIE);
 
         return new OpenAPI()
                 .info(apiInfo()) // API 문서의 기본 메타데이터 정보 주입
                 .addSecurityItem(securityRequirement)
-                .components(new Components().addSecuritySchemes(jwtSchemeName, securityScheme));
+                .components(new Components().addSecuritySchemes(cookieSchemeName, securityScheme));
     }
 
     // API 문서의 제목, 설명, 버전을 설정하는 메드

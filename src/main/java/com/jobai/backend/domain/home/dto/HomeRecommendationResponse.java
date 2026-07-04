@@ -1,22 +1,35 @@
 package com.jobai.backend.domain.home.dto;
 
+import io.swagger.v3.oas.annotations.media.Schema;
+
 import java.time.LocalDate;
 import java.util.List;
 
 public record HomeRecommendationResponse(
+        @Schema(description = "필터 조건에 맞는 전체 공고 수 (현재 페이지 크기와 무관)", example = "987")
         long totalCount,
+        @Schema(description = "더 불러올 공고가 남아있는지 여부 (offset+size < totalCount)", example = "true")
         boolean hasMore,
+        @Schema(description = "매칭점수 내림차순으로 정렬된 공고 목록 (요청한 size만큼, 없으면 빈 배열)")
         List<RecommendedJob> jobs
 ) {
     public record RecommendedJob(
+            @Schema(description = "공고 고유 ID", example = "101")
             Long id,
-            String source,          // "PUBLIC" | "PRIVATE"
+            @Schema(description = "공고 출처. 값: PUBLIC(공기업), PRIVATE(사기업)", example = "PUBLIC")
+            String source,
+            @Schema(description = "회사명/기관명", example = "한국전력공사")
             String companyName,
+            @Schema(description = "공고 제목", example = "2026년 신입사원 채용")
             String title,
-            int matchScore,         // 0~100, 현재는 Mock (TODO: AI팀 실제 로직으로 교체)
-            Integer dDay,           // 마감일 - 오늘, 상시채용 등 마감일 없으면 null
+            @Schema(description = "매칭점수 (0~100). 현재는 임시(Mock) 값이며 추후 AI 매칭 로직으로 교체 예정", example = "92")
+            int matchScore,
+            @Schema(description = "마감까지 남은 일수 (디데이). 마감일이 없는 상시채용 등은 null", example = "5", nullable = true)
+            Integer dDay,
+            @Schema(description = "근무지역", example = "서울")
             String location,
-            String employmentType   // 원본 표시용 문자열 그대로 (공기업=recrutType, 사기업=employmentType)
+            @Schema(description = "고용형태 원본 문자열 (공기업=recrutType, 사기업=employmentType)", example = "정규직")
+            String employmentType
     ) {
         public static RecommendedJob of(
                 Long id, String source, String companyName, String title,

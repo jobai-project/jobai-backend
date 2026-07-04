@@ -5,6 +5,7 @@ import com.jobai.backend.global.apiPayload.ApiResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.ExampleObject;
+import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -17,6 +18,8 @@ public interface AuthControllerDocs {
             summary = "구글 로그인 URL 조회",
             description = """
                     구글 소셜 로그인을 시작하기 위한 리디렉션 URL을 반환합니다.
+
+                    **인증 불필요**: 로그인 전에 호출하는 API이므로 accessToken 쿠키 없이 호출 가능합니다.
 
                     **사용 흐름:**
                     1. 이 API를 호출하여 `googleLoginUrl`을 받습니다.
@@ -34,6 +37,7 @@ public interface AuthControllerDocs {
                     description = "구글 로그인 URL 반환 성공",
                     content = @Content(
                             mediaType = "application/json",
+                            schema = @Schema(implementation = AuthResponse.LoginUrl.class),
                             examples = @ExampleObject(value = """
                                     {
                                       "isSuccess": true,
@@ -54,10 +58,10 @@ public interface AuthControllerDocs {
             description = """
                     현재 로그인된 사용자를 로그아웃 처리합니다.
 
+                    **인증 필요**: 유효한 `accessToken` 쿠키가 있어야 합니다.
+
                     **동작 방식**: 서버에서 `accessToken` 쿠키를 만료(Max-Age=0)시켜 삭제합니다.
                     클라이언트는 별도로 쿠키를 삭제할 필요가 없습니다.
-
-                    **인증 필요**: 로그인 상태가 아니어도 호출 가능하나, 쿠키가 없으면 효과 없음.
                     """
     )
     @SecurityRequirement(name = "cookieAuth")
@@ -72,6 +76,21 @@ public interface AuthControllerDocs {
                                       "isSuccess": true,
                                       "code": "COMMON_200_001",
                                       "message": "요청이 성공적으로 처리되었습니다.",
+                                      "result": null
+                                    }
+                                    """)
+                    )
+            ),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "401",
+                    description = "인증되지 않은 사용자 (로그인 필요)",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = @ExampleObject(value = """
+                                    {
+                                      "isSuccess": false,
+                                      "code": "COMMON_401_001",
+                                      "message": "인증이 필요합니다.",
                                       "result": null
                                     }
                                     """)
@@ -98,6 +117,7 @@ public interface AuthControllerDocs {
                     description = "내 정보 조회 성공",
                     content = @Content(
                             mediaType = "application/json",
+                            schema = @Schema(implementation = AuthResponse.MemberInfo.class),
                             examples = @ExampleObject(value = """
                                     {
                                       "isSuccess": true,
