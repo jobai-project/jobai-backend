@@ -18,6 +18,7 @@ public class AuthResponse {
 
         @Schema(description = "이름", example = "홍길동")
         private String name;
+        private boolean onboardingCompleted;
     }
 
     @Getter

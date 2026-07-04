@@ -8,6 +8,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -27,4 +28,7 @@ public interface PrivateJobPostingRepository extends JpaRepository<PrivateJobPos
         """)
     Page<PrivateJobPosting> findNeedsClassification(
             @Param("validLabels") List<String> validLabels, Pageable pageable);
+
+    // 특정 시각 이후 생성된 공고 조회 (신규 공고 export용)
+    Page<PrivateJobPosting> findByCreatedAtAfter(LocalDateTime since, Pageable pageable);
 }

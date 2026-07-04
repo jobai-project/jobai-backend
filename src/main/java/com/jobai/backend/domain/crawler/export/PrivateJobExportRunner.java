@@ -17,6 +17,8 @@ import org.springframework.stereotype.Component;
 
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -42,6 +44,7 @@ import java.util.Map;
  *
  * <p>{@code @Profile("export")} 로 분리해, 평소 앱 실행에는 영향을 주지 않는다.
  * 실행: {@code gradlew bootRun --args='--spring.profiles.active=local,export'}
+ * 신규만: {@code gradlew bootRun --args='--spring.profiles.active=local,export --export.since=2026-06-29'}
  */
 @Component
 @Profile("export")
@@ -65,15 +68,20 @@ public class PrivateJobExportRunner implements ApplicationRunner {
 
     @Override
     public void run(ApplicationArguments args) throws Exception {
+        // --export.since=2026-06-29 형식으로 신규 공고만 export 가능
+        LocalDateTime since = parseSinceOption(args);
+
         List<Map<String, Object>> exported = new ArrayList<>();
 
-        // id 정렬로 페이지를 끊어 읽는다(정렬 없으면 페이지 경계가 불안정).
         Pageable pageable = PageRequest.of(0, PAGE_SIZE, Sort.by("id").ascending());
         Page<PrivateJobPosting> page;
         int scanned = 0;
 
         do {
-            page = repository.findAll(pageable);
+            page = (since != null)
+                    ? repository.findByCreatedAtAfter(since, pageable)
+                    : repository.findAll(pageable);
+
             for (PrivateJobPosting j : page.getContent()) {
                 scanned++;
                 if (j.isClosed()) {
@@ -88,12 +96,28 @@ public class PrivateJobExportRunner implements ApplicationRunner {
             pageable = page.nextPageable();
         } while (page.hasNext());
 
-        Path path = Paths.get(OUTPUT_FILE);
+        String outputFile = (since != null) ? "ai_jobs_export_new.json" : OUTPUT_FILE;
+        Path path = Paths.get(outputFile);
         objectMapper.writerWithDefaultPrettyPrinter()
                 .writeValue(path.toFile(), exported);
 
-        log.info("[export] 전체 {}건 중 사기업 IT 공고 {}건 → {}",
-                scanned, exported.size(), path.toAbsolutePath());
+        if (since != null) {
+            log.info("[export] {} 이후 신규 {}건 중 IT 공고 {}건 → {}",
+                    since.toLocalDate(), scanned, exported.size(), path.toAbsolutePath());
+        } else {
+            log.info("[export] 전체 {}건 중 사기업 IT 공고 {}건 → {}",
+                    scanned, exported.size(), path.toAbsolutePath());
+        }
+    }
+
+    private LocalDateTime parseSinceOption(ApplicationArguments args) {
+        List<String> values = args.getOptionValues("export.since");
+        if (values == null || values.isEmpty()) {
+            return null;
+        }
+        String value = values.get(0).trim();
+        // yyyy-MM-dd 형식 → 해당 날짜 00:00:00 부터
+        return LocalDate.parse(value).atStartOfDay();
     }
 
     /** 엔티티 → export용 Map (AI 매칭 입력: 식별자 + 매칭 신호 필드). */

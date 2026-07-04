@@ -31,13 +31,13 @@ class JobClassifierTest {
     @DisplayName("정상 응답: 제목 순서대로 분류된다")
     void classifiesInOrder() {
         when(anthropicClient.complete(anyString(), anyString(), anyInt()))
-                .thenReturn("[\"백엔드\", \"비대상\", \"디자이너\"]");
+                .thenReturn("[\"백엔드\", \"비대상\", \"프로덕트디자이너\"]");
 
         List<JobCategory> result = classifier.classify(
                 List.of("백엔드 개발자", "영업 매니저", "프로덕트 디자이너"));
 
         assertThat(result).containsExactly(
-                JobCategory.BACKEND, JobCategory.NON_TARGET, JobCategory.DESIGNER);
+                JobCategory.BACKEND, JobCategory.NON_TARGET, JobCategory.PRODUCT_DESIGNER);
     }
 
     @Test
@@ -57,13 +57,13 @@ class JobClassifierTest {
     @DisplayName("목록 밖 라벨: 해당 항목만 미분류, 나머지는 정상")
     void unknownLabelBecomesUnclassified() {
         when(anthropicClient.complete(anyString(), anyString(), anyInt()))
-                .thenReturn("[\"백엔드\", \"서버개발\", \"디자이너\"]");
+                .thenReturn("[\"백엔드\", \"서버개발\", \"UX/UI디자이너\"]");
 
         List<JobCategory> result = classifier.classify(
                 List.of("제목1", "제목2", "제목3"));
 
         assertThat(result).containsExactly(
-                JobCategory.BACKEND, JobCategory.UNCLASSIFIED, JobCategory.DESIGNER);
+                JobCategory.BACKEND, JobCategory.UNCLASSIFIED, JobCategory.UXUI_DESIGNER);
     }
 
     @Test
@@ -136,8 +136,8 @@ class JobClassifierTest {
     void preservesOrderAcrossBatches() {
         when(anthropicClient.complete(anyString(), anyString(), anyInt()))
                 .thenReturn("[\"백엔드\",\"프론트엔드\",\"풀스택\",\"모바일\",\"AI/ML\","
-                        + "\"보안\",\"QA/테스트\",\"임베디드\",\"디자이너\",\"PM/기획\"]")  // 배치1: 10개
-                .thenReturn("[\"비대상\"]");                                                  // 배치2: 1개
+                        + "\"보안\",\"QA/테스트\",\"임베디드\",\"UX/UI디자이너\",\"PM/PO\"]")  // 배치1: 10개
+                .thenReturn("[\"비대상\"]");                                                     // 배치2: 1개
 
         List<String> titles = new ArrayList<>();
         for (int i = 1; i <= 11; i++) titles.add("제목" + i);
@@ -146,7 +146,7 @@ class JobClassifierTest {
 
         assertThat(result).hasSize(11);
         assertThat(result.get(0)).isEqualTo(JobCategory.BACKEND);    // 배치1 첫
-        assertThat(result.get(9)).isEqualTo(JobCategory.PM);         // 배치1 끝
+        assertThat(result.get(9)).isEqualTo(JobCategory.PM_PO);      // 배치1 끝
         assertThat(result.get(10)).isEqualTo(JobCategory.NON_TARGET); // 배치2
     }
 }

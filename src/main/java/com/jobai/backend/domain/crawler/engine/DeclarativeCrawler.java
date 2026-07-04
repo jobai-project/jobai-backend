@@ -3,12 +3,7 @@ package com.jobai.backend.domain.crawler.engine;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jobai.backend.domain.crawler.model.JobRecord;
-import com.jobai.backend.domain.crawler.spec.CrawlSpec;
-import com.jobai.backend.domain.crawler.spec.DetailSpec;
-import com.jobai.backend.domain.crawler.spec.FilterSpec;
-import com.jobai.backend.domain.crawler.spec.ListSpec;
-import com.jobai.backend.domain.crawler.spec.Pagination;
-import com.jobai.backend.domain.crawler.spec.SelectSpec;
+import com.jobai.backend.domain.crawler.spec.*;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 
@@ -139,6 +134,7 @@ public class DeclarativeCrawler {
             }
             rec.put("extra", extra);
         }
+        applyMetadataExtraction(rec, raw, spec);
         applyUrl(rec, spec);
         return rec;
     }
@@ -473,6 +469,41 @@ public class DeclarativeCrawler {
             return objectMapper.readValue(body, new TypeReference<Object>() {});
         } catch (Exception e) {
             throw new IllegalStateException("JSON 파싱 실패: " + e.getMessage(), e);
+        }
+    }
+
+    /**
+     * metadata 배열에서 name 매칭으로 value 를 추출해 레코드에 채운다 (토스).
+     * fields 매핑 이후 실행되어, metadata 의 값이 우선 반영된다(빈 값은 안 덮어씀).
+     */
+    @SuppressWarnings("unchecked")
+    private void applyMetadataExtraction(JobRecord rec, Object raw, CrawlSpec spec) {
+        MetadataExtractionSpec me = spec.getMetadataExtraction();
+        if (me == null || me.getMappings() == null) {
+            return;
+        }
+        Object metaObj = JsonPathResolver.resolve(raw, me.getSourceField());
+        if (!(metaObj instanceof List)) {
+            return;
+        }
+        String matchBy = (me.getMatchBy() != null) ? me.getMatchBy() : "name";
+        String valueFrom = (me.getValueFrom() != null) ? me.getValueFrom() : "value";
+
+        // name → value 인덱스
+        Map<Object, Object> index = new LinkedHashMap<>();
+        for (Object item : (List<Object>) metaObj) {
+            Object key = JsonPathResolver.resolve(item, matchBy);
+            Object val = JsonPathResolver.resolve(item, valueFrom);
+            if (key != null) {
+                index.put(key, val);
+            }
+        }
+        // 매핑 적용 (빈 값은 덮어쓰지 않음)
+        for (Map.Entry<String, String> m : me.getMappings().entrySet()) {
+            Object val = index.get(m.getValue());
+            if (val != null && !"".equals(val)) {
+                rec.put(m.getKey(), val);
+            }
         }
     }
 }

@@ -7,6 +7,7 @@ import com.jobai.backend.global.apiPayload.ApiResponse;
 import com.jobai.backend.global.apiPayload.code.GeneralSuccessCode;
 import jakarta.validation.Valid;
 import lombok.*;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
@@ -19,6 +20,7 @@ public class ApplicationController implements ApplicationControllerDocs {
     private final ApplicationService applicationService;
 
     @PostMapping
+    @ResponseStatus(HttpStatus.CREATED) // ApiResponse는 ResponseEntity가 아니므로 명시하지 않으면 200이 반환됨
     public ApiResponse<ApplicationResponseDTO.CreateResultDTO> createApplication(
             @AuthenticationPrincipal String email,
             @Valid @RequestBody ApplicationRequestDTO.CreateApplicationDTO request

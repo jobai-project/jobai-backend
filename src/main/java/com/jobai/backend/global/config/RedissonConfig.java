@@ -11,7 +11,7 @@ import org.springframework.context.annotation.Profile;
 import java.time.Duration;
 
 @Configuration
-//@Profile("!classify & !export")
+@Profile("!classify & !export & !collect")
 public class RedissonConfig {
 
     @Bean(destroyMethod = "shutdown")

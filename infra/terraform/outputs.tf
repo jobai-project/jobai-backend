@@ -29,3 +29,7 @@ output "ecr_registry_url" {
 output "github_actions_deploy_role_arn" {
   value = aws_iam_role.github_actions_deploy.arn
 }
+
+output "resume_s3_bucket_name" {
+  value = aws_s3_bucket.resume_files.bucket
+}

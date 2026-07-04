@@ -54,11 +54,8 @@ public class SecurityConfig {
                                 "/swagger-ui.html",     // 리다이렉트용 기본 주소
                                 "/api/v1/admin/**",  // 의도된 임시 허용. TODO 테스트를 위해 임시 추가. 추후 조정필요
                                 "/login/oauth2/**", // OAuth2 인증 엔드포인트 허용
-                                "/api/v1/auth/login/google" // 로그인 URL 조회는 비로그인 상태에서 호출해야 하므로 허용
+                                "/api/v1/auth/login/**" // 로그인 URL 조회는 인증 없이 접근 가능
                         ).permitAll()
-
-                        // 비로그인 상태에서도 접근해야 하는 비즈니스 API 경로 (회원가입/로그인 등)
-                        //.requestMatchers("/api/v1/auth/**").permitAll()
                         .anyRequest().authenticated() // 위에서 명시한 경로 외의 모든 요청은 무조건 인증(로그인)을 거쳐야 함
                 )
 
@@ -89,7 +86,8 @@ public class SecurityConfig {
                 "http://api.jobai.site:8080",
                 "http://api.jobai.site",
                 "https://api.jobai.site",
-                "https://jobai.site"
+                "https://jobai.site",
+                "https://app.jobai.site"
         ));
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"));
         configuration.setAllowedHeaders(Arrays.asList("*"));

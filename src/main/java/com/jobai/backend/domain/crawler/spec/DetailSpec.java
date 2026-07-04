@@ -36,4 +36,5 @@ public class DetailSpec {
     private SelectSpec select;
     private Map<String, Object> fields;
     private String bodySelector;
+
 }
