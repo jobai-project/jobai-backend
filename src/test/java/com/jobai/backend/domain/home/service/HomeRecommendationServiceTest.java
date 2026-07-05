@@ -5,6 +5,7 @@ import com.jobai.backend.domain.home.dto.HomeRecommendationResponse.RecommendedJ
 import com.jobai.backend.domain.home.dto.JobCandidate;
 import com.jobai.backend.domain.home.repository.HomeJobCandidateRepository;
 import com.jobai.backend.domain.member.entity.Member;
+import com.jobai.backend.domain.member.entity.PreferredJob;
 import com.jobai.backend.domain.member.repository.MemberRepository;
 import com.jobai.backend.domain.notification.entity.Notification;
 import com.jobai.backend.domain.notification.repository.NotificationRepository;
@@ -44,11 +45,13 @@ class HomeRecommendationServiceTest {
         jobMatchScorer = new JobMatchScorer();
         service = new HomeRecommendationService(memberRepository, candidateRepository, notificationRepository, jobMatchScorer);
 
-        when(memberRepository.findByEmail(EMAIL))
-                .thenReturn(Optional.of(Member.builder().id(1L).email(EMAIL).build()));
+        // 기본값: 온보딩 완료 + 희망직무 설정된 회원(매칭 근거 있음)으로 두어, 이 파일의 다른 시나리오가
+        // 매칭점수 기반 정렬 경로를 그대로 탄다. "매칭 근거 없음" 경로는 별도 테스트에서 검증한다.
+        Member memberWithBasis = Member.builder().id(1L).email(EMAIL).onboardingCompleted(true).build();
+        memberWithBasis.getPrefJobs().add(new PreferredJob(memberWithBasis, "백엔드"));
+        when(memberRepository.findByEmail(EMAIL)).thenReturn(Optional.of(memberWithBasis));
 
-        // 기본값: 임계값 0으로 두어 이 테스트 파일의 다른 시나리오(정렬/페이지네이션 등)가
-        // 매칭점수 필터링과 무관하게 동작하도록 한다. 필터링 자체는 별도 테스트에서 검증한다.
+        // 기본값: 임계값 0으로 두어 매칭점수 필터링과 무관하게 동작하도록 한다.
         when(notificationRepository.findByMemberEmail(EMAIL))
                 .thenReturn(Optional.of(Notification.builder().matchScoreThreshold(0).build()));
 
@@ -196,8 +199,45 @@ class HomeRecommendationServiceTest {
         assertThat(response.jobs()).allSatisfy(job -> assertThat(job.matchScore()).isGreaterThanOrEqualTo(70));
     }
 
+    @Test
+    @DisplayName("온보딩 미완료 회원은 matchScore가 null이고 최신순으로 정렬된다")
+    void 온보딩_미완료_회원은_최신순() {
+        Member notOnboarded = Member.builder().id(2L).email(EMAIL).onboardingCompleted(false).build();
+        when(memberRepository.findByEmail(EMAIL)).thenReturn(Optional.of(notOnboarded));
+
+        JobCandidate older = candidateWithCreatedAt(1L, "PUBLIC", LocalDateTime.of(2026, 1, 1, 0, 0));
+        JobCandidate newer = candidateWithCreatedAt(2L, "PUBLIC", LocalDateTime.of(2026, 6, 1, 0, 0));
+        when(candidateRepository.findPublicCandidates(any(), any(), anyInt())).thenReturn(List.of(older, newer));
+
+        HomeRecommendationResponse response = service.getRecommendedJobs(EMAIL, null, null, null, 0, 10);
+
+        assertThat(response.jobs()).extracting(RecommendedJob::id).containsExactly(2L, 1L);
+        assertThat(response.jobs()).allSatisfy(job -> assertThat(job.matchScore()).isNull());
+        verifyNoInteractions(notificationRepository);
+    }
+
+    @Test
+    @DisplayName("온보딩은 완료했지만 희망직무/지역을 하나도 설정하지 않은 회원도 최신순으로 정렬된다")
+    void 희망조건_미설정_회원도_최신순() {
+        Member onboardedNoPrefs = Member.builder().id(3L).email(EMAIL).onboardingCompleted(true).build();
+        when(memberRepository.findByEmail(EMAIL)).thenReturn(Optional.of(onboardedNoPrefs));
+
+        JobCandidate older = candidateWithCreatedAt(1L, "PUBLIC", LocalDateTime.of(2026, 1, 1, 0, 0));
+        JobCandidate newer = candidateWithCreatedAt(2L, "PUBLIC", LocalDateTime.of(2026, 6, 1, 0, 0));
+        when(candidateRepository.findPublicCandidates(any(), any(), anyInt())).thenReturn(List.of(older, newer));
+
+        HomeRecommendationResponse response = service.getRecommendedJobs(EMAIL, null, null, null, 0, 10);
+
+        assertThat(response.jobs()).extracting(RecommendedJob::id).containsExactly(2L, 1L);
+        assertThat(response.jobs()).allSatisfy(job -> assertThat(job.matchScore()).isNull());
+    }
+
     private static JobCandidate candidate(Long id, String source) {
         return new JobCandidate(id, source, "회사" + id, "제목" + id, "서울", "신입",
                 null, LocalDateTime.of(2026, 1, 1, 0, 0));
+    }
+
+    private static JobCandidate candidateWithCreatedAt(Long id, String source, LocalDateTime createdAt) {
+        return new JobCandidate(id, source, "회사" + id, "제목" + id, "서울", "신입", null, createdAt);
     }
 }
