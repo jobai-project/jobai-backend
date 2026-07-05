@@ -66,12 +66,15 @@ public interface ApplicationControllerDocs {
                     description = "지원 현황 추가 성공",
                     content = @Content(
                             mediaType = "application/json",
+                            schema = @Schema(implementation = ApplicationResponseDTO.CreateResultDTO.class),
                             examples = @ExampleObject(value = """
                                     {
                                       "isSuccess": true,
                                       "code": "COMMON_201_001",
                                       "message": "요청이 성공적으로 처리되었습니다.",
-                                      "result": "입사 지원 현황에 성공적으로 추가되었습니다."
+                                      "result": {
+                                        "applicationId": 1
+                                      }
                                     }
                                     """)
                     )
@@ -155,6 +158,7 @@ public interface ApplicationControllerDocs {
                     description = "목록 조회 성공",
                     content = @Content(
                             mediaType = "application/json",
+                            schema = @Schema(implementation = ApplicationResponseDTO.ApplicationListDTO.class),
                             examples = @ExampleObject(value = """
                                     {
                                       "isSuccess": true,
@@ -282,6 +286,7 @@ public interface ApplicationControllerDocs {
                     description = "수정 성공",
                     content = @Content(
                             mediaType = "application/json",
+                            schema = @Schema(implementation = String.class),
                             examples = @ExampleObject(value = """
                                     {
                                       "isSuccess": true,
@@ -376,6 +381,7 @@ public interface ApplicationControllerDocs {
                     description = "삭제 성공",
                     content = @Content(
                             mediaType = "application/json",
+                            schema = @Schema(implementation = String.class),
                             examples = @ExampleObject(value = """
                                     {
                                       "isSuccess": true,
@@ -460,6 +466,7 @@ public interface ApplicationControllerDocs {
                     description = "요약 조회 성공",
                     content = @Content(
                             mediaType = "application/json",
+                            schema = @Schema(implementation = ApplicationResponseDTO.ApplicationSummaryDTO.class),
                             examples = @ExampleObject(value = """
                                     {
                                       "isSuccess": true,
@@ -517,6 +524,7 @@ public interface ApplicationControllerDocs {
                     description = "다가오는 일정 조회 성공",
                     content = @Content(
                             mediaType = "application/json",
+                            schema = @Schema(implementation = ApplicationResponseDTO.UpcomingScheduleListDTO.class),
                             examples = @ExampleObject(value = """
                                     {
                                       "isSuccess": true,

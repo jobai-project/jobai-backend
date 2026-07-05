@@ -8,9 +8,11 @@ import io.swagger.v3.oas.annotations.media.ExampleObject;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.parameters.RequestBody;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 
 @Tag(name = "Notification", description = "알림 기능 API (현재 Lambda 테스트용)")
+@SecurityRequirement(name = "cookieAuth")
 public interface NotificationControllerDocs {
 
     @Operation(
@@ -19,6 +21,8 @@ public interface NotificationControllerDocs {
                     AWS Lambda를 통해 매칭 알림을 비동기로 발송합니다.
 
                     > ⚠️ **현재는 테스트용 API입니다.** 실제 서비스에서는 자동으로 호출됩니다.
+
+                    **인증 필요**: 로그인 후 발급된 accessToken 쿠키가 있어야 합니다.
 
                     **동작 방식**: Lambda 함수를 `EVENT` 방식(비동기)으로 호출합니다.
                     요청 즉시 202 응답을 반환하며, 실제 알림은 Lambda가 처리합니다.
@@ -69,6 +73,21 @@ public interface NotificationControllerDocs {
                                       "isSuccess": false,
                                       "code": "COMMON_400_001",
                                       "message": "점수는 100점 이하이어야 합니다.",
+                                      "result": null
+                                    }
+                                    """)
+                    )
+            ),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "401",
+                    description = "인증되지 않은 사용자 (로그인 필요)",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = @ExampleObject(value = """
+                                    {
+                                      "isSuccess": false,
+                                      "code": "COMMON_401_001",
+                                      "message": "인증이 필요합니다.",
                                       "result": null
                                     }
                                     """)

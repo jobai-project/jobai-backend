@@ -12,4 +12,7 @@ public interface JobPostingRepository extends JpaRepository<JobPosting, Long> {
 
     @Query("SELECT p FROM PublicJobPosting p WHERE p.pblntfNo = :pblntfNo")
     Optional<JobPosting> findByPblntfNo(@Param("pblntfNo") String pblntfNo);
+
+    @Query("SELECT p FROM PublicJobPosting p WHERE p.id = :id")
+    Optional<PublicJobPosting> findPublicJobPostingById(@Param("id") Long id);
 }

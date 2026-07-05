@@ -39,6 +39,7 @@ public interface MemberControllerDocs {
                     description = "마이페이지 조회 성공",
                     content = @Content(
                             mediaType = "application/json",
+                            schema = @Schema(implementation = MemberResponseDTO.MyPageDTO.class),
                             examples = @ExampleObject(value = """
                                     {
                                       "isSuccess": true,
@@ -139,6 +140,7 @@ public interface MemberControllerDocs {
                     description = "희망 조건 업데이트 성공",
                     content = @Content(
                             mediaType = "application/json",
+                            schema = @Schema(implementation = String.class),
                             examples = @ExampleObject(value = """
                                     {
                                       "isSuccess": true,
@@ -215,6 +217,7 @@ public interface MemberControllerDocs {
                     description = "이름 수정 성공",
                     content = @Content(
                             mediaType = "application/json",
+                            schema = @Schema(implementation = String.class),
                             examples = @ExampleObject(value = """
                                     {
                                       "isSuccess": true,
