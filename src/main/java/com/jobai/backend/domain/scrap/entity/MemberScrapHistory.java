@@ -9,8 +9,9 @@ import java.time.LocalDateTime;
 
 /**
  * 공기업(JobPosting)과 사기업(PrivateJobPosting)은 완전히 별개의 엔티티/테이블이라
- * FK로는 둘 다 참조할 수 없다. HomeJobCandidateRepository/JobEmbedding과 동일하게
- * source("PUBLIC"|"PRIVATE") + sourceId(원본 공고 PK) 조합으로 소스 무관하게 참조한다.
+ * FK로는 둘 다 참조할 수 없다.
+ * HomeJobCandidateRepository/JobEmbedding과 동일하게
+ * source("PUBLIC"|"PRIVATE") + sourceId(원본 공고 PK) 조합으로 소스 무관하게 참조
  */
 @Entity
 @Table(
