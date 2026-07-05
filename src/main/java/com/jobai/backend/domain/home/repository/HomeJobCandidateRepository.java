@@ -59,20 +59,6 @@ public class HomeJobCandidateRepository {
                 .toList();
     }
 
-    public long countPublicCandidates(List<String> locations, List<String> employmentTypes) {
-        PredicateResult pr = buildPublicPredicates(locations, employmentTypes);
-
-        StringBuilder jpql = new StringBuilder(
-                "SELECT COUNT(p) FROM PublicJobPosting p WHERE (p.isClosed IS NULL OR p.isClosed = false)");
-        for (String pred : pr.predicates()) {
-            jpql.append(" AND ").append(pred);
-        }
-
-        TypedQuery<Long> query = em.createQuery(jpql.toString(), Long.class);
-        pr.params().forEach(query::setParameter);
-        return query.getSingleResult();
-    }
-
     private PredicateResult buildPublicPredicates(List<String> locations, List<String> employmentTypes) {
         List<String> predicates = new ArrayList<>();
         Map<String, String> params = new LinkedHashMap<>();
@@ -149,22 +135,6 @@ public class HomeJobCandidateRepository {
                         p.getCreatedAt()
                 ))
                 .toList();
-    }
-
-    public long countPrivateCandidates(List<String> locations, List<String> employmentTypes) {
-        PredicateResult pr = buildPrivatePredicates(locations, employmentTypes);
-
-        StringBuilder jpql = new StringBuilder(
-                "SELECT COUNT(p) FROM PrivateJobPosting p WHERE p.isClosed = false"
-                + " AND p.jobCategory IS NOT NULL AND p.jobCategory NOT IN :excludedCategories");
-        for (String pred : pr.predicates()) {
-            jpql.append(" AND ").append(pred);
-        }
-
-        TypedQuery<Long> query = em.createQuery(jpql.toString(), Long.class);
-        query.setParameter("excludedCategories", EXCLUDED_CATEGORIES);
-        pr.params().forEach(query::setParameter);
-        return query.getSingleResult();
     }
 
     private PredicateResult buildPrivatePredicates(List<String> locations, List<String> employmentTypes) {

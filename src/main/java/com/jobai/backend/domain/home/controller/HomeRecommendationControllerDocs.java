@@ -28,6 +28,11 @@ public interface HomeRecommendationControllerDocs {
                     동일 공고는 항상 같은 점수를 반환하므로 페이지네이션 중 정렬이 흔들리지 않습니다.
                     추후 AI 담당자가 실제 계산 로직으로 교체할 예정입니다.
 
+                    **적합도 기준(matchScoreThreshold) 필터링**: 온보딩 또는 마이페이지 알림 설정
+                    (`PATCH /api/v1/members/me/onboarding/notification-settings`)에서 설정한 적합도 기준 점수
+                    **이상인 공고만** 반환됩니다. 아직 설정한 적이 없는 회원은 기본값 70이 적용됩니다.
+                    `totalCount`/`hasMore`도 이 필터가 적용된 이후의 개수를 기준으로 계산됩니다.
+
                     **페이지네이션**: `offset`/`size` 기반입니다. 처음 조회는 `offset=0`, "더 불러오기" 클릭 시
                     `offset += size`로 누적 호출하면 됩니다. 응답의 `hasMore`가 `false`면 더 이상 불러올 데이터가 없습니다.
 

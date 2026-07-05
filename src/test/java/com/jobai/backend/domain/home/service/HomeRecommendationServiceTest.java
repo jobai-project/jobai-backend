@@ -6,6 +6,8 @@ import com.jobai.backend.domain.home.dto.JobCandidate;
 import com.jobai.backend.domain.home.repository.HomeJobCandidateRepository;
 import com.jobai.backend.domain.member.entity.Member;
 import com.jobai.backend.domain.member.repository.MemberRepository;
+import com.jobai.backend.domain.notification.entity.Notification;
+import com.jobai.backend.domain.notification.repository.NotificationRepository;
 import com.jobai.backend.global.apiPayload.exception.GeneralException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -30,6 +32,7 @@ class HomeRecommendationServiceTest {
 
     private MemberRepository memberRepository;
     private HomeJobCandidateRepository candidateRepository;
+    private NotificationRepository notificationRepository;
     private JobMatchScorer jobMatchScorer;
     private HomeRecommendationService service;
 
@@ -37,11 +40,20 @@ class HomeRecommendationServiceTest {
     void setUp() {
         memberRepository = Mockito.mock(MemberRepository.class);
         candidateRepository = Mockito.mock(HomeJobCandidateRepository.class);
+        notificationRepository = Mockito.mock(NotificationRepository.class);
         jobMatchScorer = new JobMatchScorer();
-        service = new HomeRecommendationService(memberRepository, candidateRepository, jobMatchScorer);
+        service = new HomeRecommendationService(memberRepository, candidateRepository, notificationRepository, jobMatchScorer);
 
         when(memberRepository.findByEmail(EMAIL))
                 .thenReturn(Optional.of(Member.builder().id(1L).email(EMAIL).build()));
+
+        // 기본값: 임계값 0으로 두어 이 테스트 파일의 다른 시나리오(정렬/페이지네이션 등)가
+        // 매칭점수 필터링과 무관하게 동작하도록 한다. 필터링 자체는 별도 테스트에서 검증한다.
+        when(notificationRepository.findByMemberEmail(EMAIL))
+                .thenReturn(Optional.of(Notification.builder().matchScoreThreshold(0).build()));
+
+        when(candidateRepository.findPublicCandidates(any(), any(), anyInt())).thenReturn(List.of());
+        when(candidateRepository.findPrivateCandidates(any(), any(), anyInt())).thenReturn(List.of());
     }
 
     @Test
@@ -58,11 +70,6 @@ class HomeRecommendationServiceTest {
     @Test
     @DisplayName("companyTypes 미지정 시 공기업/사기업 둘 다 조회한다")
     void companyTypes_미지정시_전체조회() {
-        when(candidateRepository.findPublicCandidates(any(), any(), anyInt())).thenReturn(List.of());
-        when(candidateRepository.findPrivateCandidates(any(), any(), anyInt())).thenReturn(List.of());
-        when(candidateRepository.countPublicCandidates(any(), any())).thenReturn(0L);
-        when(candidateRepository.countPrivateCandidates(any(), any())).thenReturn(0L);
-
         service.getRecommendedJobs(EMAIL, null, null, null, 0, 18);
 
         Mockito.verify(candidateRepository).findPublicCandidates(any(), any(), anyInt());
@@ -72,27 +79,19 @@ class HomeRecommendationServiceTest {
     @Test
     @DisplayName("companyTypes=PUBLIC만 지정하면 사기업 리포지토리는 호출하지 않는다")
     void companyTypes_PUBLIC만_지정() {
-        when(candidateRepository.findPublicCandidates(any(), any(), anyInt())).thenReturn(List.of());
-        when(candidateRepository.countPublicCandidates(any(), any())).thenReturn(0L);
-
         service.getRecommendedJobs(EMAIL, List.of("PUBLIC"), null, null, 0, 18);
 
         Mockito.verify(candidateRepository).findPublicCandidates(any(), any(), anyInt());
         Mockito.verify(candidateRepository, Mockito.never()).findPrivateCandidates(any(), any(), anyInt());
-        Mockito.verify(candidateRepository, Mockito.never()).countPrivateCandidates(any(), any());
     }
 
     @Test
     @DisplayName("companyTypes=PRIVATE만 지정하면 공기업 리포지토리는 호출하지 않는다")
     void companyTypes_PRIVATE만_지정() {
-        when(candidateRepository.findPrivateCandidates(any(), any(), anyInt())).thenReturn(List.of());
-        when(candidateRepository.countPrivateCandidates(any(), any())).thenReturn(0L);
-
         service.getRecommendedJobs(EMAIL, List.of("PRIVATE"), null, null, 0, 18);
 
         Mockito.verify(candidateRepository).findPrivateCandidates(any(), any(), anyInt());
         Mockito.verify(candidateRepository, Mockito.never()).findPublicCandidates(any(), any(), anyInt());
-        Mockito.verify(candidateRepository, Mockito.never()).countPublicCandidates(any(), any());
     }
 
     @Test
@@ -105,8 +104,6 @@ class HomeRecommendationServiceTest {
 
         when(candidateRepository.findPublicCandidates(any(), any(), anyInt())).thenReturn(List.of(pub1, pub2));
         when(candidateRepository.findPrivateCandidates(any(), any(), anyInt())).thenReturn(List.of(prv1, prv2));
-        when(candidateRepository.countPublicCandidates(any(), any())).thenReturn(2L);
-        when(candidateRepository.countPrivateCandidates(any(), any())).thenReturn(2L);
 
         HomeRecommendationResponse response = service.getRecommendedJobs(EMAIL, null, null, null, 0, 10);
 
@@ -123,10 +120,10 @@ class HomeRecommendationServiceTest {
     @Test
     @DisplayName("totalCount와 offset+size 비교로 hasMore를 계산한다")
     void hasMore_계산() {
-        when(candidateRepository.findPublicCandidates(any(), any(), anyInt())).thenReturn(List.of());
-        when(candidateRepository.findPrivateCandidates(any(), any(), anyInt())).thenReturn(List.of());
-        when(candidateRepository.countPublicCandidates(any(), any())).thenReturn(20L);
-        when(candidateRepository.countPrivateCandidates(any(), any())).thenReturn(0L);
+        List<JobCandidate> publicCandidates = java.util.stream.LongStream.rangeClosed(1, 20)
+                .mapToObj(id -> candidate(id, "PUBLIC"))
+                .toList();
+        when(candidateRepository.findPublicCandidates(any(), any(), anyInt())).thenReturn(publicCandidates);
 
         HomeRecommendationResponse notLast = service.getRecommendedJobs(EMAIL, null, null, null, 0, 18);
         HomeRecommendationResponse last = service.getRecommendedJobs(EMAIL, null, null, null, 18, 18);
@@ -143,9 +140,6 @@ class HomeRecommendationServiceTest {
                 candidate(1L, "PUBLIC"), candidate(2L, "PUBLIC"), candidate(3L, "PUBLIC")
         );
         when(candidateRepository.findPublicCandidates(any(), any(), anyInt())).thenReturn(publicCandidates);
-        when(candidateRepository.findPrivateCandidates(any(), any(), anyInt())).thenReturn(List.of());
-        when(candidateRepository.countPublicCandidates(any(), any())).thenReturn(3L);
-        when(candidateRepository.countPrivateCandidates(any(), any())).thenReturn(0L);
 
         HomeRecommendationResponse firstPage = service.getRecommendedJobs(EMAIL, null, null, null, 0, 2);
         HomeRecommendationResponse secondPage = service.getRecommendedJobs(EMAIL, null, null, null, 2, 2);
@@ -156,6 +150,50 @@ class HomeRecommendationServiceTest {
         List<Long> firstIds = firstPage.jobs().stream().map(RecommendedJob::id).toList();
         List<Long> secondIds = secondPage.jobs().stream().map(RecommendedJob::id).toList();
         assertThat(firstIds).doesNotContainAnyElementsOf(secondIds);
+    }
+
+    @Test
+    @DisplayName("설정한 적합도 기준 미만인 공고는 결과와 totalCount에서 제외된다")
+    void 적합도_기준_미만_공고_제외() {
+        List<JobCandidate> candidates = java.util.stream.LongStream.rangeClosed(1, 10)
+                .mapToObj(id -> candidate(id, "PUBLIC"))
+                .toList();
+        when(candidateRepository.findPublicCandidates(any(), any(), anyInt())).thenReturn(candidates);
+
+        List<Integer> scores = candidates.stream()
+                .map(c -> jobMatchScorer.mockScore(c.source(), c.id()))
+                .sorted(Comparator.reverseOrder())
+                .toList();
+        int threshold = scores.get(scores.size() / 2); // 절반 정도만 통과하도록 임계값 선택
+        long expectedCount = scores.stream().filter(s -> s >= threshold).count();
+
+        when(notificationRepository.findByMemberEmail(EMAIL))
+                .thenReturn(Optional.of(Notification.builder().matchScoreThreshold(threshold).build()));
+
+        HomeRecommendationResponse response = service.getRecommendedJobs(EMAIL, null, null, null, 0, 100);
+
+        assertThat(response.totalCount()).isEqualTo(expectedCount);
+        assertThat(response.jobs()).allSatisfy(job -> assertThat(job.matchScore()).isGreaterThanOrEqualTo(threshold));
+    }
+
+    @Test
+    @DisplayName("알림 설정이 없는 회원은 기본 임계값(70)이 적용된다")
+    void 알림설정_없으면_기본임계값_적용() {
+        when(notificationRepository.findByMemberEmail(EMAIL)).thenReturn(Optional.empty());
+
+        List<JobCandidate> candidates = java.util.stream.LongStream.rangeClosed(1, 10)
+                .mapToObj(id -> candidate(id, "PUBLIC"))
+                .toList();
+        when(candidateRepository.findPublicCandidates(any(), any(), anyInt())).thenReturn(candidates);
+
+        long expectedCount = candidates.stream()
+                .filter(c -> jobMatchScorer.mockScore(c.source(), c.id()) >= 70)
+                .count();
+
+        HomeRecommendationResponse response = service.getRecommendedJobs(EMAIL, null, null, null, 0, 100);
+
+        assertThat(response.totalCount()).isEqualTo(expectedCount);
+        assertThat(response.jobs()).allSatisfy(job -> assertThat(job.matchScore()).isGreaterThanOrEqualTo(70));
     }
 
     private static JobCandidate candidate(Long id, String source) {
