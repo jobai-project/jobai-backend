@@ -81,5 +81,9 @@ variable "github_oidc_thumbprint_list" {
 variable "github_actions_allowed_subjects" {
   description = "GitHub Actions OIDC subject claims allowed to assume the deploy role"
   type        = list(string)
-  default     = ["repo:jobai-project/jobai-backend:ref:refs/heads/develop"]
+  default = [
+    "repo:jobai-project/jobai-backend:ref:refs/heads/develop",
+    "repo:jobai-project/jobai-ai:ref:refs/heads/yeonjin/DLA",
+    "repo:jobai-project/jobai-ai:ref:refs/heads/feat/add-ai-model-download"
+  ]
 }

@@ -199,7 +199,8 @@ resource "aws_iam_policy" "github_actions_ecr_push" {
         ]
         Resource = [
           "arn:aws:ssm:${var.aws_region}::document/AWS-RunShellScript",
-          aws_instance.jobai.arn
+          aws_instance.jobai.arn,
+          aws_instance.ai_server.arn
         ]
       },
       {

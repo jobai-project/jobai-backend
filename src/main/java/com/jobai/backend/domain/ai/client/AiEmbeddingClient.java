@@ -5,7 +5,6 @@ import com.jobai.backend.domain.ai.dto.EmbedResponse;
 import com.jobai.backend.domain.ai.exception.AiClientException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Qualifier;
-import org.springframework.http.HttpStatusCode;
 import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Mono;
@@ -18,8 +17,20 @@ public class AiEmbeddingClient {
     private final WebClient aiWebClient;
 
     public Mono<EmbedResponse> embed(EmbedRequest request) {
+        return embedJd(request);
+    }
+
+    public Mono<EmbedResponse> embedJd(EmbedRequest request) {
+        return requestEmbedding("/embed/jd", request);
+    }
+
+    public Mono<EmbedResponse> embedNcs(EmbedRequest request) {
+        return requestEmbedding("/embed/ncs", request);
+    }
+
+    private Mono<EmbedResponse> requestEmbedding(String uri, EmbedRequest request) {
         return aiWebClient.post()
-                .uri("/embed")
+                .uri(uri)
                 .bodyValue(request)
                 .retrieve()
                 .onStatus(
