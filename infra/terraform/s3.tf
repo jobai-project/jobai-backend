@@ -25,6 +25,14 @@ resource "aws_s3_bucket" "ai_models" {
   bucket = "jobai-ai-models-${data.aws_caller_identity.current.account_id}-${var.aws_region}"
 }
 
+resource "aws_s3_bucket_versioning" "ai_models" {
+  bucket = aws_s3_bucket.ai_models.id
+
+  versioning_configuration {
+    status = "Enabled"
+  }
+}
+
 resource "aws_s3_bucket_public_access_block" "ai_models" {
   bucket = aws_s3_bucket.ai_models.id
 
