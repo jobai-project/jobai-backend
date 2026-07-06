@@ -39,7 +39,7 @@ public class EmbeddingService {
     @Transactional
     public void embedPrivatePosting(PrivateJobPosting posting) {
         String text = buildText(posting.getTitle(), posting.getDescription());
-        float[] vector = requestEmbedding(text);
+        float[] vector = requestJdEmbedding(text);
         saveOrUpdate(JobSource.PRIVATE, posting.getId(), vector, text);
     }
 
@@ -49,17 +49,26 @@ public class EmbeddingService {
         String rawContent = posting.getHtmlContent();
         String cleanContent = stripHtml(rawContent);
         String text = buildText(posting.getTitle(), cleanContent);
-        float[] vector = requestEmbedding(text);
+        float[] vector = requestNcsEmbedding(text);
         saveOrUpdate(JobSource.PUBLIC, posting.getId(), vector, text);
     }
 
     /** 사용자 검색 쿼리를 임베딩 벡터로 변환한다. DB에 저장하지 않는다. */
     public float[] embedQuery(String query) {
-        return requestEmbedding(query.trim());
+        return requestJdEmbedding(query.trim());
     }
 
-    private float[] requestEmbedding(String text) {
+    private float[] requestJdEmbedding(String text) {
         EmbedResponse response = aiEmbeddingClient.embed(new EmbedRequest(text)).block();
+        return validateAndConvert(response);
+    }
+
+    private float[] requestNcsEmbedding(String text) {
+        EmbedResponse response = aiEmbeddingClient.embedNcs(new EmbedRequest(text)).block();
+        return validateAndConvert(response);
+    }
+
+    private float[] validateAndConvert(EmbedResponse response) {
         if (response == null || response.vector() == null || response.vector().isEmpty()) {
             throw new IllegalStateException("임베딩 응답이 비어있습니다");
         }
