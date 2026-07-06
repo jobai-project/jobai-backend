@@ -20,9 +20,10 @@ resource "aws_security_group" "ai_server" {
   }
 
   egress {
-    from_port   = 0
-    to_port     = 0
-    protocol    = "-1"
+    description = "allow HTTPS egress for ECR, S3, SSM, and external APIs"
+    from_port   = 443
+    to_port     = 443
+    protocol    = "tcp"
     cidr_blocks = ["0.0.0.0/0"]
   }
 
@@ -52,9 +53,38 @@ resource "aws_iam_role" "ai_ec2" {
   }
 }
 
-resource "aws_iam_role_policy_attachment" "ai_ec2_ecr_read_only" {
+resource "aws_iam_policy" "ai_ec2_ecr_read" {
+  name        = "jobai-ai-ec2-ecr-read"
+  description = "Allow AI EC2 to pull only the JobAI AI server image from ECR"
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "ecr:GetAuthorizationToken"
+        ]
+        Resource = "*"
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "ecr:BatchCheckLayerAvailability",
+          "ecr:BatchGetImage",
+          "ecr:DescribeImages",
+          "ecr:DescribeRepositories",
+          "ecr:GetDownloadUrlForLayer"
+        ]
+        Resource = aws_ecr_repository.ai_server.arn
+      }
+    ]
+  })
+}
+
+resource "aws_iam_role_policy_attachment" "ai_ec2_ecr_read" {
   role       = aws_iam_role.ai_ec2.name
-  policy_arn = "arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly"
+  policy_arn = aws_iam_policy.ai_ec2_ecr_read.arn
 }
 
 resource "aws_iam_role_policy_attachment" "ai_ec2_ssm_managed_instance" {
@@ -83,6 +113,7 @@ resource "aws_instance" "ai_server" {
   user_data = <<-EOF
     #!/bin/bash
     set -e
+    sed -i 's|http://|https://|g' /etc/apt/sources.list
     apt-get update -y
     apt-get install -y docker.io awscli snapd
     systemctl start docker
@@ -110,6 +141,10 @@ resource "aws_instance" "ai_server" {
     encrypted   = true
     volume_type = "gp3"
     volume_size = 30
+  }
+
+  lifecycle {
+    ignore_changes = [user_data]
   }
 
   tags = {
