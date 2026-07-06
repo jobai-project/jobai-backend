@@ -33,3 +33,15 @@ output "github_actions_deploy_role_arn" {
 output "resume_s3_bucket_name" {
   value = aws_s3_bucket.resume_files.bucket
 }
+
+output "ai_model_s3_bucket_name" {
+  value = aws_s3_bucket.ai_models.bucket
+}
+
+output "ai_model_jd_s3_prefix" {
+  value = "models/jd/"
+}
+
+output "ai_model_ncs_s3_prefix" {
+  value = "models/ncs/"
+}
