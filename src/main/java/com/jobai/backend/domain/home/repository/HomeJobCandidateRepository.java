@@ -59,6 +59,29 @@ public class HomeJobCandidateRepository {
                 .toList();
     }
 
+    /** id 목록으로 특정 공고들을 그대로 조회한다(마감 여부와 무관 — 스크랩 목록처럼 "이미 알고 있는 id"를 다시 보여줄 때 사용). */
+    public List<JobCandidate> findPublicCandidatesByIds(List<Long> ids) {
+        if (ids == null || ids.isEmpty()) {
+            return List.of();
+        }
+        TypedQuery<PublicJobPosting> query = em.createQuery(
+                "SELECT p FROM PublicJobPosting p WHERE p.id IN :ids", PublicJobPosting.class);
+        query.setParameter("ids", ids);
+
+        return query.getResultList().stream()
+                .map(p -> new JobCandidate(
+                        p.getId(),
+                        "PUBLIC",
+                        p.getCompanyName(),
+                        p.getTitle(),
+                        p.getWorkRegion(),
+                        p.getRecrutType(),
+                        p.getEndDate(),
+                        p.getCreatedAt()
+                ))
+                .toList();
+    }
+
     private PredicateResult buildPublicPredicates(List<String> locations, List<String> employmentTypes) {
         List<String> predicates = new ArrayList<>();
         Map<String, String> params = new LinkedHashMap<>();
@@ -122,6 +145,29 @@ public class HomeJobCandidateRepository {
         query.setParameter("excludedCategories", EXCLUDED_CATEGORIES);
         pr.params().forEach(query::setParameter);
         query.setMaxResults(limit);
+
+        return query.getResultList().stream()
+                .map(p -> new JobCandidate(
+                        p.getId(),
+                        "PRIVATE",
+                        p.getCompany(),
+                        p.getTitle(),
+                        p.getLocation(),
+                        p.getEmploymentType(),
+                        p.getDeadline(),
+                        p.getCreatedAt()
+                ))
+                .toList();
+    }
+
+    /** id 목록으로 특정 공고들을 그대로 조회한다(마감 여부와 무관 — 스크랩 목록처럼 "이미 알고 있는 id"를 다시 보여줄 때 사용). */
+    public List<JobCandidate> findPrivateCandidatesByIds(List<Long> ids) {
+        if (ids == null || ids.isEmpty()) {
+            return List.of();
+        }
+        TypedQuery<PrivateJobPosting> query = em.createQuery(
+                "SELECT p FROM PrivateJobPosting p WHERE p.id IN :ids", PrivateJobPosting.class);
+        query.setParameter("ids", ids);
 
         return query.getResultList().stream()
                 .map(p -> new JobCandidate(
