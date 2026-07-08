@@ -7,6 +7,8 @@ import com.jobai.backend.domain.home.entity.PrivateMatchScore;
 import com.jobai.backend.domain.home.repository.HomeJobCandidateRepository;
 import com.jobai.backend.domain.home.repository.PrivateMatchScoreRepository;
 import com.jobai.backend.domain.member.entity.Member;
+import com.jobai.backend.domain.member.entity.PreferredJob;
+import com.jobai.backend.domain.member.entity.PreferredRegion;
 import com.jobai.backend.domain.member.entity.Resumes;
 import com.jobai.backend.domain.member.repository.MemberRepository;
 import com.jobai.backend.domain.member.repository.ResumesRepository;
@@ -21,6 +23,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -70,13 +73,20 @@ public class HomeRecommendationService {
                 : List.of();
         List<JobCandidate> allCandidates = Stream.concat(publicCandidates.stream(), privateCandidates.stream()).toList();
 
-        return hasMatchingBasis(member)
-                ? buildScoredResponse(email, allCandidates, offset, size)
-                : buildLatestResponse(allCandidates, offset, size);
+        if (!hasPreferences(member)) {
+            return buildLatestResponse(allCandidates, offset, size);
+        }
+
+        boolean hasActiveResume = resumesRepository.findByMemberEmailAndIsActiveTrue(email).isPresent();
+        if (hasActiveResume) {
+            return buildScoredResponse(email, allCandidates, offset, size);
+        }
+
+        return buildFilteredLatestResponse(member, allCandidates, offset, size);
     }
 
-    // 온보딩을 완료했고 희망직무/지역 중 하나라도 설정한 회원만 매칭점수를 계산할 근거가 있다고 본다.
-    private boolean hasMatchingBasis(Member member) {
+    // 온보딩 완료 + 희망직무/지역 중 하나라도 설정했는지 확인
+    private boolean hasPreferences(Member member) {
         return member.isOnboardingCompleted()
                 && (!member.getPrefJobs().isEmpty() || !member.getPrefLocations().isEmpty());
     }
@@ -141,7 +151,48 @@ public class HomeRecommendationService {
         return jobMatchScorer.mockScore(candidate.source(), candidate.id());
     }
 
-    // 매칭 근거가 없는 회원(온보딩 미완료 또는 희망직무/지역 미설정): 최신순으로만 노출, matchScore는 null
+    // 이력서 미업로드 회원: 희망직무/지역으로 필터링 후 최신순 노출, matchScore는 null
+    private HomeRecommendationResponse buildFilteredLatestResponse(
+            Member member, List<JobCandidate> candidates, int offset, int size
+    ) {
+        Set<String> prefJobCategories = member.getPrefJobs().stream()
+                .map(PreferredJob::getJobCategory)
+                .collect(Collectors.toSet());
+        Set<String> prefLocations = member.getPrefLocations().stream()
+                .map(PreferredRegion::getLocation)
+                .collect(Collectors.toSet());
+
+        List<JobCandidate> filtered = candidates.stream()
+                .filter(c -> matchesJobCategory(c, prefJobCategories))
+                .filter(c -> matchesLocation(c, prefLocations))
+                .sorted(Comparator.comparing(JobCandidate::createdAt, Comparator.nullsLast(Comparator.reverseOrder())))
+                .toList();
+
+        long totalCount = filtered.size();
+        List<RecommendedJob> jobs = filtered.stream()
+                .skip(offset)
+                .limit(size)
+                .map(c -> toRecommendedJob(c, null))
+                .toList();
+
+        return new HomeRecommendationResponse(totalCount, offset + size < totalCount, jobs);
+    }
+
+    private boolean matchesJobCategory(JobCandidate candidate, Set<String> prefJobCategories) {
+        if (prefJobCategories.isEmpty()) return true;
+        if (candidate.jobCategory() == null) return false;
+        return prefJobCategories.stream()
+                .anyMatch(pref -> candidate.jobCategory().contains(pref));
+    }
+
+    private boolean matchesLocation(JobCandidate candidate, Set<String> prefLocations) {
+        if (prefLocations.isEmpty()) return true;
+        if (candidate.location() == null) return false;
+        return prefLocations.stream()
+                .anyMatch(pref -> candidate.location().contains(pref));
+    }
+
+    // 온보딩 미완료 또는 희망직무/지역 미설정: 최신순으로만 노출, matchScore는 null
     private HomeRecommendationResponse buildLatestResponse(List<JobCandidate> candidates, int offset, int size) {
         List<JobCandidate> sorted = candidates.stream()
                 .sorted(Comparator.comparing(JobCandidate::createdAt, Comparator.nullsLast(Comparator.reverseOrder())))

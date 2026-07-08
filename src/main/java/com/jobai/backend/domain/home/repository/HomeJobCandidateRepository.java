@@ -53,6 +53,7 @@ public class HomeJobCandidateRepository {
                         p.getTitle(),
                         p.getWorkRegion(),
                         p.getRecrutType(),
+                        p.getJobRole(),
                         p.getEndDate(),
                         p.getCreatedAt()
                 ))
@@ -76,6 +77,7 @@ public class HomeJobCandidateRepository {
                         p.getTitle(),
                         p.getWorkRegion(),
                         p.getRecrutType(),
+                        p.getJobRole(),
                         p.getEndDate(),
                         p.getCreatedAt()
                 ))
@@ -154,6 +156,7 @@ public class HomeJobCandidateRepository {
                         p.getTitle(),
                         p.getLocation(),
                         p.getEmploymentType(),
+                        p.getJobCategory(),
                         p.getDeadline(),
                         p.getCreatedAt()
                 ))
@@ -177,6 +180,7 @@ public class HomeJobCandidateRepository {
                         p.getTitle(),
                         p.getLocation(),
                         p.getEmploymentType(),
+                        p.getJobCategory(),
                         p.getDeadline(),
                         p.getCreatedAt()
                 ))
