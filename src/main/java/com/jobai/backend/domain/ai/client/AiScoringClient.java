@@ -1,0 +1,39 @@
+package com.jobai.backend.domain.ai.client;
+
+import com.jobai.backend.domain.ai.dto.ScorePrivateRequest;
+import com.jobai.backend.domain.ai.dto.ScorePrivateResponse;
+import com.jobai.backend.domain.ai.exception.AiClientException;
+import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.stereotype.Component;
+import org.springframework.web.reactive.function.client.WebClient;
+import reactor.core.publisher.Mono;
+
+/**
+ * AI 서버의 /score/private 엔드포인트를 호출하여
+ * 이력서-공고 간 매칭 점수를 계산하는 클라이언트.
+ */
+@Component
+@RequiredArgsConstructor
+public class AiScoringClient {
+
+    @Qualifier("aiWebClient")
+    private final WebClient aiWebClient;
+
+    public Mono<ScorePrivateResponse> scorePrivate(ScorePrivateRequest request) {
+        return aiWebClient.post()
+                .uri("/score/private")
+                .bodyValue(request)
+                .retrieve()
+                .onStatus(
+                        status -> status.is4xxClientError() || status.is5xxServerError(),
+                        response -> response.bodyToMono(String.class)
+                                .defaultIfEmpty("")
+                                .flatMap(body -> Mono.error(new AiClientException(
+                                        response.statusCode(),
+                                        body
+                                )))
+                )
+                .bodyToMono(ScorePrivateResponse.class);
+    }
+}
