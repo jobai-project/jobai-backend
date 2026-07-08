@@ -7,6 +7,7 @@ import com.jobai.backend.domain.member.repository.MemberRepository;
 import com.jobai.backend.domain.member.repository.ResumesRepository;
 import com.jobai.backend.global.apiPayload.code.GeneralErrorCode;
 import com.jobai.backend.global.apiPayload.exception.GeneralException;
+import com.jobai.backend.domain.home.service.PrivateMatchingService;
 import com.jobai.backend.domain.search.service.EmbeddingService;
 import com.jobai.backend.global.storage.FileStorageService;
 import lombok.RequiredArgsConstructor;
@@ -32,6 +33,7 @@ public class ResumeService {
     private final FileStorageService fileStorageService;
     private final ResumeParsingService resumeParsingService;
     private final EmbeddingService embeddingService;
+    private final PrivateMatchingService privateMatchingService;
 
     public ResumeResponseDTO.ResumeListDTO getResumes(String email) {
         List<Resumes> resumes = resumesRepository.findByMemberEmailOrderByUpdatedAtDescIdDesc(email);
@@ -88,6 +90,9 @@ public class ResumeService {
                     log.warn("이력서 임베딩 실패 (업로드는 정상 완료): resumeId={}, error={}", resumeId, e.getMessage());
                 }
             }
+
+            // 비동기 매칭 점수 계산 트리거
+            privateMatchingService.calculateScoresAsync(resumeId);
 
             return resumeId;
         } catch (Exception e) {
