@@ -158,7 +158,8 @@ resource "aws_instance" "jobai" {
   EOF
 
   metadata_options {
-    http_tokens = "required"
+    http_tokens                 = "required"
+    http_put_response_hop_limit = 2 # 컨테이너에서 브리지 네트워크를 거쳐 IMDS에 접근하려면 홉 1개가 더 필요함
   }
 
   root_block_device {
