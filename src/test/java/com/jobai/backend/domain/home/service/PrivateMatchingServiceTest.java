@@ -234,29 +234,26 @@ class PrivateMatchingServiceTest {
     }
 
     @Test
-    @DisplayName("공고 임베딩 생성 실패 시 해당 공고를 건너뛰고 계속한다")
-    void calculateScores_임베딩생성실패_계속진행() {
+    @DisplayName("일부 공고 스코어링 실패 시 나머지는 정상 저장된다")
+    void calculateScores_부분실패_나머지저장() {
         Member member = createMember("신입");
         Resumes resume = createResume(member, dummyEmbedding(), "[]");
         when(resumesRepository.findById(1L)).thenReturn(Optional.of(resume));
 
-        PrivateJobPosting posting1 = createPosting("공고1", "프론트엔드", false);
+        // ID가 모두 null이므로 같은 mock을 타게 됨 → 스코어링 단계에서 실패/성공 구분
+        PrivateJobPosting posting1 = createPosting("공고1", "백엔드", false);
         PrivateJobPosting posting2 = createPosting("공고2", "백엔드", false);
         when(privateJobPostingRepository.findAll()).thenReturn(List.of(posting1, posting2));
 
-        // posting1: 임베딩 생성 실패
-        when(jobEmbeddingRepository.findBySourceAndSourceId(JobSource.PRIVATE, posting1.getId()))
-                .thenReturn(Optional.empty());
-        doThrow(new RuntimeException("AI 서버 오류"))
-                .when(embeddingService).embedPrivatePosting(posting1);
-
-        // posting2: 정상
-        JobEmbedding embed2 = JobEmbedding.builder()
-                .source(JobSource.PRIVATE).sourceId(posting2.getId())
+        JobEmbedding embed = JobEmbedding.builder()
+                .source(JobSource.PRIVATE).sourceId(null)
                 .embedding(new float[]{0.1f}).embeddingText("text").build();
-        when(jobEmbeddingRepository.findBySourceAndSourceId(JobSource.PRIVATE, posting2.getId()))
-                .thenReturn(Optional.of(embed2));
+        when(jobEmbeddingRepository.findBySourceAndSourceId(JobSource.PRIVATE, null))
+                .thenReturn(Optional.of(embed));
+
+        // 첫 번째 호출 실패, 두 번째 호출 성공
         when(aiScoringClient.scorePrivate(any()))
+                .thenThrow(new RuntimeException("AI 서버 오류"))
                 .thenReturn(Mono.just(dummyScoreResponse(90.0)));
 
         service.calculateScores(1L);
