@@ -7,6 +7,7 @@ import com.jobai.backend.domain.member.repository.MemberRepository;
 import com.jobai.backend.domain.member.repository.ResumesRepository;
 import com.jobai.backend.global.apiPayload.code.GeneralErrorCode;
 import com.jobai.backend.global.apiPayload.exception.GeneralException;
+import com.jobai.backend.domain.search.service.EmbeddingService;
 import com.jobai.backend.global.storage.FileStorageService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -30,6 +31,7 @@ public class ResumeService {
     private final MemberRepository memberRepository;
     private final FileStorageService fileStorageService;
     private final ResumeParsingService resumeParsingService;
+    private final EmbeddingService embeddingService;
 
     public ResumeResponseDTO.ResumeListDTO getResumes(String email) {
         List<Resumes> resumes = resumesRepository.findByMemberEmailOrderByUpdatedAtDescIdDesc(email);
@@ -75,6 +77,16 @@ public class ResumeService {
                 resumeParsingService.parseAndUpdate(resume, pdfBytes);
             } catch (Exception e) {
                 log.warn("이력서 파싱 실패 (업로드는 정상 완료): resumeId={}, error={}", resumeId, e.getMessage());
+            }
+
+            // 이력서 임베딩 (AI 서버 /embed/jd 호출)
+            if (resume.getExtractedText() != null && !resume.getExtractedText().isBlank()) {
+                try {
+                    float[] vector = embeddingService.embedResumeText(resume.getExtractedText());
+                    resume.updateEmbedding(vector);
+                } catch (Exception e) {
+                    log.warn("이력서 임베딩 실패 (업로드는 정상 완료): resumeId={}, error={}", resumeId, e.getMessage());
+                }
             }
 
             return resumeId;
