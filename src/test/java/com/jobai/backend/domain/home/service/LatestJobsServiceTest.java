@@ -84,6 +84,6 @@ class LatestJobsServiceTest {
     }
 
     private static JobCandidate candidate(Long id, String source, LocalDateTime createdAt) {
-        return new JobCandidate(id, source, "회사" + id, "제목" + id, "서울", "신입", null, createdAt);
+        return new JobCandidate(id, source, "회사" + id, "제목" + id, "서울", "신입", "백엔드", null, createdAt);
     }
 }

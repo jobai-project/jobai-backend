@@ -14,6 +14,7 @@ public record JobCandidate(
         String title,
         String location,
         String employmentType,
+        String jobCategory,
         LocalDate deadline,
         LocalDateTime createdAt
 ) {

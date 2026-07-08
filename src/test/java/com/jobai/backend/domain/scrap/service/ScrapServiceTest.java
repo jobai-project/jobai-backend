@@ -151,9 +151,9 @@ class ScrapServiceTest {
                 .thenReturn(List.of(newer, older));
 
         JobCandidate publicCandidate = new JobCandidate(823L, "PUBLIC", "한국전력공사", "채용공고",
-                "서울", "정규직", null, LocalDateTime.now());
+                "서울", "정규직", null, null, LocalDateTime.now());
         JobCandidate privateCandidate = new JobCandidate(55L, "PRIVATE", "카카오", "백엔드 개발자",
-                "판교", "경력", null, LocalDateTime.now());
+                "판교", "경력", "백엔드", null, LocalDateTime.now());
 
         when(candidateRepository.findPublicCandidatesByIds(List.of(823L))).thenReturn(List.of(publicCandidate));
         when(candidateRepository.findPrivateCandidatesByIds(List.of(55L))).thenReturn(List.of(privateCandidate));

@@ -9,6 +9,7 @@ import com.jobai.backend.domain.home.repository.PrivateMatchScoreRepository;
 import com.jobai.backend.domain.crawler.entity.PrivateJobPosting;
 import com.jobai.backend.domain.member.entity.Member;
 import com.jobai.backend.domain.member.entity.PreferredJob;
+import com.jobai.backend.domain.member.entity.PreferredRegion;
 import com.jobai.backend.domain.member.entity.Resumes;
 import com.jobai.backend.domain.member.repository.MemberRepository;
 import com.jobai.backend.domain.member.repository.ResumesRepository;
@@ -57,11 +58,13 @@ class HomeRecommendationServiceTest {
                 jobMatchScorer, resumesRepository, privateMatchScoreRepository
         );
 
-        // 기본값: 온보딩 완료 + 희망직무 설정된 회원(매칭 근거 있음)으로 두어, 이 파일의 다른 시나리오가
-        // 매칭점수 기반 정렬 경로를 그대로 탄다. "매칭 근거 없음" 경로는 별도 테스트에서 검증한다.
+        // 기본값: 온보딩 완료 + 희망직무 설정 + 활성 이력서 있음 → buildScoredResponse 경로
         Member memberWithBasis = Member.builder().id(1L).email(EMAIL).onboardingCompleted(true).build();
         memberWithBasis.getPrefJobs().add(new PreferredJob(memberWithBasis, "백엔드"));
         when(memberRepository.findByEmail(EMAIL)).thenReturn(Optional.of(memberWithBasis));
+
+        Resumes activeResume = Resumes.builder().id(10L).isActive(true).build();
+        when(resumesRepository.findByMemberEmailAndIsActiveTrue(EMAIL)).thenReturn(Optional.of(activeResume));
 
         // 기본값: 임계값 0으로 두어 매칭점수 필터링과 무관하게 동작하도록 한다.
         when(notificationRepository.findByMemberEmail(EMAIL))
@@ -69,9 +72,6 @@ class HomeRecommendationServiceTest {
 
         when(candidateRepository.findPublicCandidates(any(), any(), anyInt())).thenReturn(List.of());
         when(candidateRepository.findPrivateCandidates(any(), any(), anyInt())).thenReturn(List.of());
-
-        // 기본값: 활성 이력서 없음 (실점수 조회 불가 → mockScore 폴백)
-        when(resumesRepository.findByMemberEmailAndIsActiveTrue(EMAIL)).thenReturn(Optional.empty());
     }
 
     @Test
@@ -272,21 +272,6 @@ class HomeRecommendationServiceTest {
     }
 
     @Test
-    @DisplayName("활성 이력서가 없으면 PRIVATE 공고에 mockScore 폴백을 사용한다")
-    void PRIVATE_이력서없으면_mockScore폴백() {
-        when(resumesRepository.findByMemberEmailAndIsActiveTrue(EMAIL)).thenReturn(Optional.empty());
-
-        JobCandidate prv = candidate(100L, "PRIVATE");
-        when(candidateRepository.findPrivateCandidates(any(), any(), anyInt())).thenReturn(List.of(prv));
-
-        HomeRecommendationResponse response = service.getRecommendedJobs(EMAIL, List.of("PRIVATE"), null, null, 0, 10);
-
-        int expectedMock = jobMatchScorer.mockScore("PRIVATE", 100L);
-        assertThat(response.jobs()).hasSize(1);
-        assertThat(response.jobs().get(0).matchScore()).isEqualTo(expectedMock);
-    }
-
-    @Test
     @DisplayName("실점수가 없는 PRIVATE 공고는 mockScore 폴백을 사용한다")
     void PRIVATE_점수미계산_mockScore폴백() {
         Resumes resume = Resumes.builder().id(10L).isActive(true).build();
@@ -295,7 +280,6 @@ class HomeRecommendationServiceTest {
         JobCandidate prv = candidate(100L, "PRIVATE");
         when(candidateRepository.findPrivateCandidates(any(), any(), anyInt())).thenReturn(List.of(prv));
 
-        // 해당 공고에 대한 점수가 없음 (빈 리스트)
         when(privateMatchScoreRepository.findByResumeIdAndPrivateJobPostingIdIn(10L, List.of(100L)))
                 .thenReturn(List.of());
 
@@ -309,9 +293,6 @@ class HomeRecommendationServiceTest {
     @Test
     @DisplayName("PUBLIC 공고는 실점수와 무관하게 항상 mockScore를 사용한다")
     void PUBLIC_항상_mockScore() {
-        Resumes resume = Resumes.builder().id(10L).isActive(true).build();
-        when(resumesRepository.findByMemberEmailAndIsActiveTrue(EMAIL)).thenReturn(Optional.of(resume));
-
         JobCandidate pub = candidate(1L, "PUBLIC");
         when(candidateRepository.findPublicCandidates(any(), any(), anyInt())).thenReturn(List.of(pub));
 
@@ -343,17 +324,115 @@ class HomeRecommendationServiceTest {
         HomeRecommendationResponse response = service.getRecommendedJobs(EMAIL, null, null, null, 0, 10);
 
         assertThat(response.jobs()).hasSize(2);
-        // 95점(PRIVATE 실점수)이 PUBLIC mockScore(60~99)보다 높거나 같으므로 첫 번째에 위치
         assertThat(response.jobs()).isSortedAccordingTo(
                 Comparator.comparingInt(RecommendedJob::matchScore).reversed());
     }
 
+    // ── 이력서 미업로드 + 희망직무/지역 필터링 테스트 ──
+
+    @Test
+    @DisplayName("이력서 없음 + 희망직무만 설정 → 해당 직무 공고만 최신순, score null")
+    void 이력서없음_희망직무필터() {
+        Member member = Member.builder().id(1L).email(EMAIL).onboardingCompleted(true).build();
+        member.getPrefJobs().add(new PreferredJob(member, "백엔드"));
+        when(memberRepository.findByEmail(EMAIL)).thenReturn(Optional.of(member));
+        when(resumesRepository.findByMemberEmailAndIsActiveTrue(EMAIL)).thenReturn(Optional.empty());
+
+        JobCandidate backend = candidateWithCategory(1L, "PRIVATE", "백엔드", LocalDateTime.of(2026, 6, 1, 0, 0));
+        JobCandidate frontend = candidateWithCategory(2L, "PRIVATE", "프론트엔드", LocalDateTime.of(2026, 7, 1, 0, 0));
+        when(candidateRepository.findPrivateCandidates(any(), any(), anyInt())).thenReturn(List.of(backend, frontend));
+
+        HomeRecommendationResponse response = service.getRecommendedJobs(EMAIL, List.of("PRIVATE"), null, null, 0, 10);
+
+        assertThat(response.jobs()).hasSize(1);
+        assertThat(response.jobs().get(0).id()).isEqualTo(1L);
+        assertThat(response.jobs()).allSatisfy(job -> assertThat(job.matchScore()).isNull());
+    }
+
+    @Test
+    @DisplayName("이력서 없음 + 희망지역만 설정 → 해당 지역 공고만 최신순, score null")
+    void 이력서없음_희망지역필터() {
+        Member member = Member.builder().id(1L).email(EMAIL).onboardingCompleted(true).build();
+        member.getPrefLocations().add(new PreferredRegion(member, "판교"));
+        when(memberRepository.findByEmail(EMAIL)).thenReturn(Optional.of(member));
+        when(resumesRepository.findByMemberEmailAndIsActiveTrue(EMAIL)).thenReturn(Optional.empty());
+
+        JobCandidate pangyo = new JobCandidate(1L, "PRIVATE", "카카오", "개발자", "판교", "신입", "백엔드", null, LocalDateTime.of(2026, 6, 1, 0, 0));
+        JobCandidate seoul = new JobCandidate(2L, "PRIVATE", "네이버", "개발자", "서울", "신입", "백엔드", null, LocalDateTime.of(2026, 7, 1, 0, 0));
+        when(candidateRepository.findPrivateCandidates(any(), any(), anyInt())).thenReturn(List.of(pangyo, seoul));
+
+        HomeRecommendationResponse response = service.getRecommendedJobs(EMAIL, List.of("PRIVATE"), null, null, 0, 10);
+
+        assertThat(response.jobs()).hasSize(1);
+        assertThat(response.jobs().get(0).id()).isEqualTo(1L);
+        assertThat(response.jobs()).allSatisfy(job -> assertThat(job.matchScore()).isNull());
+    }
+
+    @Test
+    @DisplayName("이력서 없음 + 희망직무/지역 둘 다 설정 → 둘 다 필터링되어 최신순, score null")
+    void 이력서없음_희망직무_지역_둘다필터() {
+        Member member = Member.builder().id(1L).email(EMAIL).onboardingCompleted(true).build();
+        member.getPrefJobs().add(new PreferredJob(member, "백엔드"));
+        member.getPrefLocations().add(new PreferredRegion(member, "서울"));
+        when(memberRepository.findByEmail(EMAIL)).thenReturn(Optional.of(member));
+        when(resumesRepository.findByMemberEmailAndIsActiveTrue(EMAIL)).thenReturn(Optional.empty());
+
+        JobCandidate match = new JobCandidate(1L, "PRIVATE", "회사A", "개발자", "서울", "신입", "백엔드", null, LocalDateTime.of(2026, 6, 1, 0, 0));
+        JobCandidate wrongCategory = new JobCandidate(2L, "PRIVATE", "회사B", "디자이너", "서울", "신입", "프론트엔드", null, LocalDateTime.of(2026, 7, 1, 0, 0));
+        JobCandidate wrongLocation = new JobCandidate(3L, "PRIVATE", "회사C", "개발자", "부산", "신입", "백엔드", null, LocalDateTime.of(2026, 7, 1, 0, 0));
+        when(candidateRepository.findPrivateCandidates(any(), any(), anyInt())).thenReturn(List.of(match, wrongCategory, wrongLocation));
+
+        HomeRecommendationResponse response = service.getRecommendedJobs(EMAIL, List.of("PRIVATE"), null, null, 0, 10);
+
+        assertThat(response.jobs()).hasSize(1);
+        assertThat(response.jobs().get(0).id()).isEqualTo(1L);
+        assertThat(response.jobs()).allSatisfy(job -> assertThat(job.matchScore()).isNull());
+    }
+
+    @Test
+    @DisplayName("이력서 없음 + PUBLIC 공고도 jobCategory(jobRole) 기준으로 필터링된다")
+    void 이력서없음_PUBLIC_직무필터() {
+        Member member = Member.builder().id(1L).email(EMAIL).onboardingCompleted(true).build();
+        member.getPrefJobs().add(new PreferredJob(member, "사무"));
+        when(memberRepository.findByEmail(EMAIL)).thenReturn(Optional.of(member));
+        when(resumesRepository.findByMemberEmailAndIsActiveTrue(EMAIL)).thenReturn(Optional.empty());
+
+        JobCandidate match = new JobCandidate(1L, "PUBLIC", "한국전력공사", "행정직", "서울", "신입", "사무행정", null, LocalDateTime.of(2026, 6, 1, 0, 0));
+        JobCandidate noMatch = new JobCandidate(2L, "PUBLIC", "한국가스공사", "기술직", "서울", "신입", "전기전자", null, LocalDateTime.of(2026, 7, 1, 0, 0));
+        when(candidateRepository.findPublicCandidates(any(), any(), anyInt())).thenReturn(List.of(match, noMatch));
+
+        HomeRecommendationResponse response = service.getRecommendedJobs(EMAIL, List.of("PUBLIC"), null, null, 0, 10);
+
+        assertThat(response.jobs()).hasSize(1);
+        assertThat(response.jobs().get(0).id()).isEqualTo(1L);
+        assertThat(response.jobs()).allSatisfy(job -> assertThat(job.matchScore()).isNull());
+    }
+
+    @Test
+    @DisplayName("이력서 있으면 희망직무/지역 필터 없이 점수순으로 반환한다")
+    void 이력서있으면_점수순_필터없음() {
+        // setUp 기본값: 활성 이력서 있음 + 희망직무 "백엔드"
+        JobCandidate backend = candidateWithCategory(1L, "PRIVATE", "백엔드", LocalDateTime.of(2026, 6, 1, 0, 0));
+        JobCandidate frontend = candidateWithCategory(2L, "PRIVATE", "프론트엔드", LocalDateTime.of(2026, 7, 1, 0, 0));
+        when(candidateRepository.findPrivateCandidates(any(), any(), anyInt())).thenReturn(List.of(backend, frontend));
+
+        HomeRecommendationResponse response = service.getRecommendedJobs(EMAIL, List.of("PRIVATE"), null, null, 0, 10);
+
+        // 이력서가 있으면 직무 필터 없이 모든 공고가 점수순으로 나옴
+        assertThat(response.jobs()).hasSize(2);
+        assertThat(response.jobs()).allSatisfy(job -> assertThat(job.matchScore()).isNotNull());
+    }
+
     private static JobCandidate candidate(Long id, String source) {
         return new JobCandidate(id, source, "회사" + id, "제목" + id, "서울", "신입",
-                null, LocalDateTime.of(2026, 1, 1, 0, 0));
+                "백엔드", null, LocalDateTime.of(2026, 1, 1, 0, 0));
     }
 
     private static JobCandidate candidateWithCreatedAt(Long id, String source, LocalDateTime createdAt) {
-        return new JobCandidate(id, source, "회사" + id, "제목" + id, "서울", "신입", null, createdAt);
+        return new JobCandidate(id, source, "회사" + id, "제목" + id, "서울", "신입", "백엔드", null, createdAt);
+    }
+
+    private static JobCandidate candidateWithCategory(Long id, String source, String jobCategory, LocalDateTime createdAt) {
+        return new JobCandidate(id, source, "회사" + id, "제목" + id, "서울", "신입", jobCategory, null, createdAt);
     }
 }
