@@ -2,9 +2,15 @@ package com.jobai.backend.domain.member.entity;
 
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 import java.time.LocalDate;
 
+/**
+ * 회원이 업로드한 이력서 엔티티.
+ * <p>PDF 파일 메타데이터와 함께 파싱된 텍스트 및 기술스택 정보를 저장한다.</p>
+ */
 @Entity
 @Table(name = "resumes")
 @Getter
@@ -35,6 +41,36 @@ public class Resumes {
 
     @Column(name = "updated_at")
     private LocalDate updatedAt;
+
+    @Column(name = "extracted_text", columnDefinition = "TEXT")
+    private String extractedText;
+
+    @Column(name = "resume_skills", columnDefinition = "TEXT")
+    private String resumeSkills;
+
+    @JdbcTypeCode(SqlTypes.VECTOR)
+    @Column(name = "embedding", columnDefinition = "vector(768)")
+    private float[] embedding;
+
+    /**
+     * 이력서 파싱 결과를 업데이트한다.
+     *
+     * @param extractedText PDF에서 추출한 원문 텍스트
+     * @param resumeSkills  추출된 기술스택 JSON 배열 문자열 (예: {@code ["Java","Spring"]})
+     */
+    public void updateParsedData(String extractedText, String resumeSkills) {
+        this.extractedText = extractedText;
+        this.resumeSkills = resumeSkills;
+    }
+
+    /**
+     * 이력서 임베딩 벡터를 업데이트한다.
+     *
+     * @param embedding 768차원 임베딩 벡터
+     */
+    public void updateEmbedding(float[] embedding) {
+        this.embedding = embedding;
+    }
 
     public void activate() {
         this.isActive = true;

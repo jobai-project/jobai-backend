@@ -3,10 +3,15 @@ package com.jobai.backend.domain.home.service;
 import com.jobai.backend.domain.home.dto.HomeRecommendationResponse;
 import com.jobai.backend.domain.home.dto.HomeRecommendationResponse.RecommendedJob;
 import com.jobai.backend.domain.home.dto.JobCandidate;
+import com.jobai.backend.domain.home.entity.PrivateMatchScore;
 import com.jobai.backend.domain.home.repository.HomeJobCandidateRepository;
+import com.jobai.backend.domain.home.repository.PrivateMatchScoreRepository;
+import com.jobai.backend.domain.crawler.entity.PrivateJobPosting;
 import com.jobai.backend.domain.member.entity.Member;
 import com.jobai.backend.domain.member.entity.PreferredJob;
+import com.jobai.backend.domain.member.entity.Resumes;
 import com.jobai.backend.domain.member.repository.MemberRepository;
+import com.jobai.backend.domain.member.repository.ResumesRepository;
 import com.jobai.backend.domain.notification.entity.Notification;
 import com.jobai.backend.domain.notification.repository.NotificationRepository;
 import com.jobai.backend.global.apiPayload.exception.GeneralException;
@@ -35,6 +40,8 @@ class HomeRecommendationServiceTest {
     private HomeJobCandidateRepository candidateRepository;
     private NotificationRepository notificationRepository;
     private JobMatchScorer jobMatchScorer;
+    private ResumesRepository resumesRepository;
+    private PrivateMatchScoreRepository privateMatchScoreRepository;
     private HomeRecommendationService service;
 
     @BeforeEach
@@ -43,7 +50,12 @@ class HomeRecommendationServiceTest {
         candidateRepository = Mockito.mock(HomeJobCandidateRepository.class);
         notificationRepository = Mockito.mock(NotificationRepository.class);
         jobMatchScorer = new JobMatchScorer();
-        service = new HomeRecommendationService(memberRepository, candidateRepository, notificationRepository, jobMatchScorer);
+        resumesRepository = Mockito.mock(ResumesRepository.class);
+        privateMatchScoreRepository = Mockito.mock(PrivateMatchScoreRepository.class);
+        service = new HomeRecommendationService(
+                memberRepository, candidateRepository, notificationRepository,
+                jobMatchScorer, resumesRepository, privateMatchScoreRepository
+        );
 
         // 기본값: 온보딩 완료 + 희망직무 설정된 회원(매칭 근거 있음)으로 두어, 이 파일의 다른 시나리오가
         // 매칭점수 기반 정렬 경로를 그대로 탄다. "매칭 근거 없음" 경로는 별도 테스트에서 검증한다.
@@ -57,6 +69,9 @@ class HomeRecommendationServiceTest {
 
         when(candidateRepository.findPublicCandidates(any(), any(), anyInt())).thenReturn(List.of());
         when(candidateRepository.findPrivateCandidates(any(), any(), anyInt())).thenReturn(List.of());
+
+        // 기본값: 활성 이력서 없음 (실점수 조회 불가 → mockScore 폴백)
+        when(resumesRepository.findByMemberEmailAndIsActiveTrue(EMAIL)).thenReturn(Optional.empty());
     }
 
     @Test
@@ -230,6 +245,107 @@ class HomeRecommendationServiceTest {
 
         assertThat(response.jobs()).extracting(RecommendedJob::id).containsExactly(2L, 1L);
         assertThat(response.jobs()).allSatisfy(job -> assertThat(job.matchScore()).isNull());
+    }
+
+    // ── PRIVATE 실점수 연동 테스트 ──
+
+    @Test
+    @DisplayName("활성 이력서가 있으면 PRIVATE 공고에 AI 실점수를 사용한다")
+    void PRIVATE_실점수_사용() {
+        Resumes resume = Resumes.builder().id(10L).isActive(true).build();
+        when(resumesRepository.findByMemberEmailAndIsActiveTrue(EMAIL)).thenReturn(Optional.of(resume));
+
+        JobCandidate prv = candidate(100L, "PRIVATE");
+        when(candidateRepository.findPrivateCandidates(any(), any(), anyInt())).thenReturn(List.of(prv));
+
+        PrivateJobPosting posting = PrivateJobPosting.builder()
+                .id(100L).company("test").sourceJobId("j1").build();
+        PrivateMatchScore score = PrivateMatchScore.builder()
+                .resume(resume).privateJobPosting(posting).score(92).build();
+        when(privateMatchScoreRepository.findByResumeIdAndPrivateJobPostingIdIn(10L, List.of(100L)))
+                .thenReturn(List.of(score));
+
+        HomeRecommendationResponse response = service.getRecommendedJobs(EMAIL, List.of("PRIVATE"), null, null, 0, 10);
+
+        assertThat(response.jobs()).hasSize(1);
+        assertThat(response.jobs().get(0).matchScore()).isEqualTo(92);
+    }
+
+    @Test
+    @DisplayName("활성 이력서가 없으면 PRIVATE 공고에 mockScore 폴백을 사용한다")
+    void PRIVATE_이력서없으면_mockScore폴백() {
+        when(resumesRepository.findByMemberEmailAndIsActiveTrue(EMAIL)).thenReturn(Optional.empty());
+
+        JobCandidate prv = candidate(100L, "PRIVATE");
+        when(candidateRepository.findPrivateCandidates(any(), any(), anyInt())).thenReturn(List.of(prv));
+
+        HomeRecommendationResponse response = service.getRecommendedJobs(EMAIL, List.of("PRIVATE"), null, null, 0, 10);
+
+        int expectedMock = jobMatchScorer.mockScore("PRIVATE", 100L);
+        assertThat(response.jobs()).hasSize(1);
+        assertThat(response.jobs().get(0).matchScore()).isEqualTo(expectedMock);
+    }
+
+    @Test
+    @DisplayName("실점수가 없는 PRIVATE 공고는 mockScore 폴백을 사용한다")
+    void PRIVATE_점수미계산_mockScore폴백() {
+        Resumes resume = Resumes.builder().id(10L).isActive(true).build();
+        when(resumesRepository.findByMemberEmailAndIsActiveTrue(EMAIL)).thenReturn(Optional.of(resume));
+
+        JobCandidate prv = candidate(100L, "PRIVATE");
+        when(candidateRepository.findPrivateCandidates(any(), any(), anyInt())).thenReturn(List.of(prv));
+
+        // 해당 공고에 대한 점수가 없음 (빈 리스트)
+        when(privateMatchScoreRepository.findByResumeIdAndPrivateJobPostingIdIn(10L, List.of(100L)))
+                .thenReturn(List.of());
+
+        HomeRecommendationResponse response = service.getRecommendedJobs(EMAIL, List.of("PRIVATE"), null, null, 0, 10);
+
+        int expectedMock = jobMatchScorer.mockScore("PRIVATE", 100L);
+        assertThat(response.jobs()).hasSize(1);
+        assertThat(response.jobs().get(0).matchScore()).isEqualTo(expectedMock);
+    }
+
+    @Test
+    @DisplayName("PUBLIC 공고는 실점수와 무관하게 항상 mockScore를 사용한다")
+    void PUBLIC_항상_mockScore() {
+        Resumes resume = Resumes.builder().id(10L).isActive(true).build();
+        when(resumesRepository.findByMemberEmailAndIsActiveTrue(EMAIL)).thenReturn(Optional.of(resume));
+
+        JobCandidate pub = candidate(1L, "PUBLIC");
+        when(candidateRepository.findPublicCandidates(any(), any(), anyInt())).thenReturn(List.of(pub));
+
+        HomeRecommendationResponse response = service.getRecommendedJobs(EMAIL, List.of("PUBLIC"), null, null, 0, 10);
+
+        int expectedMock = jobMatchScorer.mockScore("PUBLIC", 1L);
+        assertThat(response.jobs()).hasSize(1);
+        assertThat(response.jobs().get(0).matchScore()).isEqualTo(expectedMock);
+    }
+
+    @Test
+    @DisplayName("전체 필터에서 PRIVATE은 실점수, PUBLIC은 mockScore로 함께 정렬된다")
+    void 전체필터_실점수와_mockScore_혼합정렬() {
+        Resumes resume = Resumes.builder().id(10L).isActive(true).build();
+        when(resumesRepository.findByMemberEmailAndIsActiveTrue(EMAIL)).thenReturn(Optional.of(resume));
+
+        JobCandidate pub = candidate(1L, "PUBLIC");
+        JobCandidate prv = candidate(100L, "PRIVATE");
+        when(candidateRepository.findPublicCandidates(any(), any(), anyInt())).thenReturn(List.of(pub));
+        when(candidateRepository.findPrivateCandidates(any(), any(), anyInt())).thenReturn(List.of(prv));
+
+        PrivateJobPosting posting = PrivateJobPosting.builder()
+                .id(100L).company("test").sourceJobId("j1").build();
+        PrivateMatchScore score = PrivateMatchScore.builder()
+                .resume(resume).privateJobPosting(posting).score(95).build();
+        when(privateMatchScoreRepository.findByResumeIdAndPrivateJobPostingIdIn(10L, List.of(100L)))
+                .thenReturn(List.of(score));
+
+        HomeRecommendationResponse response = service.getRecommendedJobs(EMAIL, null, null, null, 0, 10);
+
+        assertThat(response.jobs()).hasSize(2);
+        // 95점(PRIVATE 실점수)이 PUBLIC mockScore(60~99)보다 높거나 같으므로 첫 번째에 위치
+        assertThat(response.jobs()).isSortedAccordingTo(
+                Comparator.comparingInt(RecommendedJob::matchScore).reversed());
     }
 
     private static JobCandidate candidate(Long id, String source) {

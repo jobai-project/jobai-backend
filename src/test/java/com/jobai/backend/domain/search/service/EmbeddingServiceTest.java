@@ -164,4 +164,48 @@ class EmbeddingServiceTest {
                 .isInstanceOf(RuntimeException.class)
                 .hasMessage("ai-server 연결 실패");
     }
+
+    // --- embedResumeText 테스트 ---
+
+    @Test
+    @DisplayName("embedResumeText: 이력서 텍스트를 768차원 벡터로 변환한다")
+    void embedResumeText_정상() {
+        List<Double> vector = DoubleStream.generate(() -> 0.5)
+                .limit(768).boxed().toList();
+        when(aiEmbeddingClient.embed(any()))
+                .thenReturn(Mono.just(new EmbedResponse(vector)));
+
+        float[] result = embeddingService.embedResumeText("Java Spring Boot 경험 3년");
+
+        assertThat(result).hasSize(768);
+        assertThat(result[0]).isEqualTo(0.5f);
+    }
+
+    @Test
+    @DisplayName("embedResumeText: 최대 길이를 초과하면 잘라서 전송한다")
+    void embedResumeText_길이제한() throws Exception {
+        var field = EmbeddingService.class.getDeclaredField("maxTextLength");
+        field.setAccessible(true);
+        field.setInt(embeddingService, 10);
+
+        List<Double> vector = DoubleStream.generate(() -> 0.1)
+                .limit(768).boxed().toList();
+        when(aiEmbeddingClient.embed(any()))
+                .thenReturn(Mono.just(new EmbedResponse(vector)));
+
+        float[] result = embeddingService.embedResumeText("12345678901234567890");
+
+        assertThat(result).hasSize(768);
+    }
+
+    @Test
+    @DisplayName("embedResumeText: ai-server 오류는 그대로 전파한다")
+    void embedResumeText_ai서버오류() {
+        when(aiEmbeddingClient.embed(any()))
+                .thenReturn(Mono.error(new RuntimeException("ai-server 연결 실패")));
+
+        assertThatThrownBy(() -> embeddingService.embedResumeText("이력서 텍스트"))
+                .isInstanceOf(RuntimeException.class)
+                .hasMessage("ai-server 연결 실패");
+    }
 }
