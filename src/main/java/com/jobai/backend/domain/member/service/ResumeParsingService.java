@@ -14,6 +14,11 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.*;
 import java.util.regex.Pattern;
 
+/**
+ * 이력서 PDF에서 텍스트를 추출하고 기술스택을 파싱하는 서비스.
+ * 1차 키워드 기반 추출(섹션 탐지 + 기술명 사전 매칭) 후,
+ * 부족하면 2차 LLM 폴백으로 Anthropic API를 호출한다.
+ */
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -253,6 +258,12 @@ public class ResumeParsingService {
         }
     }
 
+    /**
+     * LLM 응답 문자열에서 JSON 배열 부분을 추출하여 기술스택 리스트로 파싱한다.
+     *
+     * @param response LLM이 반환한 텍스트 (JSON 배열 포함)
+     * @return 파싱된 기술스택 리스트, 실패 시 빈 리스트
+     */
     List<String> parseLlmResponse(String response) {
         if (response == null || response.isBlank()) return List.of();
 
