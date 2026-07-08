@@ -1,5 +1,8 @@
 package com.jobai.backend.global.config;
 
+import com.jobai.backend.global.auth.CustomOAuth2UserService;
+import com.jobai.backend.global.auth.OAuth2SuccessHandler;
+import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Profile;
@@ -16,8 +19,12 @@ import java.util.Collections;
 
 @Configuration
 @EnableWebSecurity
+@RequiredArgsConstructor
 @Profile("local & !classify")
 public class LocalSecurityConfig {
+
+    private final CustomOAuth2UserService customOAuth2UserService;
+    private final OAuth2SuccessHandler oAuth2SuccessHandler;
 
     @Bean
     public SecurityFilterChain localSecurityFilterChain(HttpSecurity http) throws Exception {
@@ -27,6 +34,12 @@ public class LocalSecurityConfig {
                 .httpBasic(AbstractHttpConfigurer::disable)
                 .authorizeHttpRequests(auth -> auth
                         .anyRequest().permitAll()
+                )
+
+                .oauth2Login(oauth2 -> oauth2
+                        .userInfoEndpoint(userInfo -> userInfo
+                                .userService(customOAuth2UserService))
+                        .successHandler(oAuth2SuccessHandler)
                 )
                 // 가짜 인증 필터 주입
                 // 구글 로그인창을 거치지 않아도, 모든 API에서 @AuthenticationPrincipal String email 요청 시

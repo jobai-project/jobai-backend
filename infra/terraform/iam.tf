@@ -74,6 +74,44 @@ resource "aws_iam_role_policy_attachment" "ec2_resume_s3_access" {
   policy_arn = aws_iam_policy.ec2_resume_s3_access.arn
 }
 
+resource "aws_iam_policy" "ec2_ai_model_s3_read" {
+  name        = "jobai-ec2-ai-model-s3-read"
+  description = "Allow EC2 application to read AI model files from S3"
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "s3:ListBucket"
+        ]
+        Resource = aws_s3_bucket.ai_models.arn
+        Condition = {
+          StringLike = {
+            "s3:prefix" = [
+              "models",
+              "models/*"
+            ]
+          }
+        }
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "s3:GetObject"
+        ]
+        Resource = "${aws_s3_bucket.ai_models.arn}/models/*"
+      }
+    ]
+  })
+}
+
+resource "aws_iam_role_policy_attachment" "ec2_ai_model_s3_read" {
+  role       = aws_iam_role.ec2.name
+  policy_arn = aws_iam_policy.ec2_ai_model_s3_read.arn
+}
+
 resource "aws_iam_instance_profile" "ec2" {
   name = "jobai-ec2-instance-profile"
   role = aws_iam_role.ec2.name
@@ -161,7 +199,8 @@ resource "aws_iam_policy" "github_actions_ecr_push" {
         ]
         Resource = [
           "arn:aws:ssm:${var.aws_region}::document/AWS-RunShellScript",
-          aws_instance.jobai.arn
+          aws_instance.jobai.arn,
+          aws_instance.ai_server.arn
         ]
       },
       {

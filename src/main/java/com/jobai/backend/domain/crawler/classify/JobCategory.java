@@ -4,7 +4,7 @@ import java.util.Arrays;
 
 /**
  * 직무 분류 택소노미. LLM 이 공고 제목을 보고 이 중 하나로 분류한다.
- * 매칭 대상(개발 11 + 디자이너 + PM기획)과 제외(비대상/미분류)로 나뉜다.
+ * 매칭 대상(개발 11 + 디자인 4 + 기획 2)과 제외(비대상/미분류)로 나뉜다.
  */
 public enum JobCategory {
 
@@ -21,9 +21,15 @@ public enum JobCategory {
     EMBEDDED("임베디드", true),
     ETC_DEV("기타개발", true),
 
-    // --- 비개발 (매칭 대상) ---
-    DESIGNER("디자이너", true),
-    PM("PM/기획", true),
+    // --- 디자인 (매칭 대상) ---
+    UX_RESEARCHER("UX리서처", true),
+    UXUI_DESIGNER("UX/UI디자이너", true),
+    PRODUCT_DESIGNER("프로덕트디자이너", true),
+    WEB_DESIGNER("웹디자이너", true),
+
+    // --- 기획 (매칭 대상) ---
+    PM_PO("PM/PO", true),
+    SERVICE_PLANNER("서비스기획", true),
 
     // --- 제외 ---
     NON_TARGET("비대상", false),    // 영업·마케팅·HR·재무 등

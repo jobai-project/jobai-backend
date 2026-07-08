@@ -24,6 +24,7 @@ public class CrawlSpec {
 
     private String company;
     private String companyNameKo;
+    private String entryUrl;
     private String sourceType = "json";   // json | html | embedded_json (현재 json 만 처리)
     private String crawler = "declarative";
 
@@ -42,4 +43,7 @@ public class CrawlSpec {
 
     /** apply_url 조립용. template(레코드 필드로 포맷) 또는 base+field. */
     private Map<String, Object> applyUrl;
+
+    /** metadata 배열에서 name 매칭 → value 추출 (토스). */
+    private MetadataExtractionSpec metadataExtraction;
 }
