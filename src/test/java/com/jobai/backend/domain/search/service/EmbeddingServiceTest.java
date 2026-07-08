@@ -281,6 +281,8 @@ class EmbeddingServiceTest {
                 .hasMessage("연결 실패");
 
         verify(jobEmbeddingRepository, never()).save(any());
+    }
+
     // --- embedResumeText 테스트 ---
 
     @Test

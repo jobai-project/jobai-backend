@@ -7,6 +7,7 @@ import com.jobai.backend.domain.member.repository.MemberRepository;
 import com.jobai.backend.domain.member.repository.ResumesRepository;
 import com.jobai.backend.global.apiPayload.code.GeneralErrorCode;
 import com.jobai.backend.global.apiPayload.exception.GeneralException;
+import com.jobai.backend.domain.search.service.EmbeddingService;
 import com.jobai.backend.global.storage.FileStorageService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -45,13 +46,20 @@ class ResumeServiceTest {
     @Mock
     private FileStorageService fileStorageService;
 
+    @Mock
+    private ResumeParsingService resumeParsingService;
+
+    @Mock
+    private EmbeddingService embeddingService;
+
     private ResumeService resumeService;
 
     private static final String EMAIL = "test@jobai.com";
 
     @org.junit.jupiter.api.BeforeEach
     void setUp() {
-        resumeService = new ResumeService(resumesRepository, memberRepository, fileStorageService);
+        resumeService = new ResumeService(
+                resumesRepository, memberRepository, fileStorageService, resumeParsingService, embeddingService);
     }
 
     private Member member(Long id, String email) {
