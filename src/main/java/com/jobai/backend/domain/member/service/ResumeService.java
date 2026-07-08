@@ -9,6 +9,7 @@ import com.jobai.backend.global.apiPayload.code.GeneralErrorCode;
 import com.jobai.backend.global.apiPayload.exception.GeneralException;
 import com.jobai.backend.global.storage.FileStorageService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -19,6 +20,7 @@ import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
@@ -27,6 +29,7 @@ public class ResumeService {
     private final ResumesRepository resumesRepository;
     private final MemberRepository memberRepository;
     private final FileStorageService fileStorageService;
+    private final ResumeParsingService resumeParsingService;
 
     public ResumeResponseDTO.ResumeListDTO getResumes(String email) {
         List<Resumes> resumes = resumesRepository.findByMemberEmailOrderByUpdatedAtDescIdDesc(email);
@@ -65,6 +68,15 @@ public class ResumeService {
             Long resumeId = resumesRepository.save(resume).getId();
             // 같은 회원의 기존 이력서는 모두 비활성화
             resumesRepository.deactivateOthersByMemberId(member.getId(), resumeId);
+
+            // 이력서 파싱 (PDF 텍스트 추출 + 기술스택 파싱)
+            try {
+                byte[] pdfBytes = file.getBytes();
+                resumeParsingService.parseAndUpdate(resume, pdfBytes);
+            } catch (Exception e) {
+                log.warn("이력서 파싱 실패 (업로드는 정상 완료): resumeId={}, error={}", resumeId, e.getMessage());
+            }
+
             return resumeId;
         } catch (Exception e) {
             // DB 저장 실패 시 S3에 올라간 파일 제거
