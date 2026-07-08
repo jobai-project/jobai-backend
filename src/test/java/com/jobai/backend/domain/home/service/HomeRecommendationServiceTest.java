@@ -390,6 +390,25 @@ class HomeRecommendationServiceTest {
     }
 
     @Test
+    @DisplayName("이력서 없음 + PUBLIC 공고도 jobCategory(jobRole) 기준으로 필터링된다")
+    void 이력서없음_PUBLIC_직무필터() {
+        Member member = Member.builder().id(1L).email(EMAIL).onboardingCompleted(true).build();
+        member.getPrefJobs().add(new PreferredJob(member, "사무"));
+        when(memberRepository.findByEmail(EMAIL)).thenReturn(Optional.of(member));
+        when(resumesRepository.findByMemberEmailAndIsActiveTrue(EMAIL)).thenReturn(Optional.empty());
+
+        JobCandidate match = new JobCandidate(1L, "PUBLIC", "한국전력공사", "행정직", "서울", "신입", "사무행정", null, LocalDateTime.of(2026, 6, 1, 0, 0));
+        JobCandidate noMatch = new JobCandidate(2L, "PUBLIC", "한국가스공사", "기술직", "서울", "신입", "전기전자", null, LocalDateTime.of(2026, 7, 1, 0, 0));
+        when(candidateRepository.findPublicCandidates(any(), any(), anyInt())).thenReturn(List.of(match, noMatch));
+
+        HomeRecommendationResponse response = service.getRecommendedJobs(EMAIL, List.of("PUBLIC"), null, null, 0, 10);
+
+        assertThat(response.jobs()).hasSize(1);
+        assertThat(response.jobs().get(0).id()).isEqualTo(1L);
+        assertThat(response.jobs()).allSatisfy(job -> assertThat(job.matchScore()).isNull());
+    }
+
+    @Test
     @DisplayName("이력서 있으면 희망직무/지역 필터 없이 점수순으로 반환한다")
     void 이력서있으면_점수순_필터없음() {
         // setUp 기본값: 활성 이력서 있음 + 희망직무 "백엔드"

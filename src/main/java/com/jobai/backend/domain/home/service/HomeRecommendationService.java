@@ -23,6 +23,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -77,9 +78,9 @@ public class HomeRecommendationService {
             return buildLatestResponse(allCandidates, offset, size);
         }
 
-        boolean hasActiveResume = resumesRepository.findByMemberEmailAndIsActiveTrue(email).isPresent();
-        if (hasActiveResume) {
-            return buildScoredResponse(email, allCandidates, offset, size);
+        Optional<Resumes> activeResume = resumesRepository.findByMemberEmailAndIsActiveTrue(email);
+        if (activeResume.isPresent()) {
+            return buildScoredResponse(email, activeResume.get(), allCandidates, offset, size);
         }
 
         return buildFilteredLatestResponse(member, allCandidates, offset, size);
@@ -93,10 +94,10 @@ public class HomeRecommendationService {
 
     // 매칭 근거가 있는 회원: 적합도 기준 이상만 남기고 매칭점수 내림차순 정렬
     private HomeRecommendationResponse buildScoredResponse(
-            String email, List<JobCandidate> candidates, int offset, int size
+            String email, Resumes activeResume, List<JobCandidate> candidates, int offset, int size
     ) {
         int matchScoreThreshold = resolveMatchScoreThreshold(email);
-        Map<Long, Integer> privateScoreMap = loadPrivateScores(email, candidates);
+        Map<Long, Integer> privateScoreMap = loadPrivateScores(activeResume, candidates);
 
         List<ScoredCandidate> scoredCandidates = candidates.stream()
                 .map(c -> new ScoredCandidate(c, resolveScore(c, privateScoreMap)))
@@ -118,10 +119,10 @@ public class HomeRecommendationService {
     }
 
     /**
-     * 활성 이력서가 있으면 PRIVATE 공고의 AI 매칭 점수를 벌크 조회하여 Map으로 반환한다.
-     * 활성 이력서가 없거나 PRIVATE 공고가 없으면 빈 Map을 반환한다.
+     * 활성 이력서의 PRIVATE 공고 AI 매칭 점수를 벌크 조회하여 Map으로 반환한다.
+     * PRIVATE 공고가 없으면 빈 Map을 반환한다.
      */
-    private Map<Long, Integer> loadPrivateScores(String email, List<JobCandidate> candidates) {
+    private Map<Long, Integer> loadPrivateScores(Resumes activeResume, List<JobCandidate> candidates) {
         List<Long> privateJobIds = candidates.stream()
                 .filter(c -> "PRIVATE".equals(c.source()))
                 .map(JobCandidate::id)
@@ -130,15 +131,13 @@ public class HomeRecommendationService {
             return Map.of();
         }
 
-        return resumesRepository.findByMemberEmailAndIsActiveTrue(email)
-                .map(resume -> privateMatchScoreRepository
-                        .findByResumeIdAndPrivateJobPostingIdIn(resume.getId(), privateJobIds)
-                        .stream()
-                        .collect(Collectors.toMap(
-                                s -> s.getPrivateJobPosting().getId(),
-                                PrivateMatchScore::getScore
-                        )))
-                .orElse(Map.of());
+        return privateMatchScoreRepository
+                .findByResumeIdAndPrivateJobPostingIdIn(activeResume.getId(), privateJobIds)
+                .stream()
+                .collect(Collectors.toMap(
+                        s -> s.getPrivateJobPosting().getId(),
+                        PrivateMatchScore::getScore
+                ));
     }
 
     private int resolveScore(JobCandidate candidate, Map<Long, Integer> privateScoreMap) {
