@@ -9,7 +9,6 @@ import com.jobai.backend.global.util.PdfParserUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.util.*;
 import java.util.regex.Pattern;
@@ -69,7 +68,6 @@ public class ResumeParsingService {
     /**
      * PDF 바이트에서 텍스트를 추출하고 기술스택을 파싱하여 Resumes 엔티티에 저장한다.
      */
-    @Transactional
     public void parseAndUpdate(Resumes resume, byte[] pdfBytes) {
         String extractedText = pdfParserUtil.extractText(pdfBytes);
         if (extractedText.isBlank()) {
@@ -77,10 +75,16 @@ public class ResumeParsingService {
             return;
         }
 
-        List<String> skills = extractSkillsByKeyword(extractedText);
-        if (skills.size() < MIN_KEYWORD_MATCH_COUNT) {
-            log.info("키워드 기반 추출 부족({}개), LLM 폴백 시도: resumeId={}", skills.size(), resume.getId());
-            skills = extractSkillsByLlm(extractedText);
+        List<String> keywordSkills = extractSkillsByKeyword(extractedText);
+        List<String> skills = new ArrayList<>(keywordSkills);
+        if (keywordSkills.size() < MIN_KEYWORD_MATCH_COUNT) {
+            log.info("키워드 기반 추출 부족({}개), LLM 폴백 시도: resumeId={}", keywordSkills.size(), resume.getId());
+            List<String> llmSkills = extractSkillsByLlm(extractedText);
+            if (!llmSkills.isEmpty()) {
+                Set<String> merged = new LinkedHashSet<>(keywordSkills);
+                merged.addAll(llmSkills);
+                skills = new ArrayList<>(merged);
+            }
         }
 
         String skillsJson = toJson(skills);
@@ -155,6 +159,9 @@ public class ResumeParsingService {
             case "ruby" -> "Ruby";
             case "php" -> "PHP";
             case "dart" -> "Dart";
+            case "perl" -> "Perl";
+            case "lua" -> "Lua";
+            case "groovy" -> "Groovy";
             case "react" -> "React";
             case "vue", "vue.js" -> "Vue.js";
             case "angular" -> "Angular";
@@ -194,6 +201,7 @@ public class ResumeParsingService {
             case "dynamodb" -> "DynamoDB";
             case "sqlite" -> "SQLite";
             case "neo4j" -> "Neo4j";
+            case "influxdb" -> "InfluxDB";
             case "aws" -> "AWS";
             case "gcp" -> "GCP";
             case "azure" -> "Azure";
@@ -204,7 +212,9 @@ public class ResumeParsingService {
             case "jenkins" -> "Jenkins";
             case "github actions" -> "GitHub Actions";
             case "gitlab ci" -> "GitLab CI";
+            case "circleci" -> "CircleCI";
             case "nginx" -> "Nginx";
+            case "apache" -> "Apache";
             case "linux" -> "Linux";
             case "kafka" -> "Kafka";
             case "rabbitmq" -> "RabbitMQ";
@@ -270,7 +280,7 @@ public class ResumeParsingService {
         int start = response.indexOf('[');
         int end = response.lastIndexOf(']');
         if (start < 0 || end < 0 || end <= start) {
-            log.warn("LLM 응답에서 JSON 배열을 찾을 수 없음: {}", response);
+            log.warn("LLM 응답에서 JSON 배열을 찾을 수 없음: responseLength={}", response.length());
             return List.of();
         }
 
@@ -278,7 +288,7 @@ public class ResumeParsingService {
         try {
             return objectMapper.readValue(jsonArray, new TypeReference<List<String>>() {});
         } catch (JsonProcessingException e) {
-            log.warn("LLM 응답 JSON 파싱 실패: {}", jsonArray);
+            log.warn("LLM 응답 JSON 파싱 실패: jsonLength={}", jsonArray.length());
             return List.of();
         }
     }

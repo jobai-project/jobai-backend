@@ -207,9 +207,9 @@ class ResumeParsingServiceTest {
         }
 
         @Test
-        @DisplayName("LLM 호출 실패 시 빈 스킬로 저장한다")
-        void LLM_호출_실패() {
-            String text = "저는 성실한 인재입니다.";
+        @DisplayName("LLM 호출 실패 시 키워드 추출 결과를 유지한다")
+        void LLM_호출_실패_키워드_유지() {
+            String text = "저는 Java를 사용합니다.";
             when(pdfParserUtil.extractText(any())).thenReturn(text);
             when(anthropicClient.complete(anyString(), anyString(), anyInt()))
                     .thenThrow(new RuntimeException("API 오류"));
@@ -218,7 +218,21 @@ class ResumeParsingServiceTest {
             service.parseAndUpdate(resume, new byte[]{1});
 
             assertThat(resume.getExtractedText()).isEqualTo(text);
-            assertThat(resume.getResumeSkills()).isEqualTo("[]");
+            assertThat(resume.getResumeSkills()).contains("Java");
+        }
+
+        @Test
+        @DisplayName("키워드 부족 + LLM 성공 시 결과를 병합한다")
+        void 키워드_LLM_병합() {
+            String text = "저는 Java와 Git을 사용합니다.";
+            when(pdfParserUtil.extractText(any())).thenReturn(text);
+            when(anthropicClient.complete(anyString(), anyString(), anyInt()))
+                    .thenReturn("[\"Java\", \"Spring\", \"Docker\"]");
+
+            Resumes resume = Resumes.builder().id(1L).build();
+            service.parseAndUpdate(resume, new byte[]{1});
+
+            assertThat(resume.getResumeSkills()).contains("Java", "Git", "Spring", "Docker");
         }
     }
 }
