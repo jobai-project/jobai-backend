@@ -1,20 +1,29 @@
 package com.jobai.backend.domain.search.service;
 
 import com.jobai.backend.domain.ai.client.AiEmbeddingClient;
+import com.jobai.backend.domain.ai.dto.EmbedRequest;
 import com.jobai.backend.domain.ai.dto.EmbedResponse;
+import com.jobai.backend.domain.crawler.entity.PrivateJobPosting;
+import com.jobai.backend.domain.publicInstitution.entity.PublicJobPosting;
+import com.jobai.backend.domain.search.entity.JobEmbedding;
+import com.jobai.backend.domain.search.entity.JobSource;
 import com.jobai.backend.domain.search.repository.JobEmbeddingRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
 import reactor.core.publisher.Mono;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.DoubleStream;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class EmbeddingServiceTest {
@@ -163,5 +172,114 @@ class EmbeddingServiceTest {
         assertThatThrownBy(() -> embeddingService.embedQuery("test"))
                 .isInstanceOf(RuntimeException.class)
                 .hasMessage("ai-server 연결 실패");
+    }
+
+    // -------------------------------------------------------
+    // embedPublicPosting 테스트
+    // -------------------------------------------------------
+
+    @Test
+    @DisplayName("embedPublicPosting: 신규 공고면 embedNcs 호출 후 PUBLIC 소스로 저장한다")
+    void embedPublicPosting_신규저장() {
+        List<Double> vector = DoubleStream.generate(() -> 0.2).limit(768).boxed().toList();
+        when(aiEmbeddingClient.embedNcs(any())).thenReturn(Mono.just(new EmbedResponse(vector)));
+        when(jobEmbeddingRepository.findBySourceAndSourceId(JobSource.PUBLIC, 5L))
+                .thenReturn(Optional.empty());
+
+        PublicJobPosting posting = PublicJobPosting.builder()
+                .id(5L)
+                .title("정보보호 담당자 채용")
+                .htmlContent("<p>침해대응 및 취약점 분석 업무</p>")
+                .build();
+
+        embeddingService.embedPublicPosting(posting);
+
+        ArgumentCaptor<JobEmbedding> captor = ArgumentCaptor.forClass(JobEmbedding.class);
+        verify(jobEmbeddingRepository).save(captor.capture());
+        JobEmbedding saved = captor.getValue();
+        assertThat(saved.getSource()).isEqualTo(JobSource.PUBLIC);
+        assertThat(saved.getSourceId()).isEqualTo(5L);
+        assertThat(saved.getEmbedding()).hasSize(768);
+        assertThat(saved.getEmbeddingText()).isEqualTo("정보보호 담당자 채용\n침해대응 및 취약점 분석 업무");
+
+        ArgumentCaptor<EmbedRequest> reqCaptor = ArgumentCaptor.forClass(EmbedRequest.class);
+        verify(aiEmbeddingClient).embedNcs(reqCaptor.capture());
+        assertThat(reqCaptor.getValue().text()).isEqualTo("정보보호 담당자 채용\n침해대응 및 취약점 분석 업무");
+        verify(aiEmbeddingClient, never()).embed(any());
+    }
+
+    @Test
+    @DisplayName("embedPublicPosting: 기존 임베딩이 있으면 update 경로를 탄다")
+    void embedPublicPosting_기존업데이트() {
+        List<Double> vector = DoubleStream.generate(() -> 0.3).limit(768).boxed().toList();
+        when(aiEmbeddingClient.embedNcs(any())).thenReturn(Mono.just(new EmbedResponse(vector)));
+
+        JobEmbedding existing = JobEmbedding.builder()
+                .source(JobSource.PUBLIC)
+                .sourceId(5L)
+                .embedding(new float[768])
+                .embeddingText("old text")
+                .build();
+        when(jobEmbeddingRepository.findBySourceAndSourceId(JobSource.PUBLIC, 5L))
+                .thenReturn(Optional.of(existing));
+
+        PublicJobPosting posting = PublicJobPosting.builder()
+                .id(5L)
+                .title("정보보호 담당자 채용(수정)")
+                .htmlContent("<p>업데이트된 내용</p>")
+                .build();
+
+        embeddingService.embedPublicPosting(posting);
+
+        verify(jobEmbeddingRepository, never()).save(any());
+        assertThat(existing.getEmbeddingText()).isEqualTo("정보보호 담당자 채용(수정)\n업데이트된 내용");
+        assertThat(existing.getEmbedding()[0]).isEqualTo(0.3f);
+    }
+
+    // -------------------------------------------------------
+    // embedPrivatePosting 테스트
+    // -------------------------------------------------------
+
+    @Test
+    @DisplayName("embedPrivatePosting: 신규 공고면 embed(JD) 호출 후 PRIVATE 소스로 저장한다")
+    void embedPrivatePosting_신규저장() {
+        List<Double> vector = DoubleStream.generate(() -> 0.4).limit(768).boxed().toList();
+        when(aiEmbeddingClient.embed(any())).thenReturn(Mono.just(new EmbedResponse(vector)));
+        when(jobEmbeddingRepository.findBySourceAndSourceId(JobSource.PRIVATE, 7L))
+                .thenReturn(Optional.empty());
+
+        PrivateJobPosting posting = PrivateJobPosting.builder()
+                .id(7L)
+                .title("백엔드 개발자")
+                .description("Spring Boot 3년 이상 경험")
+                .build();
+
+        embeddingService.embedPrivatePosting(posting);
+
+        ArgumentCaptor<JobEmbedding> captor = ArgumentCaptor.forClass(JobEmbedding.class);
+        verify(jobEmbeddingRepository).save(captor.capture());
+        JobEmbedding saved = captor.getValue();
+        assertThat(saved.getSource()).isEqualTo(JobSource.PRIVATE);
+        assertThat(saved.getSourceId()).isEqualTo(7L);
+        assertThat(saved.getEmbedding()).hasSize(768);
+        assertThat(saved.getEmbeddingText()).isEqualTo("백엔드 개발자\nSpring Boot 3년 이상 경험");
+
+        verify(aiEmbeddingClient).embed(any());
+        verify(aiEmbeddingClient, never()).embedNcs(any());
+    }
+
+    @Test
+    @DisplayName("embedPrivatePosting: ai-server 호출 실패 시 예외가 전파되고 저장하지 않는다")
+    void embedPrivatePosting_ai서버오류_저장안함() {
+        when(aiEmbeddingClient.embed(any()))
+                .thenReturn(Mono.error(new RuntimeException("연결 실패")));
+
+        PrivateJobPosting posting = PrivateJobPosting.builder().id(7L).title("t").description("d").build();
+
+        assertThatThrownBy(() -> embeddingService.embedPrivatePosting(posting))
+                .isInstanceOf(RuntimeException.class)
+                .hasMessage("연결 실패");
+
+        verify(jobEmbeddingRepository, never()).save(any());
     }
 }

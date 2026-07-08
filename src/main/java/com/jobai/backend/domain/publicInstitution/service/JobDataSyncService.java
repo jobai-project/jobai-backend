@@ -4,6 +4,7 @@ import com.jobai.backend.domain.publicInstitution.dto.PublicJobListResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.util.DefaultUriBuilderFactory;
@@ -27,17 +28,34 @@ public class JobDataSyncService {
     @Value("${api.data-go-kr.service-key}")
     private String serviceKey;
 
-    private static final String BASE_URL = "https://apis.data.go.kr";
+    @Value("${api.data-go-kr.base-url:https://apis.data.go.kr}")
+    private String baseUrl;
+
+    @Value("${public-job.sync.enabled:true}")
+    private boolean syncEnabled;
+
     private static final int MAX_CONCURRENCY = 5; // 동시에 처리할 항목 수
+
+    /** 매시 정각(기본값)에 공공기관 채용공고 동기화를 자동 실행한다. 실패해도 다음 스케줄에 영향을 주지 않도록 예외를 삼킨다. */
+    @Scheduled(cron = "${public-job.sync.cron:0 0 * * * *}", zone = "Asia/Seoul")
+    public void scheduledSync() {
+        if (!syncEnabled) return;
+
+        try {
+            syncPublicJobOpenings();
+        } catch (Exception e) {
+            log.error("공공기관 채용 공고 자동 동기화 중 에러 발생", e);
+        }
+    }
 
     public void syncPublicJobOpenings() {
         // 1. 공공데이터 서비스키 중복 인코딩 방지를 위한 URI 팩토리 설정 (WebClient 재생성 대신 속성만 변경하여 사용)
-        DefaultUriBuilderFactory factory = new DefaultUriBuilderFactory(BASE_URL);
+        DefaultUriBuilderFactory factory = new DefaultUriBuilderFactory(baseUrl);
         factory.setEncodingMode(DefaultUriBuilderFactory.EncodingMode.NONE);
-        
+
         WebClient syncClient = webClient.mutate()
                 .uriBuilderFactory(factory)
-                .baseUrl(BASE_URL)
+                .baseUrl(baseUrl)
                 .build();
 
         // 2. 외부 공공 API 호출 (기재부 공공기관 채용정보 API)

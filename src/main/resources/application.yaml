@@ -83,6 +83,11 @@ api:
   data-go-kr:
     service-key: ${DATA_GO_KR_SERVICE_KEY:dummy-key-for-local}
 
+public-job:
+  sync:
+    enabled: ${PUBLIC_JOB_SYNC_ENABLED:true}
+    cron: ${PUBLIC_JOB_SYNC_CRON:0 0 * * * *}
+
 app:
   auth:
     cookie:
@@ -147,6 +152,11 @@ redis:
 api:
   data-go-kr:
     service-key: ${DATA_GO_KR_SERVICE_KEY:dummy-key-for-prod}
+
+public-job:
+  sync:
+    enabled: ${PUBLIC_JOB_SYNC_ENABLED:true}
+    cron: ${PUBLIC_JOB_SYNC_CRON:0 0 * * * *}
 
 app:
   auth:
