@@ -36,6 +36,17 @@ public class Resumes {
     @Column(name = "updated_at")
     private LocalDate updatedAt;
 
+    @Column(name = "extracted_text", columnDefinition = "TEXT")
+    private String extractedText;
+
+    @Column(name = "resume_skills", columnDefinition = "TEXT")
+    private String resumeSkills;
+
+    public void updateParsedData(String extractedText, String resumeSkills) {
+        this.extractedText = extractedText;
+        this.resumeSkills = resumeSkills;
+    }
+
     public void activate() {
         this.isActive = true;
     }
