@@ -7,6 +7,7 @@ import com.jobai.backend.domain.member.repository.MemberRepository;
 import com.jobai.backend.domain.member.repository.ResumesRepository;
 import com.jobai.backend.global.apiPayload.code.GeneralErrorCode;
 import com.jobai.backend.global.apiPayload.exception.GeneralException;
+import com.jobai.backend.domain.home.service.PrivateMatchingService;
 import com.jobai.backend.domain.search.service.EmbeddingService;
 import com.jobai.backend.global.storage.FileStorageService;
 import lombok.RequiredArgsConstructor;
@@ -32,6 +33,7 @@ public class ResumeService {
     private final FileStorageService fileStorageService;
     private final ResumeParsingService resumeParsingService;
     private final EmbeddingService embeddingService;
+    private final PrivateMatchingService privateMatchingService;
 
     public ResumeResponseDTO.ResumeListDTO getResumes(String email) {
         List<Resumes> resumes = resumesRepository.findByMemberEmailOrderByUpdatedAtDescIdDesc(email);
@@ -89,6 +91,9 @@ public class ResumeService {
                 }
             }
 
+            // 비동기 매칭 점수 계산 트리거
+            privateMatchingService.calculateScoresAsync(resumeId);
+
             return resumeId;
         } catch (Exception e) {
             // DB 저장 실패 시 S3에 올라간 파일 제거
@@ -108,6 +113,9 @@ public class ResumeService {
 
         resumesRepository.deactivateOthersByMemberId(resume.getMember().getId(), resumeId);
         resume.activate();
+
+        // 활성 이력서 변경 시 매칭 점수 재계산
+        privateMatchingService.calculateScoresAsync(resumeId);
     }
 
     @Transactional
