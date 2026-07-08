@@ -3,9 +3,13 @@ package com.jobai.backend.domain.home.service;
 import com.jobai.backend.domain.home.dto.HomeRecommendationResponse;
 import com.jobai.backend.domain.home.dto.HomeRecommendationResponse.RecommendedJob;
 import com.jobai.backend.domain.home.dto.JobCandidate;
+import com.jobai.backend.domain.home.entity.PrivateMatchScore;
 import com.jobai.backend.domain.home.repository.HomeJobCandidateRepository;
+import com.jobai.backend.domain.home.repository.PrivateMatchScoreRepository;
 import com.jobai.backend.domain.member.entity.Member;
+import com.jobai.backend.domain.member.entity.Resumes;
 import com.jobai.backend.domain.member.repository.MemberRepository;
+import com.jobai.backend.domain.member.repository.ResumesRepository;
 import com.jobai.backend.domain.notification.entity.Notification;
 import com.jobai.backend.domain.notification.repository.NotificationRepository;
 import com.jobai.backend.global.apiPayload.code.GeneralErrorCode;
@@ -16,6 +20,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 @Service
@@ -36,6 +42,8 @@ public class HomeRecommendationService {
     private final HomeJobCandidateRepository candidateRepository;
     private final NotificationRepository notificationRepository;
     private final JobMatchScorer jobMatchScorer;
+    private final ResumesRepository resumesRepository;
+    private final PrivateMatchScoreRepository privateMatchScoreRepository;
 
     public HomeRecommendationResponse getRecommendedJobs(
             String email,
@@ -78,9 +86,10 @@ public class HomeRecommendationService {
             String email, List<JobCandidate> candidates, int offset, int size
     ) {
         int matchScoreThreshold = resolveMatchScoreThreshold(email);
+        Map<Long, Integer> privateScoreMap = loadPrivateScores(email, candidates);
 
         List<ScoredCandidate> scoredCandidates = candidates.stream()
-                .map(c -> new ScoredCandidate(c, jobMatchScorer.mockScore(c.source(), c.id())))
+                .map(c -> new ScoredCandidate(c, resolveScore(c, privateScoreMap)))
                 .filter(sc -> sc.score() >= matchScoreThreshold)
                 .sorted(Comparator
                         .comparingInt(ScoredCandidate::score)
@@ -96,6 +105,40 @@ public class HomeRecommendationService {
                 .toList();
 
         return new HomeRecommendationResponse(totalCount, offset + size < totalCount, jobs);
+    }
+
+    /**
+     * 활성 이력서가 있으면 PRIVATE 공고의 AI 매칭 점수를 벌크 조회하여 Map으로 반환한다.
+     * 활성 이력서가 없거나 PRIVATE 공고가 없으면 빈 Map을 반환한다.
+     */
+    private Map<Long, Integer> loadPrivateScores(String email, List<JobCandidate> candidates) {
+        List<Long> privateJobIds = candidates.stream()
+                .filter(c -> "PRIVATE".equals(c.source()))
+                .map(JobCandidate::id)
+                .toList();
+        if (privateJobIds.isEmpty()) {
+            return Map.of();
+        }
+
+        return resumesRepository.findByMemberEmailAndIsActiveTrue(email)
+                .map(resume -> privateMatchScoreRepository
+                        .findByResumeIdAndPrivateJobPostingIdIn(resume.getId(), privateJobIds)
+                        .stream()
+                        .collect(Collectors.toMap(
+                                s -> s.getPrivateJobPosting().getId(),
+                                PrivateMatchScore::getScore
+                        )))
+                .orElse(Map.of());
+    }
+
+    private int resolveScore(JobCandidate candidate, Map<Long, Integer> privateScoreMap) {
+        if ("PRIVATE".equals(candidate.source())) {
+            Integer realScore = privateScoreMap.get(candidate.id());
+            if (realScore != null) {
+                return realScore;
+            }
+        }
+        return jobMatchScorer.mockScore(candidate.source(), candidate.id());
     }
 
     // 매칭 근거가 없는 회원(온보딩 미완료 또는 희망직무/지역 미설정): 최신순으로만 노출, matchScore는 null
