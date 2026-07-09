@@ -20,7 +20,7 @@ import java.util.Collections;
 @Configuration
 @EnableWebSecurity
 @RequiredArgsConstructor
-@Profile("local & !classify")
+@Profile("local & !classify & !collect")
 public class LocalSecurityConfig {
 
     private final CustomOAuth2UserService customOAuth2UserService;

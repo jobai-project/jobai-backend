@@ -17,4 +17,8 @@ public interface ResumesRepository extends JpaRepository<Resumes, Long> {
     @Modifying
     @Query("UPDATE Resumes r SET r.isActive = false WHERE r.member.id = :memberId AND r.id <> :excludeId")
     void deactivateOthersByMemberId(Long memberId, Long excludeId);
+
+    /** 배치 점수 산출: 활성이면서 임베딩이 생성된 이력서 전체 조회 */
+    @Query("SELECT r FROM Resumes r WHERE r.isActive = true AND r.embedding IS NOT NULL")
+    List<Resumes> findAllActiveWithEmbedding();
 }

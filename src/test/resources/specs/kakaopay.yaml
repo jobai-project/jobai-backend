@@ -32,12 +32,25 @@ fields:
   deadline: dueDate
   # 직무/근무지/경력/고용형태는 첫 포지션 객체에 중첩
   job_category: openingJobPosition.openingJobPositions[].workspaceOccupation.occupation
-  location: openingJobPosition.openingJobPositions[].workspacePlace.location
+  location: openingJobPosition.openingJobPositions[].workspacePlace.place
   career: openingJobPosition.openingJobPositions[].jobPositionCareer.careerType
   employee_type: openingJobPosition.openingJobPositions[].jobPositionEmployment.employmentType
 
 apply_url:
   template: https://kakaopay.career.greetinghr.com/ko/o/{job_id}
+
+detail:
+  enabled: true
+  source_type: embedded_json
+  url_template: https://kakaopay.career.greetinghr.com/ko/o/{job_id}
+  script_id: __NEXT_DATA__
+  select:
+    array: props.pageProps.dehydratedState.queries
+    match_field: queryKey
+    match_prefix: ["career", "getOpeningById"]
+    take: state.data.data
+  fields:
+    description: openingsInfo.detail
 
 extra:
   d_day: deadlineDDay
