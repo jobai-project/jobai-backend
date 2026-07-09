@@ -19,6 +19,8 @@ import com.jobai.backend.domain.search.repository.JobEmbeddingRepository;
 import com.jobai.backend.domain.search.service.EmbeddingService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -37,6 +39,11 @@ import java.util.stream.Collectors;
 @Service
 @RequiredArgsConstructor
 public class PrivateMatchBatchService {
+
+    /** self-injection: 프록시를 경유하여 @Transactional이 정상 동작하도록 한다. */
+    @Lazy
+    @Autowired
+    private PrivateMatchBatchService self;
 
     private final AiScoringClient aiScoringClient;
     private final PrivateJobPostingRepository privateJobPostingRepository;
@@ -89,7 +96,7 @@ public class PrivateMatchBatchService {
 
         for (Resumes resume : activeResumes) {
             try {
-                int[] counts = scoreForResume(resume, postingMap);
+                int[] counts = self.scoreForResume(resume, postingMap);
                 totalNew += counts[0];
                 totalUpdated += counts[1];
                 totalFail += counts[2];
@@ -149,16 +156,11 @@ public class PrivateMatchBatchService {
                     && existing.getCreatedAt() != null
                     && posting.getUpdatedAt().isAfter(existing.getCreatedAt())) {
                 // 변경: 공고가 점수 산출 이후 업데이트됨 → 기존 삭제 후 재산출
-                try {
-                    privateMatchScoreRepository.delete(existing);
-                    privateMatchScoreRepository.flush();
-                    calculateAndSave(resume, posting, resumeVec, resumeSkills, experienceYears);
-                    updatedCount++;
-                } catch (Exception e) {
-                    log.warn("[배치점수] 변경 재산출 실패: resumeId={}, postingId={}, error={}",
-                            resumeId, posting.getId(), e.getMessage());
-                    failCount++;
-                }
+                // try-catch 없음: 실패 시 예외가 트랜잭션 경계까지 전파되어 delete도 함께 롤백된다.
+                privateMatchScoreRepository.delete(existing);
+                privateMatchScoreRepository.flush();
+                calculateAndSave(resume, posting, resumeVec, resumeSkills, experienceYears);
+                updatedCount++;
             }
             // else: 기존 점수 존재 + 변경 없음 → skip
         }

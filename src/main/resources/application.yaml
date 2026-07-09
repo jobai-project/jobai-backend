@@ -92,6 +92,7 @@ scheduler:
   daily:
     enabled: ${DAILY_SCHEDULER_ENABLED:true}
     cron: ${DAILY_SCHEDULER_CRON:0 0 2 * * *}
+    exclude-companies: ${DAILY_SCHEDULER_EXCLUDE_COMPANIES:testco}
 
 app:
   auth:
@@ -167,6 +168,7 @@ scheduler:
   daily:
     enabled: ${DAILY_SCHEDULER_ENABLED:true}
     cron: ${DAILY_SCHEDULER_CRON:0 0 2 * * *}
+    exclude-companies: ${DAILY_SCHEDULER_EXCLUDE_COMPANIES:testco}
 
 app:
   auth:

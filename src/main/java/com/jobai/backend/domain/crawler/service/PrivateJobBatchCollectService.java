@@ -2,6 +2,7 @@ package com.jobai.backend.domain.crawler.service;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.support.PathMatchingResourcePatternResolver;
 import org.springframework.stereotype.Service;
@@ -9,6 +10,7 @@ import org.springframework.stereotype.Service;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 
 /**
  * 모든 사기업 YAML 스펙을 순회하며 일괄 수집하는 배치 서비스.
@@ -22,7 +24,9 @@ public class PrivateJobBatchCollectService {
     private final PrivateJobCollectService collectService;
 
     private static final String SPECS_PATTERN = "classpath:specs/*.yaml";
-    private static final String EXCLUDE_COMPANY = "testco";
+
+    @Value("${scheduler.daily.exclude-companies:testco}")
+    private Set<String> excludeCompanies;
 
     /**
      * resources/specs/ 디렉토리의 모든 YAML 스펙을 스캔하여 회사별로 수집한다.
@@ -64,7 +68,7 @@ public class PrivateJobBatchCollectService {
 
     /**
      * classpath:specs/*.yaml 에서 회사명(파일명)을 추출한다.
-     * testco 는 테스트 전용이므로 제외한다.
+     * {@code scheduler.daily.exclude-companies} 프로퍼티에 지정된 회사는 제외한다.
      */
     private List<String> discoverCompanies() {
         List<String> companies = new ArrayList<>();
@@ -75,7 +79,7 @@ public class PrivateJobBatchCollectService {
                 String filename = resource.getFilename();
                 if (filename == null) continue;
                 String company = filename.replace(".yaml", "");
-                if (EXCLUDE_COMPANY.equals(company)) continue;
+                if (excludeCompanies.contains(company)) continue;
                 companies.add(company);
             }
         } catch (IOException e) {

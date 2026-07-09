@@ -22,6 +22,7 @@ import reactor.core.publisher.Mono;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -51,7 +52,7 @@ class PrivateMatchBatchServiceTest {
     );
 
     @BeforeEach
-    void setUp() {
+    void setUp() throws Exception {
         aiScoringClient = Mockito.mock(AiScoringClient.class);
         privateJobPostingRepository = Mockito.mock(PrivateJobPostingRepository.class);
         jobEmbeddingRepository = Mockito.mock(JobEmbeddingRepository.class);
@@ -69,6 +70,11 @@ class PrivateMatchBatchServiceTest {
                 resumesRepository,
                 objectMapper
         );
+
+        // self-injection 필드를 리플렉션으로 설정 (단위 테스트에서는 프록시 없이 자기 자신 주입)
+        var selfField = PrivateMatchBatchService.class.getDeclaredField("self");
+        selfField.setAccessible(true);
+        selfField.set(service, service);
     }
 
     // ── 헬퍼 메서드 ──
@@ -207,7 +213,7 @@ class PrivateMatchBatchServiceTest {
         when(resumesRepository.findAllActiveWithEmbedding()).thenReturn(List.of(resume));
 
         LocalDateTime scoreCreatedAt = LocalDateTime.of(2026, 7, 1, 2, 0);
-        LocalDateTime postingUpdatedAt = LocalDateTime.of(2026, 7, 5, 10, 0); // 점수 이후 변경됨
+        LocalDateTime postingUpdatedAt = LocalDateTime.of(2026, 7, 5, 10, 0);
         PrivateJobPosting posting = createPosting("백엔드 개발자", "백엔드", postingUpdatedAt);
         when(privateJobPostingRepository.findActiveByValidCategories(VALID_CATEGORIES))
                 .thenReturn(List.of(posting));
@@ -222,12 +228,37 @@ class PrivateMatchBatchServiceTest {
         service.scoreNewAndUpdatedPostings();
 
         // 기존 점수 삭제 후 재산출
-        verify(privateMatchScoreRepository).delete(existingScore);
-        verify(privateMatchScoreRepository).flush();
-        verify(privateMatchScoreRepository).save(argThat(score -> {
+        var inOrder = inOrder(privateMatchScoreRepository);
+        inOrder.verify(privateMatchScoreRepository).delete(existingScore);
+        inOrder.verify(privateMatchScoreRepository).flush();
+        inOrder.verify(privateMatchScoreRepository).save(argThat(score -> {
             assertThat(score.getScore()).isEqualTo(90);
             return true;
         }));
+    }
+
+    @Test
+    @DisplayName("변경 재산출 중 AI 호출 실패 시 예외가 전파된다 (트랜잭션 롤백 유도)")
+    void scoreForResume_변경재산출실패_예외전파() {
+        Member member = createMember("신입");
+        Resumes resume = createResume(1L, member, dummyEmbedding(), "[\"Java\"]");
+
+        LocalDateTime scoreCreatedAt = LocalDateTime.of(2026, 7, 1, 2, 0);
+        LocalDateTime postingUpdatedAt = LocalDateTime.of(2026, 7, 5, 10, 0);
+        PrivateJobPosting posting = createPosting("백엔드 개발자", "백엔드", postingUpdatedAt);
+
+        PrivateMatchScore existingScore = createExistingScore(resume, posting, scoreCreatedAt);
+        when(privateMatchScoreRepository.findByResumeId(1L)).thenReturn(List.of(existingScore));
+
+        stubEmbedding(posting);
+        when(aiScoringClient.scorePrivate(any()))
+                .thenThrow(new RuntimeException("AI 서버 타임아웃"));
+
+        Map<Long, PrivateJobPosting> postingMap = Map.of(posting.getId(), posting);
+
+        // 변경 재산출 분기에서 예외가 전파되어야 한다 (트랜잭션 롤백 → delete도 롤백)
+        org.junit.jupiter.api.Assertions.assertThrows(RuntimeException.class,
+                () -> service.scoreForResume(resume, postingMap));
     }
 
     @Test
@@ -238,7 +269,7 @@ class PrivateMatchBatchServiceTest {
         when(resumesRepository.findAllActiveWithEmbedding()).thenReturn(List.of(resume));
 
         LocalDateTime scoreCreatedAt = LocalDateTime.of(2026, 7, 5, 2, 0);
-        LocalDateTime postingUpdatedAt = LocalDateTime.of(2026, 7, 1, 10, 0); // 점수보다 이전
+        LocalDateTime postingUpdatedAt = LocalDateTime.of(2026, 7, 1, 10, 0);
         PrivateJobPosting posting = createPosting("백엔드 개발자", "백엔드", postingUpdatedAt);
         when(privateJobPostingRepository.findActiveByValidCategories(VALID_CATEGORIES))
                 .thenReturn(List.of(posting));
@@ -248,7 +279,6 @@ class PrivateMatchBatchServiceTest {
 
         service.scoreNewAndUpdatedPostings();
 
-        // AI 호출도, 저장도 일어나지 않아야 한다
         verifyNoInteractions(aiScoringClient);
         verify(privateMatchScoreRepository, never()).save(any());
         verify(privateMatchScoreRepository, never()).delete(any());

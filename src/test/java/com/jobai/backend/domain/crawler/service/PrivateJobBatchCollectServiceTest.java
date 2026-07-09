@@ -6,10 +6,9 @@ import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 
 import java.util.List;
+import java.util.Set;
 
-import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.Mockito.*;
 
 class PrivateJobBatchCollectServiceTest {
@@ -18,9 +17,14 @@ class PrivateJobBatchCollectServiceTest {
     private PrivateJobBatchCollectService batchService;
 
     @BeforeEach
-    void setUp() {
+    void setUp() throws Exception {
         collectService = Mockito.mock(PrivateJobCollectService.class);
         batchService = new PrivateJobBatchCollectService(collectService);
+
+        // @Value 필드를 리플렉션으로 설정
+        var field = PrivateJobBatchCollectService.class.getDeclaredField("excludeCompanies");
+        field.setAccessible(true);
+        field.set(batchService, Set.of("testco"));
     }
 
     @Test
@@ -54,14 +58,12 @@ class PrivateJobBatchCollectServiceTest {
         batchService.collectAll();
 
         // 실패한 회사 이후에도 나머지 회사에 대해 호출이 계속 되어야 한다
-        // specs 디렉토리에 14개 회사가 있으므로 (testco 제외) 14번 호출
         verify(collectService, atLeast(2)).collectAndSave(anyString());
     }
 
     @Test
     @DisplayName("수집 결과 건수가 정확히 합산된다")
     void collectAll_결과합산() {
-        // 어떤 회사든 호출되면 결과를 반환 (로그에서 확인 가능)
         when(collectService.collectAndSave(anyString()))
                 .thenReturn(new SaveResult(List.of(), 1, 0));
 
