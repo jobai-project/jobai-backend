@@ -12,4 +12,7 @@ public interface PrivateMatchScoreRepository extends JpaRepository<PrivateMatchS
 
     /** 이력서 변경 시 기존 점수를 삭제한다. */
     void deleteByResumeId(Long resumeId);
+
+    /** 배치 점수 산출: 특정 이력서의 기존 점수를 공고 ID 포함하여 조회 (신규/변경 판단용) */
+    List<PrivateMatchScore> findByResumeId(Long resumeId);
 }

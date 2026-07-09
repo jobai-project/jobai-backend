@@ -88,6 +88,12 @@ public-job:
     enabled: ${PUBLIC_JOB_SYNC_ENABLED:true}
     cron: ${PUBLIC_JOB_SYNC_CRON:0 0 * * * *}
 
+scheduler:
+  daily:
+    enabled: ${DAILY_SCHEDULER_ENABLED:true}
+    cron: ${DAILY_SCHEDULER_CRON:0 0 2 * * *}
+    exclude-companies: ${DAILY_SCHEDULER_EXCLUDE_COMPANIES:testco}
+
 app:
   auth:
     cookie:
@@ -157,6 +163,12 @@ public-job:
   sync:
     enabled: ${PUBLIC_JOB_SYNC_ENABLED:true}
     cron: ${PUBLIC_JOB_SYNC_CRON:0 0 * * * *}
+
+scheduler:
+  daily:
+    enabled: ${DAILY_SCHEDULER_ENABLED:true}
+    cron: ${DAILY_SCHEDULER_CRON:0 0 2 * * *}
+    exclude-companies: ${DAILY_SCHEDULER_EXCLUDE_COMPANIES:testco}
 
 app:
   auth:
