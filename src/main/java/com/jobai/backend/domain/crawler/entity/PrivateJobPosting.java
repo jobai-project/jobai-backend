@@ -1,5 +1,7 @@
 package com.jobai.backend.domain.crawler.entity;
 
+import com.jobai.backend.domain.crawler.classify.EmploymentType;
+import com.jobai.backend.domain.crawler.classify.ExperienceLevel;
 import com.jobai.backend.domain.crawler.classify.JobCategory;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
@@ -44,6 +46,7 @@ public class PrivateJobPosting {
     private String location;           // 근무지역
     private String employmentType;     // 고용형태
     private String jobCategory;        // 직무 분류
+    private String experienceLevel;    // 경력 구분 (신입/경력/무관/미확인)
 
     @Column(columnDefinition = "TEXT")
     private String description;        // 공고 본문 (상세)
@@ -127,5 +130,19 @@ public class PrivateJobPosting {
      */
     public void classifyAs(JobCategory category) {
         this.jobCategory = Objects.requireNonNull(category, "category").getLabel();
+    }
+
+    /**
+     * 크롤러 raw값 정규화 또는 LLM 분류 결과를 반영한다.
+     */
+    public void setNormalizedEmploymentType(EmploymentType type) {
+        this.employmentType = Objects.requireNonNull(type, "employmentType").getLabel();
+    }
+
+    /**
+     * LLM 경력 분류 결과를 반영한다.
+     */
+    public void setExperienceLevel(ExperienceLevel level) {
+        this.experienceLevel = Objects.requireNonNull(level, "experienceLevel").getLabel();
     }
 }

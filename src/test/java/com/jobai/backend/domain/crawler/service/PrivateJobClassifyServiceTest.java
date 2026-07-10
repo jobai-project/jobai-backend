@@ -1,7 +1,10 @@
 package com.jobai.backend.domain.crawler.service;
 
+import com.jobai.backend.domain.crawler.classify.EmploymentType;
+import com.jobai.backend.domain.crawler.classify.ExperienceLevel;
 import com.jobai.backend.domain.crawler.classify.JobCategory;
 import com.jobai.backend.domain.crawler.classify.JobClassifier;
+import com.jobai.backend.domain.crawler.classify.JobClassifier.ClassificationResult;
 import com.jobai.backend.domain.crawler.entity.PrivateJobPosting;
 import com.jobai.backend.domain.crawler.repository.PrivateJobPostingRepository;
 import org.junit.jupiter.api.DisplayName;
@@ -59,13 +62,40 @@ class PrivateJobClassifyServiceTest {
                 .thenReturn(new PageImpl<>(List.of(p1, p2)))
                 .thenReturn(new PageImpl<>(List.of()));
         when(jobClassifier.classify(anyList()))
-                .thenReturn(List.of(JobCategory.BACKEND, JobCategory.NON_TARGET));
+                .thenReturn(List.of(
+                        new ClassificationResult(JobCategory.BACKEND, EmploymentType.FULL_TIME, ExperienceLevel.UNKNOWN),
+                        new ClassificationResult(JobCategory.NON_TARGET, EmploymentType.UNKNOWN, ExperienceLevel.UNKNOWN)));
 
         int total = service.classifyUnclassified(100);
 
         assertThat(total).isEqualTo(2);
         assertThat(p1.getJobCategory()).isEqualTo("백엔드");
         assertThat(p2.getJobCategory()).isEqualTo("비대상");
+        assertThat(p1.getEmploymentType()).isEqualTo("정규직");
+        assertThat(p1.getExperienceLevel()).isEqualTo("미확인");
+    }
+
+    @Test
+    @DisplayName("고용형태/경력 미분류 공고를 재분류한다")
+    void classifiesMissingEmploymentTypes() {
+        PrivateJobPosting p1 = posting("백엔드 개발자");
+        PrivateJobPosting p2 = posting("프론트 개발자");
+
+        when(repository.findNeedsEmploymentTypeClassification(anyList(), any(Pageable.class)))
+                .thenReturn(new PageImpl<>(List.of(p1, p2)))
+                .thenReturn(new PageImpl<>(List.of()));
+        when(jobClassifier.classify(anyList()))
+                .thenReturn(List.of(
+                        new ClassificationResult(JobCategory.BACKEND, EmploymentType.FULL_TIME, ExperienceLevel.EXPERIENCED),
+                        new ClassificationResult(JobCategory.FRONTEND, EmploymentType.INTERN, ExperienceLevel.NEWCOMER)));
+
+        int total = service.classifyMissingEmploymentTypes(100);
+
+        assertThat(total).isEqualTo(2);
+        assertThat(p1.getEmploymentType()).isEqualTo("정규직");
+        assertThat(p1.getExperienceLevel()).isEqualTo("경력");
+        assertThat(p2.getEmploymentType()).isEqualTo("인턴");
+        assertThat(p2.getExperienceLevel()).isEqualTo("신입");
     }
 
     @Test

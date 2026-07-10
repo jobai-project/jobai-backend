@@ -9,7 +9,7 @@ import org.springframework.stereotype.Service;
 
 @Service
 @RequiredArgsConstructor
-@Profile("!classify & !export & !collect")
+@Profile("!classify & !export & !collect & !local")
 public class JobBloomFilterService {
 
     private static final String JOB_BLOOM_FILTER_NAME = "job:posting:bloom";

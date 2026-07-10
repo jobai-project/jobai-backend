@@ -8,6 +8,8 @@ public record SearchCondition(
         List<String> titleKeywords,
         String location,
         String experience,
+        List<String> experienceLevels,
+        List<String> employmentTypes,
         String method
 ) {
     public static final String METHOD_KEYWORD = "KEYWORD";

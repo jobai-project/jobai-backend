@@ -43,7 +43,15 @@ public class JobSearchRepository {
         }
 
         if (hasText(condition.location())) {
-            predicates.add("LOWER(p.location) LIKE :locationPattern");
+            predicates.add("(LOWER(p.location) LIKE :locationPattern OR p.location IS NULL)");
+        }
+        boolean hasExpLevels = condition.experienceLevels() != null && !condition.experienceLevels().isEmpty();
+        if (hasExpLevels) {
+            predicates.add("(p.experienceLevel IN :expLevels OR p.experienceLevel IS NULL)");
+        }
+        boolean hasEmpTypes = condition.employmentTypes() != null && !condition.employmentTypes().isEmpty();
+        if (hasEmpTypes) {
+            predicates.add("(p.employmentType IN :empTypes OR p.employmentType IS NULL)");
         }
 
         for (String pred : predicates) {
@@ -66,6 +74,12 @@ public class JobSearchRepository {
         if (hasText(condition.location())) {
             query.setParameter("locationPattern", "%" + condition.location().trim().toLowerCase() + "%");
         }
+        if (hasExpLevels) {
+            query.setParameter("expLevels", condition.experienceLevels());
+        }
+        if (hasEmpTypes) {
+            query.setParameter("empTypes", condition.employmentTypes());
+        }
 
         query.setFirstResult(offset);
         query.setMaxResults(limit);
@@ -85,7 +99,8 @@ public class JobSearchRepository {
                         p.getEmploymentType(),
                         p.getApplyUrl(),
                         p.getDeadline(),
-                        p.getCreatedAt()
+                        p.getCreatedAt(),
+                        determineMatchType(condition, p.getLocation(), p.getExperienceLevel(), p.getEmploymentType())
                 ))
                 .toList();
     }
@@ -122,6 +137,10 @@ public class JobSearchRepository {
         if (hasText(condition.experience())) {
             predicates.add("LOWER(p.workExperience) LIKE :experiencePattern");
         }
+        boolean hasEmpTypes = condition.employmentTypes() != null && !condition.employmentTypes().isEmpty();
+        if (hasEmpTypes) {
+            predicates.add("(p.recrutType IN :empTypes OR p.recrutType IS NULL)");
+        }
 
         for (String pred : predicates) {
             jpql.append(" AND ").append(pred);
@@ -142,6 +161,9 @@ public class JobSearchRepository {
         if (hasText(condition.experience())) {
             query.setParameter("experiencePattern", "%" + condition.experience().trim().toLowerCase() + "%");
         }
+        if (hasEmpTypes) {
+            query.setParameter("empTypes", condition.employmentTypes());
+        }
 
         query.setFirstResult(offset);
         query.setMaxResults(limit);
@@ -161,7 +183,8 @@ public class JobSearchRepository {
                         p.getRecrutType(),
                         p.getApplyLink(),
                         p.getEndDate(),
-                        p.getCreatedAt()
+                        p.getCreatedAt(),
+                        determinePublicMatchType(condition, p.getWorkRegion(), p.getRecrutType())
                 ))
                 .toList();
     }
@@ -190,7 +213,15 @@ public class JobSearchRepository {
         }
 
         if (hasText(condition.location())) {
-            predicates.add("LOWER(p.location) LIKE :locationPattern");
+            predicates.add("(LOWER(p.location) LIKE :locationPattern OR p.location IS NULL)");
+        }
+        boolean hasExpLevels = condition.experienceLevels() != null && !condition.experienceLevels().isEmpty();
+        if (hasExpLevels) {
+            predicates.add("(p.experienceLevel IN :expLevels OR p.experienceLevel IS NULL)");
+        }
+        boolean hasEmpTypes = condition.employmentTypes() != null && !condition.employmentTypes().isEmpty();
+        if (hasEmpTypes) {
+            predicates.add("(p.employmentType IN :empTypes OR p.employmentType IS NULL)");
         }
 
         for (String pred : predicates) {
@@ -210,6 +241,12 @@ public class JobSearchRepository {
         }
         if (hasText(condition.location())) {
             query.setParameter("locationPattern", "%" + condition.location().trim().toLowerCase() + "%");
+        }
+        if (hasExpLevels) {
+            query.setParameter("expLevels", condition.experienceLevels());
+        }
+        if (hasEmpTypes) {
+            query.setParameter("empTypes", condition.employmentTypes());
         }
 
         return query.getSingleResult();
@@ -246,6 +283,10 @@ public class JobSearchRepository {
         if (hasText(condition.experience())) {
             predicates.add("LOWER(p.workExperience) LIKE :experiencePattern");
         }
+        boolean hasEmpTypes = condition.employmentTypes() != null && !condition.employmentTypes().isEmpty();
+        if (hasEmpTypes) {
+            predicates.add("(p.recrutType IN :empTypes OR p.recrutType IS NULL)");
+        }
 
         for (String pred : predicates) {
             jpql.append(" AND ").append(pred);
@@ -264,8 +305,47 @@ public class JobSearchRepository {
         if (hasText(condition.experience())) {
             query.setParameter("experiencePattern", "%" + condition.experience().trim().toLowerCase() + "%");
         }
+        if (hasEmpTypes) {
+            query.setParameter("empTypes", condition.employmentTypes());
+        }
 
         return query.getSingleResult();
+    }
+
+    private static String determineMatchType(SearchCondition condition,
+                                               String actualLocation,
+                                               String actualExpLevel, String actualEmpType) {
+        if (hasText(condition.location()) && (actualLocation == null
+                || !actualLocation.toLowerCase().contains(condition.location().trim().toLowerCase()))) {
+            return "SIMILAR";
+        }
+        boolean hasExpFilter = condition.experienceLevels() != null && !condition.experienceLevels().isEmpty();
+        boolean hasEmpFilter = condition.employmentTypes() != null && !condition.employmentTypes().isEmpty();
+
+        if (hasExpFilter && (actualExpLevel == null
+                || "미확인".equals(actualExpLevel)
+                || !condition.experienceLevels().contains(actualExpLevel))) {
+            return "SIMILAR";
+        }
+        if (hasEmpFilter && (actualEmpType == null
+                || "미확인".equals(actualEmpType)
+                || !condition.employmentTypes().contains(actualEmpType))) {
+            return "SIMILAR";
+        }
+        return "EXACT";
+    }
+
+    private static String determinePublicMatchType(SearchCondition condition,
+                                                     String actualLocation, String actualRecrutType) {
+        if (hasText(condition.location()) && (actualLocation == null
+                || !actualLocation.toLowerCase().contains(condition.location().trim().toLowerCase()))) {
+            return "SIMILAR";
+        }
+        boolean hasEmpFilter = condition.employmentTypes() != null && !condition.employmentTypes().isEmpty();
+        if (hasEmpFilter && (actualRecrutType == null || !condition.employmentTypes().contains(actualRecrutType))) {
+            return "SIMILAR";
+        }
+        return "EXACT";
     }
 
     private static boolean hasText(String value) {

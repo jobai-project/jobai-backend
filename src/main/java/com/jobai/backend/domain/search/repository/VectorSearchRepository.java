@@ -31,7 +31,8 @@ public class VectorSearchRepository {
         StringBuilder sql = new StringBuilder("""
             SELECT p.id, p.title, p.company, p.location, p.job_category,
                    p.employment_type, p.apply_url, p.deadline, p.created_at,
-                   (e.embedding <=> cast(:queryEmbedding as vector)) AS distance
+                   (e.embedding <=> cast(:queryEmbedding as vector)) AS distance,
+                   p.experience_level
             FROM private_job_postings p
             JOIN job_embeddings e ON e.source = 'PRIVATE' AND e.source_id = p.id
             WHERE p.is_closed = false
@@ -45,7 +46,15 @@ public class VectorSearchRepository {
             sql.append(" AND p.job_category IN (:categories)");
         }
         if (hasText(condition.location())) {
-            sql.append(" AND LOWER(p.location) LIKE :locationPattern");
+            sql.append(" AND (LOWER(p.location) LIKE :locationPattern OR p.location IS NULL)");
+        }
+        boolean hasExpLevels = condition.experienceLevels() != null && !condition.experienceLevels().isEmpty();
+        if (hasExpLevels) {
+            sql.append(" AND (p.experience_level IN (:expLevels) OR p.experience_level IS NULL)");
+        }
+        boolean hasEmpTypes = condition.employmentTypes() != null && !condition.employmentTypes().isEmpty();
+        if (hasEmpTypes) {
+            sql.append(" AND (p.employment_type IN (:empTypes) OR p.employment_type IS NULL)");
         }
 
         sql.append(" ORDER BY distance LIMIT :limit OFFSET :offset");
@@ -58,6 +67,12 @@ public class VectorSearchRepository {
         }
         if (hasText(condition.location())) {
             query.setParameter("locationPattern", "%" + condition.location().trim().toLowerCase() + "%");
+        }
+        if (hasExpLevels) {
+            query.setParameter("expLevels", condition.experienceLevels());
+        }
+        if (hasEmpTypes) {
+            query.setParameter("empTypes", condition.employmentTypes());
         }
         query.setParameter("limit", limit);
         query.setParameter("offset", offset);
@@ -77,7 +92,8 @@ public class VectorSearchRepository {
                                 (String) row[5],
                                 (String) row[6],
                                 row[7] != null ? ((java.sql.Date) row[7]).toLocalDate() : null,
-                                row[8] != null ? ((java.sql.Timestamp) row[8]).toLocalDateTime() : null
+                                row[8] != null ? ((java.sql.Timestamp) row[8]).toLocalDateTime() : null,
+                                determineMatchType(condition, (String) row[3], (String) row[10], (String) row[5])
                         ),
                         ((Number) row[9]).doubleValue()
                 ))
@@ -134,7 +150,8 @@ public class VectorSearchRepository {
                                 (String) row[4],
                                 (String) row[5],
                                 row[6] != null ? ((java.sql.Date) row[6]).toLocalDate() : null,
-                                row[7] != null ? ((java.sql.Timestamp) row[7]).toLocalDateTime() : null
+                                row[7] != null ? ((java.sql.Timestamp) row[7]).toLocalDateTime() : null,
+                                determinePublicMatchType(condition, (String) row[3], (String) row[4])
                         ),
                         ((Number) row[8]).doubleValue()
                 ))
@@ -158,7 +175,15 @@ public class VectorSearchRepository {
             sql.append(" AND p.job_category IN (:categories)");
         }
         if (hasText(condition.location())) {
-            sql.append(" AND LOWER(p.location) LIKE :locationPattern");
+            sql.append(" AND (LOWER(p.location) LIKE :locationPattern OR p.location IS NULL)");
+        }
+        boolean hasExpLevels = condition.experienceLevels() != null && !condition.experienceLevels().isEmpty();
+        if (hasExpLevels) {
+            sql.append(" AND (p.experience_level IN (:expLevels) OR p.experience_level IS NULL)");
+        }
+        boolean hasEmpTypes = condition.employmentTypes() != null && !condition.employmentTypes().isEmpty();
+        if (hasEmpTypes) {
+            sql.append(" AND (p.employment_type IN (:empTypes) OR p.employment_type IS NULL)");
         }
 
         Query query = em.createNativeQuery(sql.toString());
@@ -169,6 +194,12 @@ public class VectorSearchRepository {
         }
         if (hasText(condition.location())) {
             query.setParameter("locationPattern", "%" + condition.location().trim().toLowerCase() + "%");
+        }
+        if (hasExpLevels) {
+            query.setParameter("expLevels", condition.experienceLevels());
+        }
+        if (hasEmpTypes) {
+            query.setParameter("empTypes", condition.employmentTypes());
         }
 
         return ((Number) query.getSingleResult()).longValue();
@@ -213,6 +244,41 @@ public class VectorSearchRepository {
         }
         sb.append("]");
         return sb.toString();
+    }
+
+    private static String determineMatchType(SearchCondition condition,
+                                               String actualLocation,
+                                               String actualExpLevel, String actualEmpType) {
+        if (hasText(condition.location()) && (actualLocation == null
+                || !actualLocation.toLowerCase().contains(condition.location().trim().toLowerCase()))) {
+            return "SIMILAR";
+        }
+        boolean hasExpFilter = condition.experienceLevels() != null && !condition.experienceLevels().isEmpty();
+        if (hasExpFilter && (actualExpLevel == null
+                || "미확인".equals(actualExpLevel)
+                || !condition.experienceLevels().contains(actualExpLevel))) {
+            return "SIMILAR";
+        }
+        boolean hasEmpFilter = condition.employmentTypes() != null && !condition.employmentTypes().isEmpty();
+        if (hasEmpFilter && (actualEmpType == null
+                || "미확인".equals(actualEmpType)
+                || !condition.employmentTypes().contains(actualEmpType))) {
+            return "SIMILAR";
+        }
+        return "EXACT";
+    }
+
+    private static String determinePublicMatchType(SearchCondition condition,
+                                                     String actualLocation, String actualRecrutType) {
+        if (hasText(condition.location()) && (actualLocation == null
+                || !actualLocation.toLowerCase().contains(condition.location().trim().toLowerCase()))) {
+            return "SIMILAR";
+        }
+        boolean hasEmpFilter = condition.employmentTypes() != null && !condition.employmentTypes().isEmpty();
+        if (hasEmpFilter && (actualRecrutType == null || !condition.employmentTypes().contains(actualRecrutType))) {
+            return "SIMILAR";
+        }
+        return "EXACT";
     }
 
     private static boolean hasText(String value) {

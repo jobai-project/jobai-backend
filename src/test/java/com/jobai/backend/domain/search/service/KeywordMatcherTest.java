@@ -252,4 +252,55 @@ class KeywordMatcherTest {
         assertThat(result.location()).isEqualTo("서울");
         assertThat(result.hasUnmatchedTokens()).isFalse();
     }
+
+    // --- experienceLevels / employmentTypes 파생 ---
+
+    @Test
+    @DisplayName("신입 검색 → experienceLevels=[신입, 무관, 미확인]")
+    void extract_신입_experienceLevels() {
+        MatchResult result = matcher.extract("신입");
+
+        assertThat(result.experience()).isEqualTo("신입");
+        assertThat(result.experienceLevels()).containsExactly("신입", "무관", "미확인");
+        assertThat(result.employmentTypes()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("경력 검색 → experienceLevels=[경력, 무관, 미확인]")
+    void extract_경력_experienceLevels() {
+        MatchResult result = matcher.extract("경력");
+
+        assertThat(result.experience()).isEqualTo("경력");
+        assertThat(result.experienceLevels()).containsExactly("경력", "무관", "미확인");
+        assertThat(result.employmentTypes()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("인턴 검색 → employmentTypes=[인턴], experienceLevels 없음")
+    void extract_인턴_employmentType() {
+        MatchResult result = matcher.extract("인턴");
+
+        assertThat(result.employmentTypes()).containsExactly("인턴");
+        assertThat(result.experienceLevels()).isEmpty();
+        assertThat(result.experience()).isNull();
+    }
+
+    @Test
+    @DisplayName("서울 신입 백엔드 → 카테고리 + 지역 + experienceLevels 모두 설정")
+    void extract_복합_experienceLevels() {
+        MatchResult result = matcher.extract("서울 신입 백엔드");
+
+        assertThat(result.categories()).contains("백엔드");
+        assertThat(result.location()).isEqualTo("서울");
+        assertThat(result.experience()).isEqualTo("신입");
+        assertThat(result.experienceLevels()).containsExactly("신입", "무관", "미확인");
+    }
+
+    @Test
+    @DisplayName("계약직 검색 → employmentTypes=[계약직]")
+    void extract_계약직_employmentType() {
+        MatchResult result = matcher.extract("계약직");
+
+        assertThat(result.employmentTypes()).containsExactly("계약직");
+    }
 }

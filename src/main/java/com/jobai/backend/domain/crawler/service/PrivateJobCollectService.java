@@ -106,16 +106,21 @@ public class PrivateJobCollectService {
                 .toList();
 
         try {
-            List<JobCategory> categories = jobClassifier.classify(titles);
+            List<JobClassifier.ClassificationResult> classResults = jobClassifier.classify(titles);
 
             int classified = 0;
             for (int i = 0; i < inserted.size(); i++) {
-                JobCategory category = categories.get(i);
-                if (category == null) {
+                JobClassifier.ClassificationResult classResult = classResults.get(i);
+                if (classResult == null) {
                     continue;   // 호출 실패분 → jobCategory 안 건드림(다음에 재분류)
                 }
-                inserted.get(i).classifyAs(category);
-                if (category.isMatchTarget()) classified++;
+                PrivateJobPosting posting = inserted.get(i);
+                posting.classifyAs(classResult.category());
+                if (classResult.category().isMatchTarget()) classified++;
+                if (posting.getEmploymentType() == null || posting.getEmploymentType().isBlank()) {
+                    posting.setNormalizedEmploymentType(classResult.employmentType());
+                }
+                posting.setExperienceLevel(classResult.experienceLevel());
             }
             savingService.saveClassified(inserted);
 

@@ -35,7 +35,9 @@ public record JobSearchResponse(
             @Schema(description = "마감일 (없으면 null)", example = "2026-07-16", nullable = true)
             LocalDate deadline,
             @Schema(description = "공고 등록/수집 일시")
-            LocalDateTime createdAt
+            LocalDateTime createdAt,
+            @Schema(description = "매칭 유형. EXACT=모든 필터 충족, SIMILAR=일부 필터 미충족(null 포함)", example = "EXACT")
+            String matchType
     ) {}
 
     public record SearchInfo(
