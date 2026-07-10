@@ -223,6 +223,6 @@ class JobSearchServiceTest {
     private static JobSummary createJobSummary(Long id, String source, String title,
                                                 LocalDateTime createdAt) {
         return new JobSummary(id, source, title, "회사", "서울", "백엔드",
-                "정규직", "https://apply.example.com", null, createdAt, "EXACT");
+                "정규직", "신입", "https://apply.example.com", null, createdAt, "EXACT");
     }
 }

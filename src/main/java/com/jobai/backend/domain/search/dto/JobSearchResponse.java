@@ -28,8 +28,10 @@ public record JobSearchResponse(
             String location,
             @Schema(description = "직무 분류 (사기업만 제공, 공기업은 null)", example = "백엔드", nullable = true)
             String jobCategory,
-            @Schema(description = "고용형태", example = "경력")
+            @Schema(description = "고용형태", example = "정규직", nullable = true)
             String employmentType,
+            @Schema(description = "경력 구분", example = "신입", nullable = true)
+            String experienceLevel,
             @Schema(description = "지원 링크", example = "https://careers.kakao.com/jobs/P-14472")
             String applyUrl,
             @Schema(description = "마감일 (없으면 null)", example = "2026-07-16", nullable = true)

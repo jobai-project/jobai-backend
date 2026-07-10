@@ -15,6 +15,7 @@ java {
 
 repositories {
 	mavenCentral()
+	maven { url 'https://jitpack.io' }
 }
 
 ext {
@@ -110,6 +111,9 @@ dependencies {
 	testImplementation 'org.springframework.security:spring-security-test'
 
 	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+
+	// ── NLP (한국어 형태소 분석) ─────────────────────────────────
+	implementation 'com.github.shin285:KOMORAN:3.3.9'
 
 	// ── Jsoup ─────────────────────────────────────────────────
 	implementation 'org.jsoup:jsoup:1.18.1'
