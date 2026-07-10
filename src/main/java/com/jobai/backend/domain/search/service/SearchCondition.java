@@ -2,6 +2,7 @@ package com.jobai.backend.domain.search.service;
 
 import java.util.List;
 
+// 나중에 점수 추가
 public record SearchCondition(
         List<String> categories,
         List<String> fallbackCategories,

@@ -169,10 +169,8 @@ class KeywordMatcherTest {
 
         assertThat(result.categories()).contains("백엔드");
         assertThat(result.location()).isEqualTo("서울");
+        // Komoran이 동사/형용사/부사를 POS 태그로 자동 필터링
         assertThat(result.hasUnmatchedTokens()).isTrue();
-        assertThat(result.unmatchedTokens()).contains("혼자", "일하기");
-        // "쉬운"은 불용어로 필터링
-        assertThat(result.unmatchedTokens()).doesNotContain("쉬운");
     }
 
     @Test
@@ -192,8 +190,8 @@ class KeywordMatcherTest {
         assertThat(result.categories()).isEmpty();
         assertThat(result.location()).isNull();
         assertThat(result.experience()).isNull();
+        // Komoran이 동사/형용사를 POS 태그로 필터링, 명사 불용어("직무") 제거 후 남은 토큰으로 판단
         assertThat(result.hasUnmatchedTokens()).isTrue();
-        assertThat(result.unmatchedTokens()).contains("혼자", "일하기");
     }
 
     @Test
@@ -302,5 +300,35 @@ class KeywordMatcherTest {
         MatchResult result = matcher.extract("계약직");
 
         assertThat(result.employmentTypes()).containsExactly("계약직");
+    }
+
+    // --- Komoran 형태소 분석 자연어 검색 ---
+
+    @Test
+    @DisplayName("자연어 문장: '난 신입이고, 인프라쪽으로 취업하고 싶어' → 신입 + DevOps/인프라")
+    void extract_자연어문장_신입_인프라() {
+        MatchResult result = matcher.extract("난 신입이고, 인프라쪽으로 취업하고 싶어");
+
+        assertThat(result.experience()).isEqualTo("신입");
+        assertThat(result.categories()).contains("DevOps/인프라");
+        assertThat(result.hasUnmatchedTokens()).isFalse();
+    }
+
+    @Test
+    @DisplayName("자연어 문장: '서울에서의 백엔드를' → 서울 + 백엔드")
+    void extract_복합조사_komoran() {
+        MatchResult result = matcher.extract("서울에서의 백엔드를");
+
+        assertThat(result.location()).isEqualTo("서울");
+        assertThat(result.categories()).contains("백엔드");
+        assertThat(result.hasUnmatchedTokens()).isFalse();
+    }
+
+    @Test
+    @DisplayName("영문 혼합 자연어: 'react spring 백엔드' → 프론트엔드 + 백엔드")
+    void extract_영문혼합_자연어() {
+        MatchResult result = matcher.extract("react spring 백엔드");
+
+        assertThat(result.categories()).contains("프론트엔드", "백엔드");
     }
 }

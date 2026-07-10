@@ -1,8 +1,16 @@
 package com.jobai.backend.domain.search.service;
 
 import com.jobai.backend.domain.crawler.classify.JobCategory;
+import kr.co.shineware.nlp.komoran.constant.DEFAULT_MODEL;
+import kr.co.shineware.nlp.komoran.core.Komoran;
+import kr.co.shineware.nlp.komoran.model.KomoranResult;
+import kr.co.shineware.util.common.model.Pair;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.*;
 import java.util.regex.Pattern;
 
@@ -11,19 +19,29 @@ import java.util.regex.Pattern;
  * 매칭되지 않은 토큰을 분류하는 컴포넌트.
  * 한글 조사 제거, 불용어 필터링을 수행한다.
  */
+@Slf4j
 @Component
 public class KeywordMatcher {
 
+    private final Komoran komoran;
     private final Map<String, JobCategory> categorySynonyms = new HashMap<>();
     private final Map<String, String> locationKeywords = new HashMap<>();
     private final Map<String, String> experienceKeywords = new HashMap<>();
     private final Map<String, String> employmentTypeKeywords = new HashMap<>();
 
-    private static final Set<String> STOPWORDS = Set.of(
+    /** Komoran POS 태그 중 키워드 매칭 대상이 되는 콘텐츠 형태소 */
+    private static final Set<String> CONTENT_POS_TAGS = Set.of(
+            "NNG",  // 일반명사: 백엔드, 서울, 신입
+            "NNP",  // 고유명사: 판교
+            "SL",   // 외국어: react, java, spring
+            "SH",   // 한자어
+            "SN"    // 숫자
+    );
+
+    /** 명사이지만 검색 키워드로 의미 없는 불용어 */
+    private static final Set<String> NOUN_STOPWORDS = Set.of(
             "채용", "모집", "구인", "공고", "직무", "직종", "분야", "관련", "포지션",
-            "하는", "있는", "없는", "좋은", "쉬운", "편한",
-            "취업", "일자리", "구직", "찾는", "싶어", "싶은", "원해",
-            "나", "난", "저", "제", "하고", "해서", "합니다", "해요"
+            "취업", "일자리", "구직"
     );
 
     // 구두점 제거 패턴: 토큰 양끝의 쉼표, 마침표 등 제거
@@ -41,18 +59,19 @@ public class KeywordMatcher {
         initLocationKeywords();
         initExperienceKeywords();
         initEmploymentTypeKeywords();
+        this.komoran = initKomoran();
     }
 
     /**
      * 쿼리에서 카테고리/지역/경력을 추출하고, 매칭되지 않은 토큰도 함께 반환한다.
+     * Komoran 형태소 분석기를 사용하여 조사/어미를 자동 분리한다.
      */
     public MatchResult extract(String query) {
         if (query == null || query.isBlank()) {
             return MatchResult.empty();
         }
 
-        String normalized = query.toLowerCase().trim();
-        String[] tokens = normalized.split("\\s+");
+        List<String> tokens = extractMorphemes(query);
 
         Set<JobCategory> matchedCategories = new LinkedHashSet<>();
         String matchedLocation = null;
@@ -61,11 +80,11 @@ public class KeywordMatcher {
         List<String> unmatchedTokens = new ArrayList<>();
 
         // 인접 토큰 결합(bigram) 매칭을 위해 소비 여부 추적
-        boolean[] consumed = new boolean[tokens.length];
+        boolean[] consumed = new boolean[tokens.size()];
 
-        // 1차: bigram 매칭 (인접 2개 토큰을 합쳐서 phrase 매칭)
-        for (int i = 0; i < tokens.length - 1; i++) {
-            String combined = stripParticles(tokens[i]) + stripParticles(tokens[i + 1]);
+        // 1차: bigram 매칭 (인접 2개 형태소를 합쳐서 phrase 매칭)
+        for (int i = 0; i < tokens.size() - 1; i++) {
+            String combined = tokens.get(i) + tokens.get(i + 1);
             JobCategory category = categorySynonyms.get(combined);
             if (category != null) {
                 matchedCategories.add(category);
@@ -75,41 +94,36 @@ public class KeywordMatcher {
         }
 
         // 2차: 단일 토큰 매칭 (bigram에서 소비되지 않은 토큰만)
-        for (int i = 0; i < tokens.length; i++) {
+        for (int i = 0; i < tokens.size(); i++) {
             if (consumed[i]) continue;
 
-            String rawToken = tokens[i];
-            String stripped = stripParticles(rawToken);
+            String token = tokens.get(i);
 
-            JobCategory category = findCategory(stripped, rawToken);
+            JobCategory category = categorySynonyms.get(token);
             if (category != null) {
                 matchedCategories.add(category);
                 continue;
             }
 
-            String location = findLocation(stripped, rawToken);
+            String location = locationKeywords.get(token);
             if (location != null) {
                 matchedLocation = location;
                 continue;
             }
 
-            String experience = findExperience(stripped, rawToken);
+            String experience = experienceKeywords.get(token);
             if (experience != null) {
                 matchedExperience = experience;
                 continue;
             }
 
-            String empType = findEmploymentType(stripped, rawToken);
+            String empType = employmentTypeKeywords.get(token);
             if (empType != null) {
                 matchedEmploymentType = empType;
                 continue;
             }
 
-            // 불용어 제거
-            if (!STOPWORDS.contains(stripped) && !STOPWORDS.contains(rawToken)
-                    && !stripped.isBlank()) {
-                unmatchedTokens.add(rawToken);
-            }
+            unmatchedTokens.add(token);
         }
 
         List<String> categoryLabels = matchedCategories.stream()
@@ -121,6 +135,29 @@ public class KeywordMatcher {
 
         return new MatchResult(categoryLabels, matchedLocation, matchedExperience,
                 expLevels, empTypes, unmatchedTokens);
+    }
+
+    /** Komoran으로 형태소 분석 후 콘텐츠 형태소(명사/외국어)만 추출한다. */
+    private List<String> extractMorphemes(String text) {
+        KomoranResult result = komoran.analyze(text.trim());
+        List<String> tokens = new ArrayList<>();
+        for (Pair<String, String> pair : result.getList()) {
+            if (!CONTENT_POS_TAGS.contains(pair.getSecond())) continue;
+            String morpheme = pair.getFirst().toLowerCase();
+            if (morpheme.isBlank() || NOUN_STOPWORDS.contains(morpheme)) continue;
+
+            // Komoran이 공백 포함 복합어를 하나의 토큰으로 반환하는 경우 분리
+            if (morpheme.contains(" ")) {
+                for (String sub : morpheme.split("\\s+")) {
+                    if (!sub.isBlank() && !NOUN_STOPWORDS.contains(sub)) {
+                        tokens.add(sub);
+                    }
+                }
+            } else {
+                tokens.add(morpheme);
+            }
+        }
+        return tokens;
     }
 
     /**
@@ -144,30 +181,6 @@ public class KeywordMatcher {
                 result.employmentTypes(),
                 SearchCondition.METHOD_KEYWORD
         ));
-    }
-
-    private JobCategory findCategory(String stripped, String raw) {
-        JobCategory cat = categorySynonyms.get(stripped);
-        if (cat != null) return cat;
-        return categorySynonyms.get(raw);
-    }
-
-    private String findLocation(String stripped, String raw) {
-        String loc = locationKeywords.get(stripped);
-        if (loc != null) return loc;
-        return locationKeywords.get(raw);
-    }
-
-    private String findExperience(String stripped, String raw) {
-        String exp = experienceKeywords.get(stripped);
-        if (exp != null) return exp;
-        return experienceKeywords.get(raw);
-    }
-
-    private String findEmploymentType(String stripped, String raw) {
-        String emp = employmentTypeKeywords.get(stripped);
-        if (emp != null) return emp;
-        return employmentTypeKeywords.get(raw);
     }
 
     private List<String> deriveExperienceLevels(String experience) {
@@ -241,6 +254,41 @@ public class KeywordMatcher {
         for (String synonym : synonyms) {
             categorySynonyms.put(synonym.toLowerCase(), category);
         }
+    }
+
+    /** 키워드 맵의 한글 단어를 사용자 사전에 등록하여 Komoran이 정확히 인식하도록 한다. */
+    private Komoran initKomoran() {
+        Komoran k = new Komoran(DEFAULT_MODEL.FULL);
+
+        Set<String> dictWords = new LinkedHashSet<>();
+        categorySynonyms.keySet().stream()
+                .filter(w -> w.matches(".*[가-힣].*"))
+                .forEach(dictWords::add);
+        dictWords.addAll(locationKeywords.keySet());
+        experienceKeywords.keySet().stream()
+                .filter(w -> w.matches(".*[가-힣].*"))
+                .forEach(dictWords::add);
+        employmentTypeKeywords.keySet().stream()
+                .filter(w -> w.matches(".*[가-힣].*"))
+                .forEach(dictWords::add);
+
+        // bigram 구성 단어 중 Komoran이 분리할 수 있는 단어 추가
+        dictWords.addAll(List.of("리서처", "리서치", "매니저", "오너"));
+
+        try {
+            Path dictFile = Files.createTempFile("komoran-user-dict", ".tsv");
+            List<String> lines = dictWords.stream()
+                    .map(word -> word + "\tNNG")
+                    .toList();
+            Files.write(dictFile, lines);
+            k.setUserDic(dictFile.toString());
+            dictFile.toFile().deleteOnExit();
+            log.info("Komoran 사용자 사전 등록: {}개 단어", dictWords.size());
+        } catch (IOException e) {
+            log.warn("Komoran 사용자 사전 생성 실패, 기본 사전으로 동작", e);
+        }
+
+        return k;
     }
 
     private void initLocationKeywords() {
