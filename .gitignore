@@ -26,6 +26,8 @@ bin/
 !src/test/resources/application.yaml
 !src/test/resources/specs/
 !src/test/resources/specs/*.yaml
+!src/main/resources/specs/
+!src/main/resources/specs/*.yaml
 out/
 !**/src/main/**/out/
 !**/src/test/**/out/
