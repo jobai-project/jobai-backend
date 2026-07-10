@@ -1,7 +1,10 @@
 package com.jobai.backend.domain.crawler.service;
 
+import com.jobai.backend.domain.crawler.classify.EmploymentType;
+import com.jobai.backend.domain.crawler.classify.ExperienceLevel;
 import com.jobai.backend.domain.crawler.classify.JobCategory;
 import com.jobai.backend.domain.crawler.classify.JobClassifier;
+import com.jobai.backend.domain.crawler.classify.JobClassifier.ClassificationResult;
 import com.jobai.backend.domain.crawler.entity.PrivateJobPosting;
 import com.jobai.backend.domain.crawler.repository.PrivateJobPostingRepository;
 import org.junit.jupiter.api.DisplayName;
@@ -59,7 +62,9 @@ class PrivateJobClassifyServiceTest {
                 .thenReturn(new PageImpl<>(List.of(p1, p2)))
                 .thenReturn(new PageImpl<>(List.of()));
         when(jobClassifier.classify(anyList()))
-                .thenReturn(List.of(JobCategory.BACKEND, JobCategory.NON_TARGET));
+                .thenReturn(List.of(
+                        new ClassificationResult(JobCategory.BACKEND, EmploymentType.FULL_TIME, ExperienceLevel.UNKNOWN),
+                        new ClassificationResult(JobCategory.NON_TARGET, EmploymentType.UNKNOWN, ExperienceLevel.UNKNOWN)));
 
         int total = service.classifyUnclassified(100);
 

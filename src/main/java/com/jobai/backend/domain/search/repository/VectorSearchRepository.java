@@ -45,7 +45,15 @@ public class VectorSearchRepository {
             sql.append(" AND p.job_category IN (:categories)");
         }
         if (hasText(condition.location())) {
-            sql.append(" AND LOWER(p.location) LIKE :locationPattern");
+            sql.append(" AND (LOWER(p.location) LIKE :locationPattern OR p.location IS NULL)");
+        }
+        boolean hasExpLevels = condition.experienceLevels() != null && !condition.experienceLevels().isEmpty();
+        if (hasExpLevels) {
+            sql.append(" AND (p.experience_level IN (:expLevels) OR p.experience_level IS NULL)");
+        }
+        boolean hasEmpTypes = condition.employmentTypes() != null && !condition.employmentTypes().isEmpty();
+        if (hasEmpTypes) {
+            sql.append(" AND (p.employment_type IN (:empTypes) OR p.employment_type IS NULL)");
         }
 
         sql.append(" ORDER BY distance LIMIT :limit OFFSET :offset");
@@ -58,6 +66,12 @@ public class VectorSearchRepository {
         }
         if (hasText(condition.location())) {
             query.setParameter("locationPattern", "%" + condition.location().trim().toLowerCase() + "%");
+        }
+        if (hasExpLevels) {
+            query.setParameter("expLevels", condition.experienceLevels());
+        }
+        if (hasEmpTypes) {
+            query.setParameter("empTypes", condition.employmentTypes());
         }
         query.setParameter("limit", limit);
         query.setParameter("offset", offset);
@@ -77,7 +91,8 @@ public class VectorSearchRepository {
                                 (String) row[5],
                                 (String) row[6],
                                 row[7] != null ? ((java.sql.Date) row[7]).toLocalDate() : null,
-                                row[8] != null ? ((java.sql.Timestamp) row[8]).toLocalDateTime() : null
+                                row[8] != null ? ((java.sql.Timestamp) row[8]).toLocalDateTime() : null,
+                                "EXACT"
                         ),
                         ((Number) row[9]).doubleValue()
                 ))
@@ -134,7 +149,8 @@ public class VectorSearchRepository {
                                 (String) row[4],
                                 (String) row[5],
                                 row[6] != null ? ((java.sql.Date) row[6]).toLocalDate() : null,
-                                row[7] != null ? ((java.sql.Timestamp) row[7]).toLocalDateTime() : null
+                                row[7] != null ? ((java.sql.Timestamp) row[7]).toLocalDateTime() : null,
+                                "EXACT"
                         ),
                         ((Number) row[8]).doubleValue()
                 ))
@@ -158,7 +174,15 @@ public class VectorSearchRepository {
             sql.append(" AND p.job_category IN (:categories)");
         }
         if (hasText(condition.location())) {
-            sql.append(" AND LOWER(p.location) LIKE :locationPattern");
+            sql.append(" AND (LOWER(p.location) LIKE :locationPattern OR p.location IS NULL)");
+        }
+        boolean hasExpLevels = condition.experienceLevels() != null && !condition.experienceLevels().isEmpty();
+        if (hasExpLevels) {
+            sql.append(" AND (p.experience_level IN (:expLevels) OR p.experience_level IS NULL)");
+        }
+        boolean hasEmpTypes = condition.employmentTypes() != null && !condition.employmentTypes().isEmpty();
+        if (hasEmpTypes) {
+            sql.append(" AND (p.employment_type IN (:empTypes) OR p.employment_type IS NULL)");
         }
 
         Query query = em.createNativeQuery(sql.toString());
@@ -169,6 +193,12 @@ public class VectorSearchRepository {
         }
         if (hasText(condition.location())) {
             query.setParameter("locationPattern", "%" + condition.location().trim().toLowerCase() + "%");
+        }
+        if (hasExpLevels) {
+            query.setParameter("expLevels", condition.experienceLevels());
+        }
+        if (hasEmpTypes) {
+            query.setParameter("empTypes", condition.employmentTypes());
         }
 
         return ((Number) query.getSingleResult()).longValue();

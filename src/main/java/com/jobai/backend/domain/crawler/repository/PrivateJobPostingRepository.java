@@ -32,6 +32,17 @@ public interface PrivateJobPostingRepository extends JpaRepository<PrivateJobPos
     // 특정 시각 이후 생성된 공고 조회 (신규 공고 export용)
     Page<PrivateJobPosting> findByCreatedAtAfter(LocalDateTime since, Pageable pageable);
 
+    // jobCategory 있지만 employmentType 또는 experienceLevel이 null인 공고
+    @Query("""
+        SELECT p FROM PrivateJobPosting p
+        WHERE p.isClosed = false
+          AND p.jobCategory IN :validLabels
+          AND (p.employmentType IS NULL OR p.employmentType = ''
+               OR p.experienceLevel IS NULL OR p.experienceLevel = '')
+        """)
+    Page<PrivateJobPosting> findNeedsEmploymentTypeClassification(
+            @Param("validLabels") List<String> validLabels, Pageable pageable);
+
     /** 배치 점수 산출: 활성 공고 중 유효 카테고리만 조회 */
     @Query("SELECT p FROM PrivateJobPosting p WHERE p.isClosed = false AND p.jobCategory IN :validCategories")
     List<PrivateJobPosting> findActiveByValidCategories(@Param("validCategories") List<String> validCategories);

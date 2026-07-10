@@ -1,7 +1,10 @@
 package com.jobai.backend.domain.crawler.service;
 
+import com.jobai.backend.domain.crawler.classify.EmploymentType;
+import com.jobai.backend.domain.crawler.classify.ExperienceLevel;
 import com.jobai.backend.domain.crawler.classify.JobCategory;
 import com.jobai.backend.domain.crawler.classify.JobClassifier;
+import com.jobai.backend.domain.crawler.classify.JobClassifier.ClassificationResult;
 import com.jobai.backend.domain.crawler.entity.PrivateJobPosting;
 import com.jobai.backend.domain.crawler.model.JobRecord;
 import com.jobai.backend.domain.crawler.repository.PrivateJobPostingRepository;
@@ -77,7 +80,9 @@ public class PrivateJobPostingService {
 
             String title = str(r.getTitle());
             String location = str(r.get("location"));
-            String employmentType = str(r.get("employee_type"));
+            String rawEmpType = str(r.get("employee_type"));
+            EmploymentType normalizedEmp = EmploymentType.fromRawValue(rawEmpType);
+            String employmentType = normalizedEmp != null ? normalizedEmp.getLabel() : rawEmpType;
             String description = str(r.getDescription());
             String applyUrl = str(r.getApplyUrl());
             LocalDate deadline = parseDeadline(r.get("deadline"));
@@ -138,9 +143,13 @@ public class PrivateJobPostingService {
     private String str(Object v) {
         if (v == null) return null;
         if (v instanceof List<?> list) {
-            return list.isEmpty() ? null : String.valueOf(list.get(0));
+            if (list.isEmpty()) return null;
+            Object first = list.get(0);
+            if (first == null) return null;
+            return String.valueOf(first);
         }
-        return String.valueOf(v);
+        String result = String.valueOf(v);
+        return "null".equals(result) ? null : result;
     }
 
     // 마감일 문자열 → LocalDate. 형식이 회사마다 달라 실패하면 null.
@@ -195,15 +204,22 @@ public class PrivateJobPostingService {
             List<String> titles = batch.stream()
                     .map(PrivateJobPosting::getTitle)
                     .toList();
-            List<JobCategory> categories = jobClassifier.classify(titles);   // 트랜잭션 밖
+            List<ClassificationResult> results = jobClassifier.classify(titles);   // 트랜잭션 밖
 
             int classifiedThisRound = 0;
             for (int i = 0; i < batch.size(); i++) {
-                JobCategory category = categories.get(i);
-                if (category == null) {
+                ClassificationResult result = results.get(i);
+                if (result == null) {
                     continue;   // 호출 실패분 → 건너뜀(다음 실행에 재분류)
                 }
-                batch.get(i).classifyAs(category);
+                PrivateJobPosting posting = batch.get(i);
+                posting.classifyAs(result.category());
+
+                // 크롤러 데이터 우선: 이미 정규화된 employmentType이면 LLM 결과 무시
+                if (!isNormalizedEmploymentType(posting.getEmploymentType())) {
+                    posting.setNormalizedEmploymentType(result.employmentType());
+                }
+                posting.setExperienceLevel(result.experienceLevel());
                 classifiedThisRound++;
             }
             repository.saveAll(batch);   // Spring Data 자체 트랜잭션으로 저장
@@ -225,4 +241,51 @@ public class PrivateJobPostingService {
     private static final List<String> VALID_LABELS = Arrays.stream(JobCategory.values())
             .map(JobCategory::getLabel)
             .toList();
+
+    private static final List<String> VALID_EMP_LABELS = Arrays.stream(EmploymentType.values())
+            .map(EmploymentType::getLabel)
+            .toList();
+
+    private boolean isNormalizedEmploymentType(String empType) {
+        return empType != null && VALID_EMP_LABELS.contains(empType);
+    }
+
+    /**
+     * jobCategory는 분류됐지만 employmentType/experienceLevel이 null인 공고를 LLM으로 재분류한다.
+     */
+    public int classifyMissingEmploymentTypes(int batchPageSize) {
+        int total = 0;
+        Pageable pageable = PageRequest.of(0, batchPageSize, Sort.by("id").ascending());
+
+        while (true) {
+            Page<PrivateJobPosting> page =
+                    repository.findNeedsEmploymentTypeClassification(VALID_LABELS, pageable);
+            List<PrivateJobPosting> batch = page.getContent();
+            if (batch.isEmpty()) break;
+
+            List<String> titles = batch.stream()
+                    .map(PrivateJobPosting::getTitle)
+                    .toList();
+            List<ClassificationResult> results = jobClassifier.classify(titles);
+
+            int classified = 0;
+            for (int i = 0; i < batch.size(); i++) {
+                ClassificationResult result = results.get(i);
+                if (result == null) continue;
+
+                PrivateJobPosting posting = batch.get(i);
+                if (!isNormalizedEmploymentType(posting.getEmploymentType())) {
+                    posting.setNormalizedEmploymentType(result.employmentType());
+                }
+                posting.setExperienceLevel(result.experienceLevel());
+                classified++;
+            }
+            repository.saveAll(batch);
+            total += classified;
+
+            if (classified == 0) break;
+            log.info("[고용형태/경력 분류] {}건 처리 (누적 {})", classified, total);
+        }
+        return total;
+    }
 }

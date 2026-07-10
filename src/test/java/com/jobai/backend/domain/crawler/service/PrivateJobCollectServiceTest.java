@@ -1,7 +1,12 @@
 package com.jobai.backend.domain.crawler.service;
 
+import com.jobai.backend.domain.crawler.classify.EmploymentType;
+import com.jobai.backend.domain.crawler.classify.ExperienceLevel;
+import com.jobai.backend.domain.crawler.classify.JobCategory;
 import com.jobai.backend.domain.crawler.classify.JobClassifier;
+import com.jobai.backend.domain.crawler.classify.JobClassifier.ClassificationResult;
 import com.jobai.backend.domain.crawler.engine.DeclarativeCrawler;
+import com.jobai.backend.domain.crawler.entity.PrivateJobPosting;
 import com.jobai.backend.domain.crawler.model.JobRecord;
 import com.jobai.backend.domain.crawler.spec.CrawlSpec;
 import org.junit.jupiter.api.DisplayName;
@@ -10,8 +15,6 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import com.jobai.backend.domain.crawler.classify.JobCategory;
-import com.jobai.backend.domain.crawler.entity.PrivateJobPosting;
 import java.time.LocalDateTime;
 
 import java.util.List;
@@ -125,7 +128,7 @@ class PrivateJobCollectServiceTest {
         when(savingService.saveAll(eq("testco"), any()))
                 .thenReturn(new SaveResult(List.of(newPosting), 0, 0));
         when(jobClassifier.classify(any()))
-                .thenReturn(List.of(JobCategory.BACKEND));
+                .thenReturn(List.of(new ClassificationResult(JobCategory.BACKEND, EmploymentType.FULL_TIME, ExperienceLevel.UNKNOWN)));
 
         service().collectAndSave("testco");
 

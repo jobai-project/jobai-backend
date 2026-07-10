@@ -1,4 +1,4 @@
-CREATE TABLE job_posting_summaries (
+CREATE TABLE IF NOT EXISTS job_posting_summaries (
     id                BIGSERIAL PRIMARY KEY,
     job_posting_id    BIGINT NOT NULL UNIQUE,
     summary_json      JSONB NOT NULL,

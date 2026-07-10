@@ -51,6 +51,7 @@ public class JobSearchService {
             SearchCondition condition = new SearchCondition(
                     match.categories(), List.of(), List.of(),
                     match.location(), match.experience(),
+                    match.experienceLevels(), match.employmentTypes(),
                     SearchCondition.METHOD_KEYWORD);
             return executeTraditionalSearch(condition, page, size);
         }
@@ -64,6 +65,7 @@ public class JobSearchService {
                 SearchCondition condition = new SearchCondition(
                         match.categories(), List.of(), List.of(),
                         match.location(), match.experience(),
+                        match.experienceLevels(), match.employmentTypes(),
                         SearchCondition.METHOD_VECTOR);
 
                 JobSearchResponse result = executeVectorSearch(queryVector, condition, page, size);
@@ -74,13 +76,12 @@ public class JobSearchService {
             }
         }
 
-        // 벡터 검색 비활성화 또는 실패 시 기존 검색 폴백 (미매칭 토큰을 title LIKE 검색에 활용)
-        List<String> fallbackTitleKeywords = match.unmatchedTokens() == null
-                ? List.of()
-                : match.unmatchedTokens();
+        // 벡터 검색 비활성화 또는 실패 시 구조화 조건만으로 폴백 검색
+        // unmatchedTokens는 의미 검색용이므로 LIKE 키워드로 사용하지 않는다
         SearchCondition fallback = new SearchCondition(
-                match.categories(), List.of(), fallbackTitleKeywords,
+                match.categories(), List.of(), List.of(),
                 match.location(), match.experience(),
+                match.experienceLevels(), match.employmentTypes(),
                 SearchCondition.METHOD_KEYWORD);
         return executeTraditionalSearch(fallback, page, size);
     }
@@ -118,9 +119,10 @@ public class JobSearchService {
         List<JobSummary> privateResults = jobSearchRepository.searchPrivate(condition, 0, fetchLimit);
         List<JobSummary> publicResults = jobSearchRepository.searchPublic(condition, 0, fetchLimit);
 
-        // 기존 검색: 최신순 정렬 후 페이지에 맞게 자르기
+        // EXACT 먼저, SIMILAR 뒤에 → 같은 그룹 내에서 최신순
         List<JobSummary> allResults = Stream.concat(privateResults.stream(), publicResults.stream())
-                .sorted(Comparator.comparing(JobSummary::createdAt, Comparator.nullsLast(Comparator.reverseOrder())))
+                .sorted(Comparator.comparing(JobSummary::matchType)
+                        .thenComparing(JobSummary::createdAt, Comparator.nullsLast(Comparator.reverseOrder())))
                 .skip(offset)
                 .limit(size)
                 .toList();

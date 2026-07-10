@@ -1,5 +1,6 @@
 package com.jobai.backend.domain.crawler.spec;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.databind.PropertyNamingStrategies;
 import com.fasterxml.jackson.databind.annotation.JsonNaming;
 import lombok.Getter;
@@ -27,6 +28,7 @@ import java.util.Map;
 @Getter
 @Setter
 @JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy.class)
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class DetailSpec {
     private boolean enabled;
     private String sourceType;     // json | embedded_json | html

@@ -49,7 +49,7 @@ class JobSearchServiceTest {
     @DisplayName("미매칭 토큰 없으면 기존 검색, 벡터 안 씀")
     void 미매칭없으면_기존검색() {
         when(keywordMatcher.extract(anyString()))
-                .thenReturn(new MatchResult(List.of("백엔드"), "서울", null, List.of()));
+                .thenReturn(new MatchResult(List.of("백엔드"), "서울", null, List.of(), List.of(), List.of()));
 
         when(jobSearchRepository.searchPrivate(any(), anyInt(), anyInt())).thenReturn(List.of());
         when(jobSearchRepository.searchPublic(any(), anyInt(), anyInt())).thenReturn(List.of());
@@ -69,7 +69,7 @@ class JobSearchServiceTest {
     @DisplayName("미매칭 토큰 있으면 벡터 검색 실행")
     void 미매칭있으면_벡터검색() {
         when(keywordMatcher.extract(anyString()))
-                .thenReturn(new MatchResult(List.of("백엔드"), "서울", null, List.of("혼자", "일하기")));
+                .thenReturn(new MatchResult(List.of("백엔드"), "서울", null, List.of(), List.of(), List.of("혼자", "일하기")));
 
         float[] queryVector = new float[]{0.1f, 0.2f};
         when(embeddingService.embedQuery(anyString())).thenReturn(queryVector);
@@ -94,7 +94,7 @@ class JobSearchServiceTest {
     @DisplayName("벡터 검색에 카테고리/지역/경력 pre-filter가 전달된다")
     void 벡터검색_필터전달() {
         when(keywordMatcher.extract(anyString()))
-                .thenReturn(new MatchResult(List.of("백엔드"), "판교", "경력", List.of("혼자")));
+                .thenReturn(new MatchResult(List.of("백엔드"), "판교", "경력", List.of("경력", "무관", "미확인"), List.of(), List.of("혼자")));
 
         when(embeddingService.embedQuery(anyString())).thenReturn(new float[]{0.1f});
         when(vectorSearchRepository.searchPrivateByVector(any(), anyDouble(), any(), anyInt(), anyInt()))
@@ -120,7 +120,7 @@ class JobSearchServiceTest {
     @DisplayName("벡터 검색 결과 0건이면 빈 결과 반환 (폴백 없음)")
     void 벡터검색_결과없으면_빈결과() {
         when(keywordMatcher.extract(anyString()))
-                .thenReturn(new MatchResult(List.of(), null, null, List.of("혼자", "일하기")));
+                .thenReturn(new MatchResult(List.of(), null, null, List.of(), List.of(), List.of("혼자", "일하기")));
 
         when(embeddingService.embedQuery(anyString())).thenReturn(new float[]{0.1f});
         when(vectorSearchRepository.searchPrivateByVector(any(), anyDouble(), any(), anyInt(), anyInt()))
@@ -144,7 +144,7 @@ class JobSearchServiceTest {
     @DisplayName("임베딩 실패 시 기존 검색으로 폴백")
     void 임베딩실패시_폴백() {
         when(keywordMatcher.extract(anyString()))
-                .thenReturn(new MatchResult(List.of("백엔드"), null, null, List.of("혼자")));
+                .thenReturn(new MatchResult(List.of("백엔드"), null, null, List.of(), List.of(), List.of("혼자")));
 
         when(embeddingService.embedQuery(anyString()))
                 .thenThrow(new RuntimeException("ai-server 연결 실패"));
@@ -166,7 +166,7 @@ class JobSearchServiceTest {
     @DisplayName("사기업/공기업 유사도순(distance 오름차순) 합산 정렬")
     void 소스무관_유사도순정렬() {
         when(keywordMatcher.extract(anyString()))
-                .thenReturn(new MatchResult(List.of(), null, null, List.of("혼자")));
+                .thenReturn(new MatchResult(List.of(), null, null, List.of(), List.of(), List.of("혼자")));
 
         when(embeddingService.embedQuery(anyString())).thenReturn(new float[]{0.1f});
 
@@ -204,7 +204,7 @@ class JobSearchServiceTest {
         field.setBoolean(jobSearchService, false);
 
         when(keywordMatcher.extract(anyString()))
-                .thenReturn(new MatchResult(List.of(), null, null, List.of("혼자")));
+                .thenReturn(new MatchResult(List.of(), null, null, List.of(), List.of(), List.of("혼자")));
 
         when(jobSearchRepository.searchPrivate(any(), anyInt(), anyInt())).thenReturn(List.of());
         when(jobSearchRepository.searchPublic(any(), anyInt(), anyInt())).thenReturn(List.of());
@@ -223,6 +223,6 @@ class JobSearchServiceTest {
     private static JobSummary createJobSummary(Long id, String source, String title,
                                                 LocalDateTime createdAt) {
         return new JobSummary(id, source, title, "회사", "서울", "백엔드",
-                "정규직", "https://apply.example.com", null, createdAt);
+                "정규직", "https://apply.example.com", null, createdAt, "EXACT");
     }
 }

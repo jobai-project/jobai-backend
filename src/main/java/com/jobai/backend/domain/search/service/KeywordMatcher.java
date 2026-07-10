@@ -17,6 +17,7 @@ public class KeywordMatcher {
     private final Map<String, JobCategory> categorySynonyms = new HashMap<>();
     private final Map<String, String> locationKeywords = new HashMap<>();
     private final Map<String, String> experienceKeywords = new HashMap<>();
+    private final Map<String, String> employmentTypeKeywords = new HashMap<>();
 
     private static final Set<String> STOPWORDS = Set.of(
             "채용", "모집", "구인", "공고", "직무", "직종", "분야", "관련", "포지션",
@@ -32,6 +33,7 @@ public class KeywordMatcher {
         initCategorySynonyms();
         initLocationKeywords();
         initExperienceKeywords();
+        initEmploymentTypeKeywords();
     }
 
     /**
@@ -48,6 +50,7 @@ public class KeywordMatcher {
         Set<JobCategory> matchedCategories = new LinkedHashSet<>();
         String matchedLocation = null;
         String matchedExperience = null;
+        String matchedEmploymentType = null;
         List<String> unmatchedTokens = new ArrayList<>();
 
         // 인접 토큰 결합(bigram) 매칭을 위해 소비 여부 추적
@@ -89,6 +92,12 @@ public class KeywordMatcher {
                 continue;
             }
 
+            String empType = findEmploymentType(stripped, rawToken);
+            if (empType != null) {
+                matchedEmploymentType = empType;
+                continue;
+            }
+
             // 불용어 제거
             if (!STOPWORDS.contains(stripped) && !STOPWORDS.contains(rawToken)
                     && !stripped.isBlank()) {
@@ -100,7 +109,11 @@ public class KeywordMatcher {
                 .map(JobCategory::getLabel)
                 .toList();
 
-        return new MatchResult(categoryLabels, matchedLocation, matchedExperience, unmatchedTokens);
+        List<String> expLevels = deriveExperienceLevels(matchedExperience);
+        List<String> empTypes = deriveEmploymentTypes(matchedEmploymentType);
+
+        return new MatchResult(categoryLabels, matchedLocation, matchedExperience,
+                expLevels, empTypes, unmatchedTokens);
     }
 
     /**
@@ -119,6 +132,8 @@ public class KeywordMatcher {
                 List.of(),
                 result.location(),
                 result.experience(),
+                result.experienceLevels(),
+                result.employmentTypes(),
                 SearchCondition.METHOD_KEYWORD
         ));
     }
@@ -139,6 +154,26 @@ public class KeywordMatcher {
         String exp = experienceKeywords.get(stripped);
         if (exp != null) return exp;
         return experienceKeywords.get(raw);
+    }
+
+    private String findEmploymentType(String stripped, String raw) {
+        String emp = employmentTypeKeywords.get(stripped);
+        if (emp != null) return emp;
+        return employmentTypeKeywords.get(raw);
+    }
+
+    private List<String> deriveExperienceLevels(String experience) {
+        if (experience == null) return List.of();
+        return switch (experience) {
+            case "신입" -> List.of("신입", "무관", "미확인");
+            case "경력" -> List.of("경력", "무관", "미확인");
+            default -> List.of();
+        };
+    }
+
+    private List<String> deriveEmploymentTypes(String employmentType) {
+        if (employmentType == null) return List.of();
+        return List.of(employmentType);
     }
 
     static String stripParticles(String token) {
@@ -208,11 +243,23 @@ public class KeywordMatcher {
     }
 
     private void initExperienceKeywords() {
-        for (String keyword : List.of("신입", "주니어", "junior", "인턴")) {
+        for (String keyword : List.of("신입", "주니어", "junior")) {
             experienceKeywords.put(keyword.toLowerCase(), "신입");
         }
         for (String keyword : List.of("경력", "시니어", "senior", "미드", "mid", "경력직")) {
             experienceKeywords.put(keyword.toLowerCase(), "경력");
+        }
+    }
+
+    private void initEmploymentTypeKeywords() {
+        for (String keyword : List.of("정규직")) {
+            employmentTypeKeywords.put(keyword.toLowerCase(), "정규직");
+        }
+        for (String keyword : List.of("인턴", "인턴십")) {
+            employmentTypeKeywords.put(keyword.toLowerCase(), "인턴");
+        }
+        for (String keyword : List.of("계약직", "기간제")) {
+            employmentTypeKeywords.put(keyword.toLowerCase(), "계약직");
         }
     }
 
@@ -224,6 +271,8 @@ public class KeywordMatcher {
             List<String> categories,
             String location,
             String experience,
+            List<String> experienceLevels,
+            List<String> employmentTypes,
             List<String> unmatchedTokens
     ) {
         public boolean hasUnmatchedTokens() {
@@ -231,7 +280,7 @@ public class KeywordMatcher {
         }
 
         public static MatchResult empty() {
-            return new MatchResult(List.of(), null, null, List.of());
+            return new MatchResult(List.of(), null, null, List.of(), List.of(), List.of());
         }
     }
 }
