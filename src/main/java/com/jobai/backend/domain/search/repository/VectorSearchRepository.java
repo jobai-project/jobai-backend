@@ -31,7 +31,8 @@ public class VectorSearchRepository {
         StringBuilder sql = new StringBuilder("""
             SELECT p.id, p.title, p.company, p.location, p.job_category,
                    p.employment_type, p.apply_url, p.deadline, p.created_at,
-                   (e.embedding <=> cast(:queryEmbedding as vector)) AS distance
+                   (e.embedding <=> cast(:queryEmbedding as vector)) AS distance,
+                   p.experience_level
             FROM private_job_postings p
             JOIN job_embeddings e ON e.source = 'PRIVATE' AND e.source_id = p.id
             WHERE p.is_closed = false
@@ -92,7 +93,7 @@ public class VectorSearchRepository {
                                 (String) row[6],
                                 row[7] != null ? ((java.sql.Date) row[7]).toLocalDate() : null,
                                 row[8] != null ? ((java.sql.Timestamp) row[8]).toLocalDateTime() : null,
-                                "EXACT"
+                                determineMatchType(condition, (String) row[3], (String) row[10], (String) row[5])
                         ),
                         ((Number) row[9]).doubleValue()
                 ))
@@ -150,7 +151,7 @@ public class VectorSearchRepository {
                                 (String) row[5],
                                 row[6] != null ? ((java.sql.Date) row[6]).toLocalDate() : null,
                                 row[7] != null ? ((java.sql.Timestamp) row[7]).toLocalDateTime() : null,
-                                "EXACT"
+                                determinePublicMatchType(condition, (String) row[3], (String) row[4])
                         ),
                         ((Number) row[8]).doubleValue()
                 ))
@@ -243,6 +244,41 @@ public class VectorSearchRepository {
         }
         sb.append("]");
         return sb.toString();
+    }
+
+    private static String determineMatchType(SearchCondition condition,
+                                               String actualLocation,
+                                               String actualExpLevel, String actualEmpType) {
+        if (hasText(condition.location()) && (actualLocation == null
+                || !actualLocation.toLowerCase().contains(condition.location().trim().toLowerCase()))) {
+            return "SIMILAR";
+        }
+        boolean hasExpFilter = condition.experienceLevels() != null && !condition.experienceLevels().isEmpty();
+        if (hasExpFilter && (actualExpLevel == null
+                || "미확인".equals(actualExpLevel)
+                || !condition.experienceLevels().contains(actualExpLevel))) {
+            return "SIMILAR";
+        }
+        boolean hasEmpFilter = condition.employmentTypes() != null && !condition.employmentTypes().isEmpty();
+        if (hasEmpFilter && (actualEmpType == null
+                || "미확인".equals(actualEmpType)
+                || !condition.employmentTypes().contains(actualEmpType))) {
+            return "SIMILAR";
+        }
+        return "EXACT";
+    }
+
+    private static String determinePublicMatchType(SearchCondition condition,
+                                                     String actualLocation, String actualRecrutType) {
+        if (hasText(condition.location()) && (actualLocation == null
+                || !actualLocation.toLowerCase().contains(condition.location().trim().toLowerCase()))) {
+            return "SIMILAR";
+        }
+        boolean hasEmpFilter = condition.employmentTypes() != null && !condition.employmentTypes().isEmpty();
+        if (hasEmpFilter && (actualRecrutType == null || !condition.employmentTypes().contains(actualRecrutType))) {
+            return "SIMILAR";
+        }
+        return "EXACT";
     }
 
     private static boolean hasText(String value) {

@@ -82,7 +82,7 @@ public class PrivateJobPostingService {
             String location = str(r.get("location"));
             String rawEmpType = str(r.get("employee_type"));
             EmploymentType normalizedEmp = EmploymentType.fromRawValue(rawEmpType);
-            String employmentType = normalizedEmp != null ? normalizedEmp.getLabel() : rawEmpType;
+            String employmentType = normalizedEmp != null ? normalizedEmp.getLabel() : null;
             String description = str(r.getDescription());
             String applyUrl = str(r.getApplyUrl());
             LocalDate deadline = parseDeadline(r.get("deadline"));
@@ -146,7 +146,8 @@ public class PrivateJobPostingService {
             if (list.isEmpty()) return null;
             Object first = list.get(0);
             if (first == null) return null;
-            return String.valueOf(first);
+            String result = String.valueOf(first);
+            return "null".equals(result) ? null : result;
         }
         String result = String.valueOf(v);
         return "null".equals(result) ? null : result;
@@ -253,6 +254,7 @@ public class PrivateJobPostingService {
     /**
      * jobCategory는 분류됐지만 employmentType/experienceLevel이 null인 공고를 LLM으로 재분류한다.
      */
+    // @Transactional 없음 — LLM 호출이 DB 트랜잭션을 잡지 않게
     public int classifyMissingEmploymentTypes(int batchPageSize) {
         int total = 0;
         Pageable pageable = PageRequest.of(0, batchPageSize, Sort.by("id").ascending());

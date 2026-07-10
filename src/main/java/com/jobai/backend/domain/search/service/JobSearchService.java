@@ -96,9 +96,10 @@ public class JobSearchService {
         List<ScoredJob> publicResults = vectorSearchRepository.searchPublicByVector(
                 queryVector, VECTOR_THRESHOLD, condition, 0, fetchLimit);
 
-        // 유사도순(distance 오름차순)으로 merge 정렬 후 페이지에 맞게 자르기
+        // EXACT 먼저, SIMILAR 뒤에 → 같은 그룹 내에서 유사도순(distance 오름차순)
         List<JobSummary> allResults = Stream.concat(privateResults.stream(), publicResults.stream())
-                .sorted(Comparator.comparingDouble(ScoredJob::distance))
+                .sorted(Comparator.comparing((ScoredJob s) -> s.job().matchType())
+                        .thenComparingDouble(ScoredJob::distance))
                 .skip(offset)
                 .limit(size)
                 .map(ScoredJob::job)

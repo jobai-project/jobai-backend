@@ -21,12 +21,19 @@ public class KeywordMatcher {
 
     private static final Set<String> STOPWORDS = Set.of(
             "채용", "모집", "구인", "공고", "직무", "직종", "분야", "관련", "포지션",
-            "하는", "있는", "없는", "좋은", "쉬운", "편한"
+            "하는", "있는", "없는", "좋은", "쉬운", "편한",
+            "취업", "일자리", "구직", "찾는", "싶어", "싶은", "원해",
+            "나", "난", "저", "제", "하고", "해서", "합니다", "해요"
     );
 
-    // 한글 조사 패턴: 토큰 끝에 붙는 조사를 제거
+    // 구두점 제거 패턴: 토큰 양끝의 쉼표, 마침표 등 제거
+    private static final Pattern PUNCTUATION_PATTERN = Pattern.compile(
+            "^[,\\.!?~;:]+|[,\\.!?~;:]+$"
+    );
+
+    // 한글 조사/접미사 패턴: 토큰 끝에 붙는 조사를 제거
     private static final Pattern PARTICLE_PATTERN = Pattern.compile(
-            "(에서|으로|에서의|에서도|으로서|이나|에게|한테|까지|부터|마다|처럼|만큼|같은|에|을|를|이|가|은|는|의|로|과|와|도|만)$"
+            "(에서의|에서도|으로서|쪽으로|이지만|이라서|이라고|이었던|이라면|에서|으로|이나|에게|한테|까지|부터|마다|처럼|만큼|같은|이고|이랑|이면|이든|이야|이요|에|을|를|이|가|은|는|의|로|과|와|도|만|쪽)$"
     );
 
     public KeywordMatcher() {
@@ -122,7 +129,8 @@ public class KeywordMatcher {
     public Optional<SearchCondition> match(String query) {
         MatchResult result = extract(query);
 
-        if (result.categories().isEmpty() && result.location() == null && result.experience() == null) {
+        if (result.categories().isEmpty() && result.location() == null
+                && result.experience() == null && result.employmentTypes().isEmpty()) {
             return Optional.empty();
         }
 
@@ -177,7 +185,11 @@ public class KeywordMatcher {
     }
 
     static String stripParticles(String token) {
-        String current = token;
+        // 1단계: 구두점 제거
+        String current = PUNCTUATION_PATTERN.matcher(token).replaceAll("");
+        if (current.isBlank()) return current;
+
+        // 2단계: 조사/접미사 반복 제거
         while (!current.isBlank()) {
             String stripped = PARTICLE_PATTERN.matcher(current).replaceAll("");
             if (stripped.equals(current)) {
