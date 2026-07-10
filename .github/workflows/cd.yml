@@ -51,8 +51,9 @@ jobs:
 
       - name: Prepare deployment files
         run: |
-          mkdir -p .deploy
+          mkdir -p .deploy/nginx
           cp docker-compose.prod.yml .deploy/docker-compose.prod.yml
+          cp infra/nginx/jobai-upload-size.conf .deploy/nginx/jobai-upload-size.conf
 
           cat > .deploy/remote-deploy.sh <<'SCRIPT'
           set -e
@@ -79,6 +80,13 @@ jobs:
 
           mkdir -p "${DEPLOY_DIR}"
           cp /tmp/jobai-deploy/docker-compose.prod.yml "${DEPLOY_DIR}/docker-compose.prod.yml"
+
+          if command -v nginx >/dev/null 2>&1; then
+            mkdir -p /etc/nginx/conf.d
+            cp /tmp/jobai-deploy/nginx/jobai-upload-size.conf /etc/nginx/conf.d/jobai-upload-size.conf
+            nginx -t
+            systemctl reload nginx
+          fi
 
           cat > "${DEPLOY_DIR}/.env" <<ENV
           ECR_REGISTRY=$(get_param ECR_REGISTRY)
@@ -258,14 +266,16 @@ jobs:
       - name: Deploy on EC2 through SSM
         run: |
           compose_b64=$(base64 -w 0 .deploy/docker-compose.prod.yml)
+          nginx_conf_b64=$(base64 -w 0 .deploy/nginx/jobai-upload-size.conf)
           script_b64=$(base64 -w 0 .deploy/remote-deploy.sh)
 
           cat > ssm-command.json <<EOF
           {
             "commands": [
               "set -e",
-              "mkdir -p /tmp/jobai-deploy",
+              "mkdir -p /tmp/jobai-deploy/nginx",
               "printf '%s' '${compose_b64}' | base64 -d > /tmp/jobai-deploy/docker-compose.prod.yml",
+              "printf '%s' '${nginx_conf_b64}' | base64 -d > /tmp/jobai-deploy/nginx/jobai-upload-size.conf",
               "printf '%s' '${script_b64}' | base64 -d > /tmp/jobai-deploy/remote-deploy.sh",
               "bash /tmp/jobai-deploy/remote-deploy.sh"
             ],
