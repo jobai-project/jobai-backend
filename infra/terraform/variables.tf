@@ -87,3 +87,9 @@ variable "github_actions_allowed_subjects" {
     "repo:jobai-project/jobai-ai:ref:refs/heads/feat/add-ai-model-download"
   ]
 }
+
+variable "rds_port_forward_user_names" {
+  description = "IAM user names allowed to open SSM port forwarding sessions to the backend EC2 for RDS access"
+  type        = list(string)
+  default     = []
+}
