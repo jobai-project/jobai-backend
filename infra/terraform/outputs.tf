@@ -34,6 +34,10 @@ output "resume_s3_bucket_name" {
   value = aws_s3_bucket.resume_files.bucket
 }
 
+output "rds_ssm_port_forward_policy_arn" {
+  value = aws_iam_policy.rds_ssm_port_forward.arn
+}
+
 output "ai_model_s3_bucket_name" {
   value = aws_s3_bucket.ai_models.bucket
 }

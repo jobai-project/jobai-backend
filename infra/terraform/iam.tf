@@ -112,6 +112,53 @@ resource "aws_iam_role_policy_attachment" "ec2_ai_model_s3_read" {
   policy_arn = aws_iam_policy.ec2_ai_model_s3_read.arn
 }
 
+resource "aws_iam_policy" "rds_ssm_port_forward" {
+  name        = "jobai-rds-ssm-port-forward"
+  description = "Allow team members to port-forward to RDS through the backend EC2 using SSM Session Manager"
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "ssm:StartSession"
+        ]
+        Resource = [
+          "arn:aws:ssm:${var.aws_region}::document/AWS-StartPortForwardingSessionToRemoteHost",
+          aws_instance.jobai.arn
+        ]
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "ssm:ResumeSession",
+          "ssm:TerminateSession"
+        ]
+        Resource = "arn:aws:ssm:${var.aws_region}:${data.aws_caller_identity.current.account_id}:session/$${aws:userid}-*"
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "ec2:DescribeInstances",
+          "ssm:DescribeInstanceInformation",
+          "ssm:DescribeSessions",
+          "ssm:GetConnectionStatus",
+          "ssmmessages:OpenDataChannel"
+        ]
+        Resource = "*"
+      }
+    ]
+  })
+}
+
+resource "aws_iam_user_policy_attachment" "rds_ssm_port_forward" {
+  for_each = toset(var.rds_port_forward_user_names)
+
+  user       = each.value
+  policy_arn = aws_iam_policy.rds_ssm_port_forward.arn
+}
+
 resource "aws_iam_instance_profile" "ec2" {
   name = "jobai-ec2-instance-profile"
   role = aws_iam_role.ec2.name
