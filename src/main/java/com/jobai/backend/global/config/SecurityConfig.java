@@ -101,6 +101,7 @@ public class SecurityConfig {
         // 허용할 오리진 추가
         configuration.setAllowedOrigins(Arrays.asList(
                 "http://localhost:5173",
+                "http://localhost:5137",
                 "http://api.jobai.site:8080",
                 "http://api.jobai.site",
                 "https://api.jobai.site",
