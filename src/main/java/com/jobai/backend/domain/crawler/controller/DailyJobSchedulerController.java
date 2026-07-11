@@ -2,6 +2,8 @@ package com.jobai.backend.domain.crawler.controller;
 
 import com.jobai.backend.domain.crawler.scheduler.DailyJobScheduler;
 import com.jobai.backend.domain.crawler.service.PrivateJobPostingService;
+import com.jobai.backend.domain.home.service.PrivateMatchBatchService;
+import com.jobai.backend.domain.search.service.EmbeddingBatchService;
 import lombok.RequiredArgsConstructor;
 
 import org.springframework.http.ResponseEntity;
@@ -19,6 +21,8 @@ public class DailyJobSchedulerController implements DailyJobSchedulerControllerD
 
     private final DailyJobScheduler dailyJobScheduler;
     private final PrivateJobPostingService privateJobPostingService;
+    private final EmbeddingBatchService embeddingBatchService;
+    private final PrivateMatchBatchService privateMatchBatchService;
 
     @Override
     @PostMapping("/daily-pipeline")
@@ -39,5 +43,26 @@ public class DailyJobSchedulerController implements DailyJobSchedulerControllerD
     public ResponseEntity<String> classifyMissingEmploymentTypes() {
         int total = privateJobPostingService.classifyMissingEmploymentTypes(100);
         return ResponseEntity.ok("고용형태/경력 미분류 공고 " + total + "건 분류 완료");
+    }
+
+    @Override
+    @PostMapping("/embedding")
+    public ResponseEntity<String> generateEmbeddings() {
+        embeddingBatchService.generateMissingEmbeddings();
+        return ResponseEntity.ok("임베딩 생성 완료");
+    }
+
+    @Override
+    @PostMapping("/scoring")
+    public ResponseEntity<String> scorePostings() {
+        privateMatchBatchService.scoreNewAndUpdatedPostings();
+        return ResponseEntity.ok("매칭 점수 산출 완료");
+    }
+
+    @Override
+    @PostMapping("/resume-embedding")
+    public ResponseEntity<String> generateResumeEmbeddings() {
+        String result = embeddingBatchService.generateMissingResumeEmbeddings();
+        return ResponseEntity.ok(result);
     }
 }

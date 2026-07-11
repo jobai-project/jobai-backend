@@ -14,11 +14,14 @@ import reactor.core.publisher.Mono;
  * 이력서-공고 간 매칭 점수를 계산하는 클라이언트.
  */
 @Component
-@RequiredArgsConstructor
 public class AiScoringClient {
 
-    @Qualifier("aiWebClient")
     private final WebClient aiWebClient;
+
+    // Lombok @RequiredArgsConstructor는 필드의 @Qualifier를 생성자 파라미터로 복사하지 않아
+    public AiScoringClient(@Qualifier("aiWebClient") WebClient aiWebClient) {
+        this.aiWebClient = aiWebClient;
+    }
 
     public Mono<ScorePrivateResponse> scorePrivate(ScorePrivateRequest request) {
         return aiWebClient.post()
