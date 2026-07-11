@@ -31,13 +31,16 @@ public class OAuth2SuccessHandler implements AuthenticationSuccessHandler {
         OAuth2User oAuth2User = (OAuth2User) authentication.getPrincipal();
         String email = (String) oAuth2User.getAttributes().get("email");
         String accessToken = jwtProvider.createAccessToken(email);
-        ResponseCookie accessTokenCookie = cookieProvider.createAccessTokenCookie(accessToken);
         String frontendRedirectUrl = frontendRedirectUriResolver.resolve(
                 Arrays.stream(request.getCookies() == null ? new Cookie[0] : request.getCookies())
                         .filter(cookie -> CookieProvider.OAUTH2_FRONTEND_REDIRECT_COOKIE_NAME.equals(cookie.getName()))
                         .map(Cookie::getValue)
                         .findFirst()
                         .orElse(null)
+        );
+        ResponseCookie accessTokenCookie = cookieProvider.createAccessTokenCookie(
+                accessToken,
+                frontendRedirectUriResolver.isLocalDevelopmentRedirect(frontendRedirectUrl)
         );
 
         response.addHeader(HttpHeaders.SET_COOKIE, accessTokenCookie.toString());

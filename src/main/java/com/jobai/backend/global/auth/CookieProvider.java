@@ -13,24 +13,23 @@ public class CookieProvider {
     public static final String OAUTH2_FRONTEND_REDIRECT_COOKIE_NAME = "oauth2_frontend_redirect";
 
     private final boolean cookieSecure;
-    private final String cookieSameSite;
 
-    public CookieProvider(
-            @Value("${app.auth.cookie.secure:true}") boolean cookieSecure,
-            @Value("${app.auth.cookie.same-site:${APP_AUTH_COOKIE_SAME_SITE:Lax}}") String cookieSameSite
-    ) {
+    public CookieProvider(@Value("${app.auth.cookie.secure:true}") boolean cookieSecure) {
         this.cookieSecure = cookieSecure;
-        this.cookieSameSite = cookieSameSite;
     }
 
-    public ResponseCookie createAccessTokenCookie(String accessToken) {
+    public ResponseCookie createAccessTokenCookie(String accessToken, boolean crossSiteFrontend) {
         return ResponseCookie.from(ACCESS_TOKEN_COOKIE_NAME, accessToken)
                 .path("/")
                 .httpOnly(true)
                 .secure(cookieSecure)
-                .sameSite(cookieSameSite)
+                .sameSite(crossSiteFrontend ? "None" : "Lax")
                 .maxAge(Duration.ofHours(1))
                 .build();
+    }
+
+    public ResponseCookie createAccessTokenCookie(String accessToken) {
+        return createAccessTokenCookie(accessToken, false);
     }
 
     public ResponseCookie createEmptyAccessTokenCookie() {
@@ -38,7 +37,7 @@ public class CookieProvider {
                 .path("/")
                 .httpOnly(true)
                 .secure(cookieSecure)
-                .sameSite(cookieSameSite)
+                .sameSite("Lax")
                 .maxAge(0)
                 .build();
     }
