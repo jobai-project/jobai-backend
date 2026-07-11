@@ -103,6 +103,24 @@ public interface DailyJobSchedulerControllerDocs {
     ResponseEntity<String> scorePostings();
 
     @Operation(
+            summary = "공기업 매칭 점수 산출",
+            description = """
+                    신규/변경 공기업 공고에 대해 AI 서버(/score/public)를 호출하여 매칭 점수를 산출한다.
+                    """
+    )
+    @ApiResponses(value = {
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "200",
+                    description = "점수 산출 완료",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = @ExampleObject(value = "\"공기업 매칭 점수 산출 완료\"")
+                    )
+            )
+    })
+    ResponseEntity<String> scorePublicPostings();
+
+    @Operation(
             summary = "이력서 임베딩 생성",
             description = """
                     활성 이력서 중 임베딩이 없는 이력서에 대해 AI 서버를 호출하여 임베딩을 생성한다.

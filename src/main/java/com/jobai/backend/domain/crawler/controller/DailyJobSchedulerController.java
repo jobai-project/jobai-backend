@@ -3,6 +3,7 @@ package com.jobai.backend.domain.crawler.controller;
 import com.jobai.backend.domain.crawler.scheduler.DailyJobScheduler;
 import com.jobai.backend.domain.crawler.service.PrivateJobPostingService;
 import com.jobai.backend.domain.home.service.PrivateMatchBatchService;
+import com.jobai.backend.domain.home.service.PublicMatchBatchService;
 import com.jobai.backend.domain.search.service.EmbeddingBatchService;
 import lombok.RequiredArgsConstructor;
 
@@ -23,6 +24,7 @@ public class DailyJobSchedulerController implements DailyJobSchedulerControllerD
     private final PrivateJobPostingService privateJobPostingService;
     private final EmbeddingBatchService embeddingBatchService;
     private final PrivateMatchBatchService privateMatchBatchService;
+    private final PublicMatchBatchService publicMatchBatchService;
 
     @Override
     @PostMapping("/daily-pipeline")
@@ -57,6 +59,13 @@ public class DailyJobSchedulerController implements DailyJobSchedulerControllerD
     public ResponseEntity<String> scorePostings() {
         privateMatchBatchService.scoreNewAndUpdatedPostings();
         return ResponseEntity.ok("매칭 점수 산출 완료");
+    }
+
+    @Override
+    @PostMapping("/scoring-public")
+    public ResponseEntity<String> scorePublicPostings() {
+        publicMatchBatchService.scoreNewAndUpdatedPostings();
+        return ResponseEntity.ok("공기업 매칭 점수 산출 완료");
     }
 
     @Override
