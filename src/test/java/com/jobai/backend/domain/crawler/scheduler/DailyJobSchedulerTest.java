@@ -2,6 +2,7 @@ package com.jobai.backend.domain.crawler.scheduler;
 
 import com.jobai.backend.domain.crawler.service.PrivateJobBatchCollectService;
 import com.jobai.backend.domain.home.service.PrivateMatchBatchService;
+import com.jobai.backend.domain.home.service.PublicMatchBatchService;
 import com.jobai.backend.domain.publicInstitution.service.JobDataSyncService;
 import com.jobai.backend.domain.search.service.EmbeddingBatchService;
 import org.junit.jupiter.api.BeforeEach;
@@ -18,6 +19,7 @@ class DailyJobSchedulerTest {
     private JobDataSyncService jobDataSyncService;
     private EmbeddingBatchService embeddingBatchService;
     private PrivateMatchBatchService privateMatchBatchService;
+    private PublicMatchBatchService publicMatchBatchService;
 
     private DailyJobScheduler scheduler;
 
@@ -27,27 +29,30 @@ class DailyJobSchedulerTest {
         jobDataSyncService = Mockito.mock(JobDataSyncService.class);
         embeddingBatchService = Mockito.mock(EmbeddingBatchService.class);
         privateMatchBatchService = Mockito.mock(PrivateMatchBatchService.class);
+        publicMatchBatchService = Mockito.mock(PublicMatchBatchService.class);
 
         scheduler = new DailyJobScheduler(
                 privateJobBatchCollectService,
                 jobDataSyncService,
                 embeddingBatchService,
-                privateMatchBatchService
+                privateMatchBatchService,
+                publicMatchBatchService
         );
     }
 
     @Test
-    @DisplayName("정상 실행 시 4개 단계가 순서대로 호출된다")
+    @DisplayName("정상 실행 시 4개 단계가 순서대로 호출된다 (매칭 점수 산출은 사기업 → 공기업 순)")
     void runDailyPipeline_정상실행_순서검증() {
         scheduler.runDailyPipeline();
 
         InOrder inOrder = inOrder(
                 privateJobBatchCollectService, jobDataSyncService,
-                embeddingBatchService, privateMatchBatchService);
+                embeddingBatchService, privateMatchBatchService, publicMatchBatchService);
         inOrder.verify(privateJobBatchCollectService).collectAll();
         inOrder.verify(jobDataSyncService).syncPublicJobOpenings();
         inOrder.verify(embeddingBatchService).generateMissingEmbeddings();
         inOrder.verify(privateMatchBatchService).scoreNewAndUpdatedPostings();
+        inOrder.verify(publicMatchBatchService).scoreNewAndUpdatedPostings();
     }
 
     @Test
@@ -61,6 +66,7 @@ class DailyJobSchedulerTest {
         verify(jobDataSyncService).syncPublicJobOpenings();
         verify(embeddingBatchService).generateMissingEmbeddings();
         verify(privateMatchBatchService).scoreNewAndUpdatedPostings();
+        verify(publicMatchBatchService).scoreNewAndUpdatedPostings();
     }
 
     @Test
@@ -74,6 +80,7 @@ class DailyJobSchedulerTest {
         verify(privateJobBatchCollectService).collectAll();
         verify(embeddingBatchService).generateMissingEmbeddings();
         verify(privateMatchBatchService).scoreNewAndUpdatedPostings();
+        verify(publicMatchBatchService).scoreNewAndUpdatedPostings();
     }
 
     @Test
@@ -87,12 +94,13 @@ class DailyJobSchedulerTest {
         verify(privateJobBatchCollectService).collectAll();
         verify(jobDataSyncService).syncPublicJobOpenings();
         verify(privateMatchBatchService).scoreNewAndUpdatedPostings();
+        verify(publicMatchBatchService).scoreNewAndUpdatedPostings();
     }
 
     @Test
-    @DisplayName("Step 4(점수 산출) 실패 시에도 예외 전파 없이 정상 종료된다")
-    void runDailyPipeline_step4실패_정상종료() {
-        doThrow(new RuntimeException("점수 산출 실패"))
+    @DisplayName("Step 4 사기업 매칭 점수 산출 실패 시에도 공기업 매칭 점수 산출은 실행되고 예외 전파 없이 정상 종료된다")
+    void runDailyPipeline_step4사기업실패_공기업은계속() {
+        doThrow(new RuntimeException("사기업 점수 산출 실패"))
                 .when(privateMatchBatchService).scoreNewAndUpdatedPostings();
 
         scheduler.runDailyPipeline();
@@ -100,5 +108,20 @@ class DailyJobSchedulerTest {
         verify(privateJobBatchCollectService).collectAll();
         verify(jobDataSyncService).syncPublicJobOpenings();
         verify(embeddingBatchService).generateMissingEmbeddings();
+        verify(publicMatchBatchService).scoreNewAndUpdatedPostings();
+    }
+
+    @Test
+    @DisplayName("Step 4 공기업 매칭 점수 산출 실패 시에도 예외 전파 없이 정상 종료된다")
+    void runDailyPipeline_step4공기업실패_정상종료() {
+        doThrow(new RuntimeException("공기업 점수 산출 실패"))
+                .when(publicMatchBatchService).scoreNewAndUpdatedPostings();
+
+        scheduler.runDailyPipeline();
+
+        verify(privateJobBatchCollectService).collectAll();
+        verify(jobDataSyncService).syncPublicJobOpenings();
+        verify(embeddingBatchService).generateMissingEmbeddings();
+        verify(privateMatchBatchService).scoreNewAndUpdatedPostings();
     }
 }

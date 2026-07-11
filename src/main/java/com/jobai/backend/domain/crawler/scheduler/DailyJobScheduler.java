@@ -2,6 +2,7 @@ package com.jobai.backend.domain.crawler.scheduler;
 
 import com.jobai.backend.domain.crawler.service.PrivateJobBatchCollectService;
 import com.jobai.backend.domain.home.service.PrivateMatchBatchService;
+import com.jobai.backend.domain.home.service.PublicMatchBatchService;
 import com.jobai.backend.domain.publicInstitution.service.JobDataSyncService;
 import com.jobai.backend.domain.search.service.EmbeddingBatchService;
 import lombok.RequiredArgsConstructor;
@@ -32,6 +33,7 @@ public class DailyJobScheduler {
     private final JobDataSyncService jobDataSyncService;
     private final EmbeddingBatchService embeddingBatchService;
     private final PrivateMatchBatchService privateMatchBatchService;
+    private final PublicMatchBatchService publicMatchBatchService;
 
     /**
      * 새벽 파이프라인을 실행한다.
@@ -43,6 +45,7 @@ public class DailyJobScheduler {
      * @see JobDataSyncService#syncPublicJobOpenings()
      * @see EmbeddingBatchService#generateMissingEmbeddings()
      * @see PrivateMatchBatchService#scoreNewAndUpdatedPostings()
+     * @see PublicMatchBatchService#scoreNewAndUpdatedPostings()
      */
     @Scheduled(cron = "${scheduler.daily.cron:0 0 2 * * *}", zone = "Asia/Seoul")
     public void runDailyPipeline() {
@@ -76,13 +79,21 @@ public class DailyJobScheduler {
             log.error("[DailyPipeline] Step 3/4 — 임베딩 생성 실패: {}", e.getMessage(), e);
         }
 
-        // Step 4: 사기업 매칭 점수 산출 (신규/변경 공고만)
+        // Step 4: 매칭 점수 산출 (신규/변경 공고만, 사기업/공기업 각각 독립 실행)
         try {
-            log.info("[DailyPipeline] Step 4/4 — 매칭 점수 산출 시작");
+            log.info("[DailyPipeline] Step 4/4 — 사기업 매칭 점수 산출 시작");
             privateMatchBatchService.scoreNewAndUpdatedPostings();
-            log.info("[DailyPipeline] Step 4/4 — 매칭 점수 산출 완료");
+            log.info("[DailyPipeline] Step 4/4 — 사기업 매칭 점수 산출 완료");
         } catch (Exception e) {
-            log.error("[DailyPipeline] Step 4/4 — 매칭 점수 산출 실패: {}", e.getMessage(), e);
+            log.error("[DailyPipeline] Step 4/4 — 사기업 매칭 점수 산출 실패: {}", e.getMessage(), e);
+        }
+
+        try {
+            log.info("[DailyPipeline] Step 4/4 — 공기업 매칭 점수 산출 시작");
+            publicMatchBatchService.scoreNewAndUpdatedPostings();
+            log.info("[DailyPipeline] Step 4/4 — 공기업 매칭 점수 산출 완료");
+        } catch (Exception e) {
+            log.error("[DailyPipeline] Step 4/4 — 공기업 매칭 점수 산출 실패: {}", e.getMessage(), e);
         }
 
         long elapsed = System.currentTimeMillis() - start;
