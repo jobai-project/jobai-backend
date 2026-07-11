@@ -3,16 +3,21 @@ package com.jobai.backend.global.config;
 import com.jobai.backend.global.auth.CustomOAuth2UserService;
 import com.jobai.backend.global.auth.OAuth2SuccessHandler;
 import com.jobai.backend.global.auth.JwtAuthenticationFilter;
+import com.jobai.backend.global.auth.OAuth2FrontendRedirectFilter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Profile;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.HttpStatusEntryPoint;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.security.oauth2.client.web.OAuth2AuthorizationRequestRedirectFilter;
+import org.springframework.security.web.servlet.util.matcher.PathPatternRequestMatcher;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
@@ -24,6 +29,7 @@ import java.util.Arrays;
 @RequiredArgsConstructor
 @Profile("!local")
 public class SecurityConfig {
+    private final OAuth2FrontendRedirectFilter oAuth2FrontendRedirectFilter;
 
     private final CustomOAuth2UserService customOAuth2UserService;
     private final OAuth2SuccessHandler oAuth2SuccessHandler;
@@ -63,8 +69,16 @@ public class SecurityConfig {
                         .anyRequest().authenticated() // 위에서 명시한 경로 외의 모든 요청은 무조건 인증(로그인)을 거쳐야 함
                 )
 
+                .exceptionHandling(exception -> exception
+                        .defaultAuthenticationEntryPointFor(
+                                new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED),
+                                PathPatternRequestMatcher.withDefaults().matcher("/api/**")
+                        )
+                )
+
                 // CORS 설정 연결
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
+                .addFilterBefore(oAuth2FrontendRedirectFilter, OAuth2AuthorizationRequestRedirectFilter.class)
 
                         // 5. OAuth2 로그인 설정 추가
                 .oauth2Login(oauth2 -> oauth2
@@ -87,6 +101,7 @@ public class SecurityConfig {
         // 허용할 오리진 추가
         configuration.setAllowedOrigins(Arrays.asList(
                 "http://localhost:5173",
+                "http://localhost:5137",
                 "http://api.jobai.site:8080",
                 "http://api.jobai.site",
                 "https://api.jobai.site",
