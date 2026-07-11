@@ -65,4 +65,58 @@ public interface DailyJobSchedulerControllerDocs {
             )
     })
     ResponseEntity<String> classifyMissingEmploymentTypes();
+
+    @Operation(
+            summary = "임베딩 생성",
+            description = """
+                    임베딩이 아직 생성되지 않은 공고를 찾아 AI 서버를 호출하여 임베딩을 생성한다.
+                    """
+    )
+    @ApiResponses(value = {
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "200",
+                    description = "임베딩 생성 완료",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = @ExampleObject(value = "\"임베딩 생성 완료\"")
+                    )
+            )
+    })
+    ResponseEntity<String> generateEmbeddings();
+
+    @Operation(
+            summary = "매칭 점수 산출",
+            description = """
+                    신규/변경 공고에 대해 AI 서버를 호출하여 매칭 점수를 산출한다.
+                    """
+    )
+    @ApiResponses(value = {
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "200",
+                    description = "점수 산출 완료",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = @ExampleObject(value = "\"매칭 점수 산출 완료\"")
+                    )
+            )
+    })
+    ResponseEntity<String> scorePostings();
+
+    @Operation(
+            summary = "이력서 임베딩 생성",
+            description = """
+                    활성 이력서 중 임베딩이 없는 이력서에 대해 AI 서버를 호출하여 임베딩을 생성한다.
+                    """
+    )
+    @ApiResponses(value = {
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "200",
+                    description = "이력서 임베딩 생성 완료",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = @ExampleObject(value = "\"이력서 임베딩 완료: 3/3건 성공\"")
+                    )
+            )
+    })
+    ResponseEntity<String> generateResumeEmbeddings();
 }
