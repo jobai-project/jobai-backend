@@ -2,6 +2,8 @@ package com.jobai.backend.domain.search.service;
 
 import com.jobai.backend.domain.crawler.entity.PrivateJobPosting;
 import com.jobai.backend.domain.crawler.repository.PrivateJobPostingRepository;
+import com.jobai.backend.domain.member.entity.Resumes;
+import com.jobai.backend.domain.member.repository.ResumesRepository;
 import com.jobai.backend.domain.publicInstitution.entity.PublicJobPosting;
 import com.jobai.backend.domain.publicInstitution.repository.JobPostingRepository;
 import com.jobai.backend.domain.search.repository.JobEmbeddingRepository;
@@ -26,6 +28,7 @@ public class EmbeddingBatchService {
     private final JobEmbeddingRepository jobEmbeddingRepository;
     private final PrivateJobPostingRepository privateJobPostingRepository;
     private final JobPostingRepository jobPostingRepository;
+    private final ResumesRepository resumesRepository;
 
     @Value("${search.embedding.enabled:true}")
     private boolean embeddingEnabled;
@@ -81,5 +84,30 @@ public class EmbeddingBatchService {
             }
         }
         log.info("Public 공고 임베딩 완료: {}/{} 성공", success, ids.size());
+    }
+
+    /**
+     * 활성 이력서 중 임베딩이 없는 이력서에 대해 임베딩을 생성한다.
+     *
+     * @return "성공/전체" 형태의 결과 문자열
+     */
+    public String generateMissingResumeEmbeddings() {
+        List<Resumes> targets = resumesRepository.findActiveWithoutEmbedding();
+        if (targets.isEmpty()) {
+            return "임베딩 대상 이력서가 없습니다";
+        }
+
+        int success = 0;
+        for (Resumes resume : targets) {
+            try {
+                float[] vector = embeddingService.embedResumeText(resume.getExtractedText());
+                resume.updateEmbedding(vector);
+                resumesRepository.save(resume);
+                success++;
+            } catch (Exception e) {
+                log.warn("이력서 임베딩 실패: resumeId={}, error={}", resume.getId(), e.getMessage(), e);
+            }
+        }
+        return "이력서 임베딩 완료: " + success + "/" + targets.size() + "건 성공";
     }
 }
