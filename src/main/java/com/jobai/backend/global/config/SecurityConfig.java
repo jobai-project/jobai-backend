@@ -3,6 +3,7 @@ package com.jobai.backend.global.config;
 import com.jobai.backend.global.auth.CustomOAuth2UserService;
 import com.jobai.backend.global.auth.OAuth2SuccessHandler;
 import com.jobai.backend.global.auth.JwtAuthenticationFilter;
+import com.jobai.backend.global.auth.OAuth2FrontendRedirectFilter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -15,7 +16,8 @@ import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.HttpStatusEntryPoint;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
-import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
+import org.springframework.security.oauth2.client.web.OAuth2AuthorizationRequestRedirectFilter;
+import org.springframework.security.web.servlet.util.matcher.PathPatternRequestMatcher;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
@@ -27,6 +29,7 @@ import java.util.Arrays;
 @RequiredArgsConstructor
 @Profile("!local")
 public class SecurityConfig {
+    private final OAuth2FrontendRedirectFilter oAuth2FrontendRedirectFilter;
 
     private final CustomOAuth2UserService customOAuth2UserService;
     private final OAuth2SuccessHandler oAuth2SuccessHandler;
@@ -69,12 +72,13 @@ public class SecurityConfig {
                 .exceptionHandling(exception -> exception
                         .defaultAuthenticationEntryPointFor(
                                 new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED),
-                                new AntPathRequestMatcher("/api/**")
+                                PathPatternRequestMatcher.withDefaults().matcher("/api/**")
                         )
                 )
 
                 // CORS 설정 연결
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
+                .addFilterBefore(oAuth2FrontendRedirectFilter, OAuth2AuthorizationRequestRedirectFilter.class)
 
                         // 5. OAuth2 로그인 설정 추가
                 .oauth2Login(oauth2 -> oauth2

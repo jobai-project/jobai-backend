@@ -7,6 +7,8 @@ import com.jobai.backend.global.auth.CustomOAuth2UserService;
 import com.jobai.backend.global.auth.JwtAuthenticationFilter;
 import com.jobai.backend.global.auth.JwtProvider;
 import com.jobai.backend.global.auth.OAuth2SuccessHandler;
+import com.jobai.backend.global.auth.OAuth2FrontendRedirectFilter;
+import com.jobai.backend.global.auth.FrontendRedirectUriResolver;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
@@ -43,6 +45,9 @@ class SecurityConfigTest {
 
     @MockBean
     private JwtProvider jwtProvider;
+
+    @MockBean
+    private FrontendRedirectUriResolver frontendRedirectUriResolver;
 
     @Test
     void unauthenticatedApiRequestReturnsUnauthorizedInsteadOfOAuthRedirect() throws Exception {
