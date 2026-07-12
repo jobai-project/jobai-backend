@@ -32,7 +32,9 @@ public class NotificationSettingsService {
                 request.getEmailEnabled(),
                 request.getSlackEnabled(),
                 request.getDiscordEnabled(),
-                request.getMatchScoreThreshold()
+                request.getMatchScoreThreshold(),
+                request.getSlackWebhookUrl(),
+                request.getDiscordWebhookUrl()
         );
         notificationRepository.save(notification);
 

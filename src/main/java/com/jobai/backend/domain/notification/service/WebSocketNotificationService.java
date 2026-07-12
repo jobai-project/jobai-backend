@@ -7,7 +7,7 @@ import org.springframework.stereotype.Service;
 
 @Service
 @RequiredArgsConstructor
-@Profile("!classify & !export")
+@Profile("!classify & !export & !collect")
 public class WebSocketNotificationService {
 
     private final SimpMessagingTemplate messagingTemplate;
