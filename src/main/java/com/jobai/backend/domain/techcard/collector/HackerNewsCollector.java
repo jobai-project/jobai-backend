@@ -47,7 +47,7 @@ public class HackerNewsCollector implements ArticleCollector {
             List<StoryWithScore> stories = Flux.fromIterable(targetIds)
                     .flatMap(this::fetchStoryWithScore, CONCURRENCY)
                     .collectList()
-                    .timeout(Duration.ofSeconds(30))
+                    .timeout(Duration.ofSeconds(60))
                     .block();
 
             if (stories == null || stories.isEmpty()) {

@@ -68,6 +68,7 @@ public class DailyJobSchedulerController implements DailyJobSchedulerControllerD
         return ResponseEntity.ok(result);
     }
 
+    @Override
     @PostMapping("/tech-cards")
     public ResponseEntity<String> collectTechCards() {
         techCardCollectService.collectAndSummarize();

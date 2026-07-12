@@ -87,7 +87,9 @@ public class TechCardSummarizeService {
             String headline = node.path("headline").asText("");
             String subtext = node.path("subtext").asText("");
 
-            if (pickedIndex < 1 || pickedIndex > articleCount || headline.isBlank() || subtext.isBlank()) {
+            if (pickedIndex < 1 || pickedIndex > articleCount
+                    || headline.isBlank() || subtext.isBlank()
+                    || headline.length() > 200 || subtext.length() > 300) {
                 log.warn("[TechCard] 선별 응답 유효하지 않음: pickedIndex={}, headline={}", pickedIndex, headline);
                 return null;
             }

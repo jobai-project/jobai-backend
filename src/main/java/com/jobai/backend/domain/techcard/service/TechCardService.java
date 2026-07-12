@@ -60,6 +60,17 @@ public class TechCardService {
             Map.entry("서비스기획", "서비스기획")
     );
 
+    private List<RelatedJob> mapToRelatedJobs(List<Tuple> jobResults) {
+        return jobResults.stream()
+                .map(row -> new RelatedJob(
+                        ((Number) row.get("id")).longValue(),
+                        "PRIVATE",
+                        COMPANY_DISPLAY_NAMES.getOrDefault((String) row.get("company"), (String) row.get("company")),
+                        (String) row.get("title")
+                ))
+                .toList();
+    }
+
     public TechCardResponse getTechCards() {
         List<CardItem> cards = new ArrayList<>();
 
@@ -80,7 +91,7 @@ public class TechCardService {
         externalCard.ifPresent(card -> cards.add(new CardItem(
                 card.getId(),
                 card.getSource().name(),
-                "요즘 뜨는 트렌드",
+                "테크 뉴스",
                 card.getHeadline(),
                 card.getSubtext(),
                 card.getOriginalUrl(),
@@ -97,7 +108,8 @@ public class TechCardService {
         List<Tuple> results = entityManager.createNativeQuery("""
                 SELECT job_category AS category, COUNT(*) AS cnt
                 FROM private_job_postings
-                WHERE DATE(created_at) = CURRENT_DATE
+                WHERE created_at >= CURRENT_DATE
+                  AND created_at < CURRENT_DATE + 1
                   AND job_category IS NOT NULL
                   AND job_category NOT IN ('비대상', '미분류')
                 GROUP BY job_category
@@ -137,7 +149,8 @@ public class TechCardService {
         List<Tuple> jobResults = entityManager.createNativeQuery("""
                 SELECT id, company, title
                 FROM private_job_postings
-                WHERE DATE(created_at) = CURRENT_DATE
+                WHERE created_at >= CURRENT_DATE
+                  AND created_at < CURRENT_DATE + 1
                   AND job_category = :category
                 ORDER BY created_at DESC
                 LIMIT 5
@@ -145,14 +158,7 @@ public class TechCardService {
                 .setParameter("category", topCategory)
                 .getResultList();
 
-        List<RelatedJob> relatedJobs = jobResults.stream()
-                .map(row -> new RelatedJob(
-                        ((Number) row.get("id")).longValue(),
-                        "PRIVATE",
-                        COMPANY_DISPLAY_NAMES.getOrDefault((String) row.get("company"), (String) row.get("company")),
-                        (String) row.get("title")
-                ))
-                .toList();
+        List<RelatedJob> relatedJobs = mapToRelatedJobs(jobResults);
 
         return new CardItem(null, ContentSource.INTERNAL.name(), "채용 트렌드", headline, subtext, null, null, LocalDateTime.now(), relatedJobs);
     }
@@ -162,7 +168,8 @@ public class TechCardService {
         @SuppressWarnings("unchecked")
         List<Object> countResult = entityManager.createNativeQuery("""
                 SELECT COUNT(*) FROM private_job_postings
-                WHERE DATE(created_at) = CURRENT_DATE
+                WHERE created_at >= CURRENT_DATE
+                  AND created_at < CURRENT_DATE + 1
                 """)
                 .getResultList();
 
@@ -176,20 +183,14 @@ public class TechCardService {
         List<Tuple> jobResults = entityManager.createNativeQuery("""
                 SELECT id, company, title
                 FROM private_job_postings
-                WHERE DATE(created_at) = CURRENT_DATE
+                WHERE created_at >= CURRENT_DATE
+                  AND created_at < CURRENT_DATE + 1
                 ORDER BY created_at DESC
                 LIMIT 5
                 """, Tuple.class)
                 .getResultList();
 
-        List<RelatedJob> relatedJobs = jobResults.stream()
-                .map(row -> new RelatedJob(
-                        ((Number) row.get("id")).longValue(),
-                        "PRIVATE",
-                        COMPANY_DISPLAY_NAMES.getOrDefault((String) row.get("company"), (String) row.get("company")),
-                        (String) row.get("title")
-                ))
-                .toList();
+        List<RelatedJob> relatedJobs = mapToRelatedJobs(jobResults);
 
         return new CardItem(
                 null,

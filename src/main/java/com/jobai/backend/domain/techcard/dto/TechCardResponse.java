@@ -7,7 +7,7 @@ import java.util.List;
 
 @Schema(description = "IT 인사이트 카드 응답")
 public record TechCardResponse(
-        @Schema(description = "카드 목록 (내부 카드 2장 + 외부 카드 1장)")
+        @Schema(description = "카드 목록 (최대 내부 카드 2장 + 외부 카드 1장)")
         List<CardItem> cards
 ) {
     @Schema(description = "인사이트 카드 항목")

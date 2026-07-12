@@ -7,8 +7,6 @@ import com.jobai.backend.domain.techcard.entity.TechCard;
 import com.jobai.backend.domain.techcard.repository.TechCardRepository;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
 import java.util.List;
 import java.util.Optional;
 
@@ -31,7 +29,6 @@ public class TechCardCollectService {
         this.techCardRepository = techCardRepository;
     }
 
-    @Transactional
     public void collectAndSummarize() {
         for (ArticleCollector collector : collectors) {
             try {
