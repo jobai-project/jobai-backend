@@ -119,4 +119,22 @@ public interface DailyJobSchedulerControllerDocs {
             )
     })
     ResponseEntity<String> generateResumeEmbeddings();
+
+    @Operation(
+            summary = "IT 뉴스 카드 수집",
+            description = """
+                    HackerNews에서 IT 뉴스를 수집하고 LLM으로 요약하여 테크 카드를 생성한다.
+                    """
+    )
+    @ApiResponses(value = {
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "200",
+                    description = "수집 완료",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = @ExampleObject(value = "\"IT 뉴스 카드 수집 완료\"")
+                    )
+            )
+    })
+    ResponseEntity<String> collectTechCards();
 }

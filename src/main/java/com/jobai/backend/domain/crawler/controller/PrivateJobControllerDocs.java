@@ -11,7 +11,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 
 @Tag(name = "Private Jobs", description = "사기업 공고 상세 조회 및 LLM 요약 API")
-public interface PrivateJobControllerDocs {
+public interface  PrivateJobControllerDocs {
 
     @Operation(
             summary = "사기업 공고 상세 조회",

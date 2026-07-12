@@ -4,6 +4,7 @@ import com.jobai.backend.domain.crawler.scheduler.DailyJobScheduler;
 import com.jobai.backend.domain.crawler.service.PrivateJobPostingService;
 import com.jobai.backend.domain.home.service.PrivateMatchBatchService;
 import com.jobai.backend.domain.search.service.EmbeddingBatchService;
+import com.jobai.backend.domain.techcard.service.TechCardCollectService;
 import lombok.RequiredArgsConstructor;
 
 import org.springframework.http.ResponseEntity;
@@ -23,6 +24,7 @@ public class DailyJobSchedulerController implements DailyJobSchedulerControllerD
     private final PrivateJobPostingService privateJobPostingService;
     private final EmbeddingBatchService embeddingBatchService;
     private final PrivateMatchBatchService privateMatchBatchService;
+    private final TechCardCollectService techCardCollectService;
 
     @Override
     @PostMapping("/daily-pipeline")
@@ -64,5 +66,12 @@ public class DailyJobSchedulerController implements DailyJobSchedulerControllerD
     public ResponseEntity<String> generateResumeEmbeddings() {
         String result = embeddingBatchService.generateMissingResumeEmbeddings();
         return ResponseEntity.ok(result);
+    }
+
+    @Override
+    @PostMapping("/tech-cards")
+    public ResponseEntity<String> collectTechCards() {
+        techCardCollectService.collectAndSummarize();
+        return ResponseEntity.ok("IT 뉴스 카드 수집 완료");
     }
 }
