@@ -5,6 +5,7 @@ import com.jobai.backend.domain.crawler.repository.PrivateJobPostingRepository;
 import com.jobai.backend.domain.publicInstitution.entity.JobPosting;
 import com.jobai.backend.domain.publicInstitution.entity.PublicJobPosting;
 import com.jobai.backend.domain.publicInstitution.repository.JobPostingRepository;
+import com.jobai.backend.domain.member.repository.ResumesRepository;
 import com.jobai.backend.domain.search.repository.JobEmbeddingRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -28,6 +29,7 @@ class EmbeddingBatchServiceTest {
     private JobEmbeddingRepository jobEmbeddingRepository;
     private PrivateJobPostingRepository privateJobPostingRepository;
     private JobPostingRepository jobPostingRepository;
+    private ResumesRepository resumesRepository;
     private EmbeddingBatchService batchService;
 
     @BeforeEach
@@ -36,9 +38,11 @@ class EmbeddingBatchServiceTest {
         jobEmbeddingRepository = Mockito.mock(JobEmbeddingRepository.class);
         privateJobPostingRepository = Mockito.mock(PrivateJobPostingRepository.class);
         jobPostingRepository = Mockito.mock(JobPostingRepository.class);
+        resumesRepository = Mockito.mock(ResumesRepository.class);
 
         batchService = new EmbeddingBatchService(
-                embeddingService, jobEmbeddingRepository, privateJobPostingRepository, jobPostingRepository);
+                embeddingService, jobEmbeddingRepository, privateJobPostingRepository,
+                jobPostingRepository, resumesRepository);
 
         setField("embeddingEnabled", true);
         setField("batchSize", 50);

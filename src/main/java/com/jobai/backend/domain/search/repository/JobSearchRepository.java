@@ -26,22 +26,12 @@ public class JobSearchRepository {
 
         List<String> predicates = new ArrayList<>();
         boolean hasCategory = condition.categories() != null && !condition.categories().isEmpty();
-        List<String> sanitizedTitleKw = sanitizeKeywords(condition.titleKeywords());
-        boolean hasTitleKeywords = !sanitizedTitleKw.isEmpty();
-
-        if (hasCategory || hasTitleKeywords) {
-            List<String> orClauses = new ArrayList<>();
-            if (hasCategory) {
-                orClauses.add("p.jobCategory IN :categories");
-            }
-            if (hasTitleKeywords) {
-                for (int i = 0; i < sanitizedTitleKw.size(); i++) {
-                    orClauses.add("LOWER(p.title) LIKE :titleKw" + i);
-                }
-            }
-            predicates.add("(" + String.join(" OR ", orClauses) + ")");
+        if (hasCategory) {
+            predicates.add("p.jobCategory IN :categories");
         }
-
+        if (hasText(condition.company())) {
+            predicates.add("p.company = :company");
+        }
         if (hasText(condition.location())) {
             predicates.add("(LOWER(p.location) LIKE :locationPattern OR p.location IS NULL)");
         }
@@ -66,10 +56,8 @@ public class JobSearchRepository {
         if (hasCategory) {
             query.setParameter("categories", condition.categories());
         }
-        if (hasTitleKeywords) {
-            for (int i = 0; i < sanitizedTitleKw.size(); i++) {
-                query.setParameter("titleKw" + i, "%" + sanitizedTitleKw.get(i).toLowerCase() + "%");
-            }
+        if (hasText(condition.company())) {
+            query.setParameter("company", condition.company());
         }
         if (hasText(condition.location())) {
             query.setParameter("locationPattern", "%" + condition.location().trim().toLowerCase() + "%");
@@ -112,20 +100,15 @@ public class JobSearchRepository {
 
         List<String> predicates = new ArrayList<>();
 
-        // PublicJobPosting에는 jobCategory가 없으므로 카테고리 라벨도 title/jobRole LIKE로 검색
-        List<String> allKeywords = new ArrayList<>();
-        allKeywords.addAll(sanitizeKeywords(condition.titleKeywords()));
-        if (condition.categories() != null) {
-            condition.categories().stream()
-                    .filter(Objects::nonNull)
-                    .map(String::trim)
-                    .filter(s -> !s.isBlank())
-                    .forEach(allKeywords::add);
-        }
+        // PublicJobPosting에는 jobCategory가 없으므로 카테고리 라벨을 title/jobRole LIKE로 검색
+        List<String> categoryKeywords = condition.categories() != null
+                ? condition.categories().stream()
+                    .filter(Objects::nonNull).map(String::trim).filter(s -> !s.isBlank()).toList()
+                : List.of();
 
-        if (!allKeywords.isEmpty()) {
+        if (!categoryKeywords.isEmpty()) {
             List<String> orClauses = new ArrayList<>();
-            for (int i = 0; i < allKeywords.size(); i++) {
+            for (int i = 0; i < categoryKeywords.size(); i++) {
                 orClauses.add("LOWER(p.title) LIKE :pubKw" + i);
                 orClauses.add("LOWER(p.jobRole) LIKE :pubKw" + i);
             }
@@ -151,9 +134,9 @@ public class JobSearchRepository {
         TypedQuery<?> query = em.createQuery(jpql.toString(),
                 com.jobai.backend.domain.publicInstitution.entity.PublicJobPosting.class);
 
-        if (!allKeywords.isEmpty()) {
-            for (int i = 0; i < allKeywords.size(); i++) {
-                query.setParameter("pubKw" + i, "%" + allKeywords.get(i).toLowerCase() + "%");
+        if (!categoryKeywords.isEmpty()) {
+            for (int i = 0; i < categoryKeywords.size(); i++) {
+                query.setParameter("pubKw" + i, "%" + categoryKeywords.get(i).toLowerCase() + "%");
             }
         }
         if (hasText(condition.location())) {
@@ -198,22 +181,12 @@ public class JobSearchRepository {
 
         List<String> predicates = new ArrayList<>();
         boolean hasCategory = condition.categories() != null && !condition.categories().isEmpty();
-        List<String> sanitizedTitleKw = sanitizeKeywords(condition.titleKeywords());
-        boolean hasTitleKeywords = !sanitizedTitleKw.isEmpty();
-
-        if (hasCategory || hasTitleKeywords) {
-            List<String> orClauses = new ArrayList<>();
-            if (hasCategory) {
-                orClauses.add("p.jobCategory IN :categories");
-            }
-            if (hasTitleKeywords) {
-                for (int i = 0; i < sanitizedTitleKw.size(); i++) {
-                    orClauses.add("LOWER(p.title) LIKE :titleKw" + i);
-                }
-            }
-            predicates.add("(" + String.join(" OR ", orClauses) + ")");
+        if (hasCategory) {
+            predicates.add("p.jobCategory IN :categories");
         }
-
+        if (hasText(condition.company())) {
+            predicates.add("p.company = :company");
+        }
         if (hasText(condition.location())) {
             predicates.add("(LOWER(p.location) LIKE :locationPattern OR p.location IS NULL)");
         }
@@ -236,10 +209,8 @@ public class JobSearchRepository {
         if (hasCategory) {
             query.setParameter("categories", condition.categories());
         }
-        if (hasTitleKeywords) {
-            for (int i = 0; i < sanitizedTitleKw.size(); i++) {
-                query.setParameter("titleKw" + i, "%" + sanitizedTitleKw.get(i).toLowerCase() + "%");
-            }
+        if (hasText(condition.company())) {
+            query.setParameter("company", condition.company());
         }
         if (hasText(condition.location())) {
             query.setParameter("locationPattern", "%" + condition.location().trim().toLowerCase() + "%");
@@ -260,19 +231,14 @@ public class JobSearchRepository {
 
         List<String> predicates = new ArrayList<>();
 
-        List<String> allKeywords = new ArrayList<>();
-        allKeywords.addAll(sanitizeKeywords(condition.titleKeywords()));
-        if (condition.categories() != null) {
-            condition.categories().stream()
-                    .filter(Objects::nonNull)
-                    .map(String::trim)
-                    .filter(s -> !s.isBlank())
-                    .forEach(allKeywords::add);
-        }
+        List<String> categoryKeywords = condition.categories() != null
+                ? condition.categories().stream()
+                    .filter(Objects::nonNull).map(String::trim).filter(s -> !s.isBlank()).toList()
+                : List.of();
 
-        if (!allKeywords.isEmpty()) {
+        if (!categoryKeywords.isEmpty()) {
             List<String> orClauses = new ArrayList<>();
-            for (int i = 0; i < allKeywords.size(); i++) {
+            for (int i = 0; i < categoryKeywords.size(); i++) {
                 orClauses.add("LOWER(p.title) LIKE :pubKw" + i);
                 orClauses.add("LOWER(p.jobRole) LIKE :pubKw" + i);
             }
@@ -296,9 +262,9 @@ public class JobSearchRepository {
 
         TypedQuery<Long> query = em.createQuery(jpql.toString(), Long.class);
 
-        if (!allKeywords.isEmpty()) {
-            for (int i = 0; i < allKeywords.size(); i++) {
-                query.setParameter("pubKw" + i, "%" + allKeywords.get(i).toLowerCase() + "%");
+        if (!categoryKeywords.isEmpty()) {
+            for (int i = 0; i < categoryKeywords.size(); i++) {
+                query.setParameter("pubKw" + i, "%" + categoryKeywords.get(i).toLowerCase() + "%");
             }
         }
         if (hasText(condition.location())) {
@@ -352,14 +318,5 @@ public class JobSearchRepository {
 
     private static boolean hasText(String value) {
         return value != null && !value.isBlank();
-    }
-
-    private static List<String> sanitizeKeywords(List<String> keywords) {
-        if (keywords == null) return List.of();
-        return keywords.stream()
-                .filter(Objects::nonNull)
-                .map(String::trim)
-                .filter(s -> !s.isBlank())
-                .toList();
     }
 }

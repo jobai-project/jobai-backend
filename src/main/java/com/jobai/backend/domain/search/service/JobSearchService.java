@@ -42,14 +42,14 @@ public class JobSearchService {
     public JobSearchResponse search(String query, int page, int size) {
         MatchResult match = keywordMatcher.extract(query);
 
-        log.info("키워드 분석: query={}, categories={}, location={}, experience={}, unmatchedTokens={}",
-                query, match.categories(), match.location(), match.experience(), match.unmatchedTokens());
+        log.info("키워드 분석: query={}, categories={}, company={}, location={}, experience={}, unmatchedTokens={}",
+                query, match.categories(), match.company(), match.location(), match.experience(), match.unmatchedTokens());
 
         if (!match.hasUnmatchedTokens()) {
             // 경로 A: 모든 토큰이 매칭됨 → 기존 검색
             log.info("구조화 검색 실행: query={}", query);
             SearchCondition condition = new SearchCondition(
-                    match.categories(), List.of(), List.of(),
+                    match.categories(), match.company(),
                     match.location(), match.experience(),
                     match.experienceLevels(), match.employmentTypes(),
                     SearchCondition.METHOD_KEYWORD);
@@ -63,7 +63,7 @@ public class JobSearchService {
                 log.info("벡터 검색 실행: query={}, dimension={}", query, queryVector.length);
 
                 SearchCondition condition = new SearchCondition(
-                        match.categories(), List.of(), List.of(),
+                        match.categories(), match.company(),
                         match.location(), match.experience(),
                         match.experienceLevels(), match.employmentTypes(),
                         SearchCondition.METHOD_VECTOR);
@@ -79,7 +79,7 @@ public class JobSearchService {
         // 벡터 검색 비활성화 또는 실패 시 구조화 조건만으로 폴백 검색
         // unmatchedTokens는 의미 검색용이므로 LIKE 키워드로 사용하지 않는다
         SearchCondition fallback = new SearchCondition(
-                match.categories(), List.of(), List.of(),
+                match.categories(), match.company(),
                 match.location(), match.experience(),
                 match.experienceLevels(), match.employmentTypes(),
                 SearchCondition.METHOD_KEYWORD);
