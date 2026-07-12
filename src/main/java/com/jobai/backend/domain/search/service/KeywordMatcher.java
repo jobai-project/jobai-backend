@@ -28,6 +28,8 @@ public class KeywordMatcher {
     private final Map<String, String> locationKeywords = new HashMap<>();
     private final Map<String, String> experienceKeywords = new HashMap<>();
     private final Map<String, String> employmentTypeKeywords = new HashMap<>();
+    private final Map<String, String> companyKeywords = new HashMap<>();
+    private final Map<String, String> companyDisplayNames = new HashMap<>();
 
     /** Komoran POS 태그 중 키워드 매칭 대상이 되는 콘텐츠 형태소 */
     private static final Set<String> CONTENT_POS_TAGS = Set.of(
@@ -59,6 +61,7 @@ public class KeywordMatcher {
         initLocationKeywords();
         initExperienceKeywords();
         initEmploymentTypeKeywords();
+        initCompanyKeywords();
         this.komoran = initKomoran();
     }
 
@@ -74,6 +77,7 @@ public class KeywordMatcher {
         List<String> tokens = extractMorphemes(query);
 
         Set<JobCategory> matchedCategories = new LinkedHashSet<>();
+        String matchedCompany = null;
         String matchedLocation = null;
         String matchedExperience = null;
         String matchedEmploymentType = null;
@@ -105,6 +109,12 @@ public class KeywordMatcher {
                 continue;
             }
 
+            String company = companyKeywords.get(token);
+            if (company != null) {
+                matchedCompany = company;
+                continue;
+            }
+
             String location = locationKeywords.get(token);
             if (location != null) {
                 matchedLocation = location;
@@ -133,8 +143,8 @@ public class KeywordMatcher {
         List<String> expLevels = deriveExperienceLevels(matchedExperience);
         List<String> empTypes = deriveEmploymentTypes(matchedEmploymentType);
 
-        return new MatchResult(categoryLabels, matchedLocation, matchedExperience,
-                expLevels, empTypes, unmatchedTokens);
+        return new MatchResult(categoryLabels, matchedCompany, matchedLocation,
+                matchedExperience, expLevels, empTypes, unmatchedTokens);
     }
 
     /** Komoran으로 형태소 분석 후 콘텐츠 형태소(명사/외국어)만 추출한다. */
@@ -166,15 +176,15 @@ public class KeywordMatcher {
     public Optional<SearchCondition> match(String query) {
         MatchResult result = extract(query);
 
-        if (result.categories().isEmpty() && result.location() == null
+        if (result.categories().isEmpty() && result.company() == null
+                && result.location() == null
                 && result.experience() == null && result.employmentTypes().isEmpty()) {
             return Optional.empty();
         }
 
         return Optional.of(new SearchCondition(
                 result.categories(),
-                List.of(),
-                List.of(),
+                result.company(),
                 result.location(),
                 result.experience(),
                 result.experienceLevels(),
@@ -271,6 +281,9 @@ public class KeywordMatcher {
         employmentTypeKeywords.keySet().stream()
                 .filter(w -> w.matches(".*[가-힣].*"))
                 .forEach(dictWords::add);
+        companyKeywords.keySet().stream()
+                .filter(w -> w.matches(".*[가-힣].*"))
+                .forEach(dictWords::add);
 
         // bigram 구성 단어 중 Komoran이 분리할 수 있는 단어 추가
         dictWords.addAll(List.of("리서처", "리서치", "매니저", "오너"));
@@ -323,12 +336,43 @@ public class KeywordMatcher {
         }
     }
 
+    private void initCompanyKeywords() {
+        addCompany("kakao", "카카오");
+        addCompany("kakaopay", "카카오페이");
+        addCompany("naver", "네이버");
+        addCompany("coupang", "쿠팡");
+        addCompany("woowahan", "우아한형제들");
+        addCompany("toss", "토스");
+        addCompany("daangn", "당근마켓");
+        addCompany("socar", "쏘카");
+        addCompany("kurly", "컬리");
+        addCompany("zigbang", "직방");
+        addCompany("wrtn", "뤼튼");
+        addCompany("nhn", "NHN");
+        addCompany("upstage", "업스테이지");
+        addCompany("doodlin", "두들린");
+        addCompany("gccompany", "여기어때");
+    }
+
+    private void addCompany(String companyId, String displayName) {
+        companyKeywords.put(companyId.toLowerCase(), companyId);
+        companyKeywords.put(displayName.toLowerCase(), companyId);
+        companyDisplayNames.put(companyId, displayName);
+    }
+
+    /** 영문 company ID를 한글 표시명으로 변환한다. 매핑이 없으면 ID를 그대로 반환한다. */
+    public String getDisplayName(String companyId) {
+        if (companyId == null) return null;
+        return companyDisplayNames.getOrDefault(companyId, companyId);
+    }
+
     /**
      * KeywordMatcher의 추출 결과.
      * unmatchedTokens가 비어있으면 구조화 검색만으로 충분, 있으면 벡터 검색 필요.
      */
     public record MatchResult(
             List<String> categories,
+            String company,
             String location,
             String experience,
             List<String> experienceLevels,
@@ -340,7 +384,7 @@ public class KeywordMatcher {
         }
 
         public static MatchResult empty() {
-            return new MatchResult(List.of(), null, null, List.of(), List.of(), List.of());
+            return new MatchResult(List.of(), null, null, null, List.of(), List.of(), List.of());
         }
     }
 }

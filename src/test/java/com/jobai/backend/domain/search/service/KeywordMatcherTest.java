@@ -331,4 +331,42 @@ class KeywordMatcherTest {
 
         assertThat(result.categories()).contains("프론트엔드", "백엔드");
     }
+
+    // --- 회사명 매칭 ---
+
+    @Test
+    @DisplayName("한글 회사명: '카카오 백엔드' → company=kakao, categories=[백엔드]")
+    void extract_카카오_백엔드() {
+        MatchResult result = matcher.extract("카카오 백엔드");
+
+        assertThat(result.company()).isEqualTo("kakao");
+        assertThat(result.categories()).contains("백엔드");
+        assertThat(result.hasUnmatchedTokens()).isFalse();
+    }
+
+    @Test
+    @DisplayName("영문 회사명: 'toss' → company=toss")
+    void extract_toss() {
+        MatchResult result = matcher.extract("toss");
+
+        assertThat(result.company()).isEqualTo("toss");
+    }
+
+    @Test
+    @DisplayName("회사명 + 경력: '네이버 신입' → company=naver, experience=신입")
+    void extract_네이버_신입() {
+        MatchResult result = matcher.extract("네이버 신입");
+
+        assertThat(result.company()).isEqualTo("naver");
+        assertThat(result.experience()).isEqualTo("신입");
+        assertThat(result.hasUnmatchedTokens()).isFalse();
+    }
+
+    @Test
+    @DisplayName("회사명 표시명 변환: kakao → 카카오")
+    void getDisplayName() {
+        assertThat(matcher.getDisplayName("kakao")).isEqualTo("카카오");
+        assertThat(matcher.getDisplayName("unknown")).isEqualTo("unknown");
+        assertThat(matcher.getDisplayName(null)).isNull();
+    }
 }
