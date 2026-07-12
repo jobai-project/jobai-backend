@@ -9,7 +9,7 @@ import org.springframework.stereotype.Service;
 
 @Service
 @RequiredArgsConstructor
-@Profile("!classify & !export & !local")
+@Profile("!classify & !export & !collect & !local")
 public class TechCardBloomFilterService {
 
     private static final String BLOOM_FILTER_NAME = "techcard:bloom";
