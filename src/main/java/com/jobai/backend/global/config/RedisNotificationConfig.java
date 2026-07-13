@@ -13,6 +13,8 @@ import org.springframework.data.redis.listener.PatternTopic;
 import org.springframework.data.redis.listener.RedisMessageListenerContainer;
 import org.springframework.data.redis.listener.adapter.MessageListenerAdapter;
 import org.springframework.data.redis.serializer.StringRedisSerializer;
+import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
+import org.springframework.util.StringUtils;
 
 @Configuration
 @Profile("!classify & !export & !collect & !local & !test")
@@ -21,9 +23,13 @@ public class RedisNotificationConfig {
     @Bean
     public RedisConnectionFactory redisConnectionFactory(
             @Value("${redis.host}") String redisHost,
-            @Value("${redis.port}") int redisPort
+            @Value("${redis.port}") int redisPort,
+            @Value("${redis.password:}") String redisPassword
     ) {
         RedisStandaloneConfiguration configuration = new RedisStandaloneConfiguration(redisHost, redisPort);
+        if (StringUtils.hasText(redisPassword)) {
+            configuration.setPassword(redisPassword);
+        }
         return new LettuceConnectionFactory(configuration);
     }
 
@@ -42,11 +48,25 @@ public class RedisNotificationConfig {
     @Bean
     public RedisMessageListenerContainer redisMessageListenerContainer(
             RedisConnectionFactory redisConnectionFactory,
-            MessageListenerAdapter notificationListenerAdapter
+            MessageListenerAdapter notificationListenerAdapter,
+            ThreadPoolTaskExecutor notificationRedisTaskExecutor
     ) {
         RedisMessageListenerContainer container = new RedisMessageListenerContainer();
         container.setConnectionFactory(redisConnectionFactory);
+        container.setTaskExecutor(notificationRedisTaskExecutor);
+        container.setSubscriptionExecutor(notificationRedisTaskExecutor);
         container.addMessageListener(notificationListenerAdapter, new PatternTopic("notification:*"));
         return container;
+    }
+
+    @Bean
+    public ThreadPoolTaskExecutor notificationRedisTaskExecutor() {
+        ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
+        executor.setCorePoolSize(2);
+        executor.setMaxPoolSize(8);
+        executor.setQueueCapacity(100);
+        executor.setThreadNamePrefix("notification-redis-");
+        executor.initialize();
+        return executor;
     }
 }

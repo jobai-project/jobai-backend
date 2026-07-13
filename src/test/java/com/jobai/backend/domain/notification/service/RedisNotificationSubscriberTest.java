@@ -45,4 +45,13 @@ class RedisNotificationSubscriberTest {
 
         verify(webSocketNotificationService, never()).sendToUser(anyString(), any());
     }
+
+    @Test
+    void ignoresMalformedJsonPayload() {
+        RedisNotificationSubscriber subscriber = new RedisNotificationSubscriber(objectMapper, webSocketNotificationService);
+
+        subscriber.handleMessage("{malformed-json", "notification:user@example.com");
+
+        verify(webSocketNotificationService, never()).sendToUser(anyString(), any());
+    }
 }

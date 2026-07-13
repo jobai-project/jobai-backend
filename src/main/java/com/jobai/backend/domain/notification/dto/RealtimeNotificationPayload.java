@@ -10,6 +10,16 @@ public record RealtimeNotificationPayload(
         Instant createdAt
 ) {
     public static RealtimeNotificationPayload of(String type, String title, String message, String linkUrl) {
-        return new RealtimeNotificationPayload(type, title, message, linkUrl, Instant.now());
+        return of(type, title, message, linkUrl, Instant.now());
+    }
+
+    public static RealtimeNotificationPayload of(
+            String type,
+            String title,
+            String message,
+            String linkUrl,
+            Instant createdAt
+    ) {
+        return new RealtimeNotificationPayload(type, title, message, linkUrl, createdAt);
     }
 }

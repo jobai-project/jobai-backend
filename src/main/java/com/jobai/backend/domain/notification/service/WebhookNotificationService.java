@@ -6,6 +6,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 import org.springframework.web.reactive.function.client.WebClient;
+import org.springframework.web.reactive.function.client.WebClientResponseException;
 import reactor.util.retry.Retry;
 
 import java.time.Duration;
@@ -59,9 +60,19 @@ public class WebhookNotificationService {
                 .bodyValue(body)
                 .retrieve()
                 .toBodilessEntity()
-                .retryWhen(Retry.backoff(3, Duration.ofSeconds(1)))
-                .doOnError(error -> log.warn("{} webhook notification failed", target, error))
-                .subscribe();
+                .retryWhen(Retry.backoff(3, Duration.ofSeconds(1))
+                        .filter(this::isRetryableWebhookFailure))
+                .subscribe(
+                        response -> { },
+                        error -> log.warn("{} webhook notification failed", target, error)
+                );
+    }
+
+    private boolean isRetryableWebhookFailure(Throwable error) {
+        if (error instanceof WebClientResponseException responseException) {
+            return responseException.getStatusCode().is5xxServerError();
+        }
+        return true;
     }
 
     private String buildSlackText(RealtimeNotificationPayload payload) {
