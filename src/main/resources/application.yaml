@@ -87,6 +87,7 @@ search:
 redis:
   host: ${REDIS_HOST:localhost}
   port: ${REDIS_PORT:6379}
+  password: ${REDIS_PASSWORD:}
 api:
   data-go-kr:
     service-key: ${DATA_GO_KR_SERVICE_KEY:dummy-key-for-local}
@@ -165,6 +166,7 @@ ai-server:
 redis:
   host: ${REDIS_HOST:redis}
   port: ${REDIS_PORT:6379}
+  password: ${REDIS_PASSWORD:}
 
 api:
   data-go-kr:

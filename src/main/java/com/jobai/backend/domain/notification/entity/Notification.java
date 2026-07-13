@@ -46,9 +46,22 @@ public class Notification {
 
     // 온보딩 4단계: 채널 on/off + 적합도 기준 저장
     public void updateSettings(Boolean emailNotification, Boolean slackNotification, Boolean discordNotification, Integer matchScoreThreshold) {
+        updateSettings(emailNotification, slackNotification, discordNotification, matchScoreThreshold, this.slackWebhookUrl, this.discordWebhookUrl);
+    }
+
+    public void updateSettings(
+            Boolean emailNotification,
+            Boolean slackNotification,
+            Boolean discordNotification,
+            Integer matchScoreThreshold,
+            String slackWebhookUrl,
+            String discordWebhookUrl
+    ) {
         this.emailNotification = emailNotification;
         this.slackNotification = slackNotification;
         this.discordNotification = discordNotification;
         this.matchScoreThreshold = matchScoreThreshold;
+        this.slackWebhookUrl = slackWebhookUrl;
+        this.discordWebhookUrl = discordWebhookUrl;
     }
 }

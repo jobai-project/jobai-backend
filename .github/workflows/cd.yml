@@ -95,6 +95,7 @@ jobs:
           SPRING_PORT=$(get_param SPRING_PORT)
           FASTAPI_PORT=$(get_param FASTAPI_PORT)
           REDIS_PORT=$(get_param REDIS_PORT)
+          REDIS_PASSWORD=$(get_param REDIS_PASSWORD)
           AI_SERVER_BASE_URL=$(get_param AI_SERVER_BASE_URL)
           POSTGRES_HOST=$(get_param POSTGRES_HOST)
           POSTGRES_PORT=$(get_param POSTGRES_PORT)
@@ -134,6 +135,7 @@ jobs:
           SPRING_PORT: ${{ secrets.SPRING_PORT || '8080' }}
           FASTAPI_PORT: ${{ secrets.FASTAPI_PORT || '8001' }}
           REDIS_PORT: ${{ secrets.REDIS_PORT || '6379' }}
+          REDIS_PASSWORD: ${{ secrets.REDIS_PASSWORD }}
           AI_SERVER_BASE_URL: ${{ secrets.AI_SERVER_BASE_URL || 'http://ai-server-disabled.invalid' }}
           POSTGRES_HOST: ${{ secrets.POSTGRES_HOST }}
           POSTGRES_PORT: ${{ secrets.POSTGRES_PORT || '5432' }}
@@ -169,6 +171,7 @@ jobs:
           put_param SPRING_PORT "${SPRING_PORT}"
           put_param FASTAPI_PORT "${FASTAPI_PORT}"
           put_param REDIS_PORT "${REDIS_PORT}"
+          put_param REDIS_PASSWORD "${REDIS_PASSWORD}"
           put_param AI_SERVER_BASE_URL "${AI_SERVER_BASE_URL}"
           put_param POSTGRES_HOST "${POSTGRES_HOST}"
           put_param POSTGRES_PORT "${POSTGRES_PORT}"
