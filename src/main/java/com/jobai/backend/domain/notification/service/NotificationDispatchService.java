@@ -35,7 +35,7 @@ public class NotificationDispatchService {
         try {
             publisher.publish(userId, payload);
         } catch (RuntimeException e) {
-            log.warn("Realtime notification publish failed for userId={}", userId, e);
+            log.warn("Realtime notification publish failed", e);
         }
     }
 

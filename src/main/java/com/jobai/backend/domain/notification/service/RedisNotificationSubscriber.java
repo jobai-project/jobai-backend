@@ -23,7 +23,7 @@ public class RedisNotificationSubscriber {
     public void handleMessage(String message, String channel) {
         String userId = extractUserId(channel);
         if (!StringUtils.hasText(userId)) {
-            log.warn("Skip notification message from invalid channel: {}", channel);
+            log.warn("Skip notification message from invalid channel");
             return;
         }
 
@@ -31,7 +31,7 @@ public class RedisNotificationSubscriber {
             RealtimeNotificationPayload payload = objectMapper.readValue(message, RealtimeNotificationPayload.class);
             webSocketNotificationService.sendToUser(userId, payload);
         } catch (JsonProcessingException e) {
-            log.warn("Failed to deserialize notification payload from channel {}", channel, e);
+            log.warn("Failed to deserialize notification payload", e);
         }
     }
 
