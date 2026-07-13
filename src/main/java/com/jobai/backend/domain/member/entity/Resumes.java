@@ -54,6 +54,11 @@ public class Resumes {
     @Column(name = "embedding", columnDefinition = "vector(768)")
     private float[] embedding;
 
+    /** 공기업(NCS) 매칭용 벡터. 사기업용 embedding과는 다른 임베딩 모델 공간이라 별도 컬럼으로 저장한다. */
+    @JdbcTypeCode(SqlTypes.VECTOR)
+    @Column(name = "ncs_embedding", columnDefinition = "vector(768)")
+    private float[] ncsEmbedding;
+
     /**
      * 이력서 파싱 결과를 업데이트한다.
      *
@@ -72,6 +77,15 @@ public class Resumes {
      */
     public void updateEmbedding(float[] embedding) {
         this.embedding = embedding;
+    }
+
+    /**
+     * 공기업(NCS) 매칭용 임베딩 벡터를 업데이트한다.
+     *
+     * @param ncsEmbedding 768차원 NCS 임베딩 벡터
+     */
+    public void updateNcsEmbedding(float[] ncsEmbedding) {
+        this.ncsEmbedding = ncsEmbedding;
     }
 
     public void activate() {

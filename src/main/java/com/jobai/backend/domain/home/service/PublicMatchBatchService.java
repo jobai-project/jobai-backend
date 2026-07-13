@@ -1,0 +1,287 @@
+package com.jobai.backend.domain.home.service;
+
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.jobai.backend.domain.ai.client.AiScoringClient;
+import com.jobai.backend.domain.ai.dto.ScorePublicRequest;
+import com.jobai.backend.domain.ai.dto.ScorePublicResponse;
+import com.jobai.backend.domain.home.entity.PublicMatchScore;
+import com.jobai.backend.domain.home.repository.PublicMatchScoreRepository;
+import com.jobai.backend.domain.member.entity.Member;
+import com.jobai.backend.domain.member.entity.Resumes;
+import com.jobai.backend.domain.member.repository.ResumesRepository;
+import com.jobai.backend.domain.publicInstitution.entity.PublicJobPosting;
+import com.jobai.backend.domain.publicInstitution.repository.JobPostingRepository;
+import com.jobai.backend.domain.search.entity.JobEmbedding;
+import com.jobai.backend.domain.search.entity.JobSource;
+import com.jobai.backend.domain.search.repository.JobEmbeddingRepository;
+import com.jobai.backend.domain.search.service.EmbeddingService;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Lazy;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.util.*;
+import java.util.stream.Collectors;
+
+/**
+ * 새벽 배치용 공기업 점수 산출 서비스.
+ * 신규 공고(점수 미산출)와 변경된 공고(posting.updatedAt > score.createdAt)에 대해서만
+ * AI 점수를 산출한다.
+ *
+ * <p>이력서 업로드 시의 전체 재산출({@link PublicMatchingService})과 달리,
+ * 기존 점수를 유지하고 신규/변경분만 증분 처리한다.</p>
+ */
+@Slf4j
+@Service
+@RequiredArgsConstructor
+public class PublicMatchBatchService {
+
+    private static final int MAX_SUMMARY_LENGTH = 4000;
+
+    /** self-injection: 프록시를 경유하여 @Transactional이 정상 동작하도록 한다. */
+    @Lazy
+    @Autowired
+    private PublicMatchBatchService self;
+
+    private final AiScoringClient aiScoringClient;
+    private final JobPostingRepository jobPostingRepository;
+    private final JobEmbeddingRepository jobEmbeddingRepository;
+    private final EmbeddingService embeddingService;
+    private final PublicMatchScoreRepository publicMatchScoreRepository;
+    private final ResumesRepository resumesRepository;
+    private final ObjectMapper objectMapper;
+
+    /**
+     * 모든 활성 이력서 × 활성 공고 조합에서 점수가 없거나 변경된 공고에 대해 점수를 산출한다.
+     *
+     * <p>처리 대상:</p>
+     * <ul>
+     *   <li><b>신규 공고:</b> 해당 이력서에 대해 아직 {@link PublicMatchScore}가 없는 공고</li>
+     *   <li><b>변경 공고:</b> 기존 점수는 있지만 {@code posting.updatedAt > score.createdAt}인 공고</li>
+     * </ul>
+     *
+     * <p>이력서별 try-catch로 한 이력서 처리 실패 시에도 나머지는 계속 진행한다.</p>
+     */
+    public void scoreNewAndUpdatedPostings() {
+        List<Resumes> activeResumes = resumesRepository.findAllActiveWithNcsEmbedding();
+        if (activeResumes.isEmpty()) {
+            log.info("[공기업 배치점수] 활성 이력서가 없어 점수 산출 건너뜀");
+            return;
+        }
+
+        List<PublicJobPosting> activePostings = jobPostingRepository.findActivePublicPostings();
+        if (activePostings.isEmpty()) {
+            log.info("[공기업 배치점수] 활성 공고가 없어 점수 산출 건너뜀");
+            return;
+        }
+
+        Map<Long, PublicJobPosting> postingMap = activePostings.stream()
+                .collect(Collectors.toMap(PublicJobPosting::getId, p -> p));
+
+        log.info("[공기업 배치점수] 시작 — 이력서 {}개, 활성 공고 {}개", activeResumes.size(), activePostings.size());
+
+        int totalNew = 0;
+        int totalUpdated = 0;
+        int totalFail = 0;
+
+        for (Resumes resume : activeResumes) {
+            try {
+                int[] counts = self.scoreForResume(resume, postingMap);
+                totalNew += counts[0];
+                totalUpdated += counts[1];
+                totalFail += counts[2];
+            } catch (Exception e) {
+                log.error("[공기업 배치점수] 이력서 {} 처리 중 오류: {}", resume.getId(), e.getMessage(), e);
+            }
+        }
+
+        log.info("[공기업 배치점수] 완료 — 신규 점수 {}건, 변경 재산출 {}건, 실패 {}건",
+                totalNew, totalUpdated, totalFail);
+    }
+
+    /**
+     * 한 이력서에 대해 신규/변경 공고의 점수를 산출한다.
+     *
+     * @param resume           점수를 산출할 이력서
+     * @param activePostingMap 활성 공고 맵 (공고 ID → 엔티티)
+     * @return {@code [신규 점수 수, 변경 재산출 수, 실패 수]} 배열
+     */
+    @Transactional
+    public int[] scoreForResume(Resumes resume, Map<Long, PublicJobPosting> activePostingMap) {
+        Long resumeId = resume.getId();
+
+        List<PublicMatchScore> existingScores = publicMatchScoreRepository.findByResumeId(resumeId);
+        Map<Long, PublicMatchScore> scoreByPostingId = existingScores.stream()
+                .collect(Collectors.toMap(
+                        s -> s.getPublicJobPosting().getId(),
+                        s -> s
+                ));
+
+        ScorePublicRequest.ResumePayload resumePayload = buildResumePayload(resume);
+        List<Double> resumeVec = toDoubleList(resume.getNcsEmbedding());
+
+        int newCount = 0;
+        int updatedCount = 0;
+        int failCount = 0;
+
+        for (PublicJobPosting posting : activePostingMap.values()) {
+            PublicMatchScore existing = scoreByPostingId.get(posting.getId());
+
+            if (existing == null) {
+                try {
+                    calculateAndSave(resume, posting, resumePayload, resumeVec);
+                    newCount++;
+                } catch (Exception e) {
+                    log.warn("[공기업 배치점수] 신규 점수 산출 실패: resumeId={}, postingId={}, error={}",
+                            resumeId, posting.getId(), e.getMessage());
+                    failCount++;
+                }
+            } else if (posting.getUpdatedAt() != null
+                    && existing.getCreatedAt() != null
+                    && posting.getUpdatedAt().isAfter(existing.getCreatedAt())) {
+                publicMatchScoreRepository.delete(existing);
+                publicMatchScoreRepository.flush();
+                calculateAndSave(resume, posting, resumePayload, resumeVec);
+                updatedCount++;
+            }
+            // else: 기존 점수 존재 + 변경 없음 → skip
+        }
+
+        if (newCount + updatedCount > 0) {
+            log.info("[공기업 배치점수] resumeId={} — 신규 {}, 변경 {}, 실패 {}",
+                    resumeId, newCount, updatedCount, failCount);
+        }
+
+        return new int[]{newCount, updatedCount, failCount};
+    }
+
+    private void calculateAndSave(
+            Resumes resume, PublicJobPosting posting,
+            ScorePublicRequest.ResumePayload resumePayload, List<Double> resumeVec
+    ) {
+        JobEmbeddingData jdData = getOrCreateJobEmbedding(posting);
+        if (jdData == null) {
+            throw new IllegalStateException("공고 임베딩 생성 불가: postingId=" + posting.getId());
+        }
+
+        ScorePublicRequest request = new ScorePublicRequest(
+                posting.getId(),
+                posting.getTitle(),
+                posting.getCompanyName(),
+                posting.getJobRole(),
+                posting.getWorkExperience(),
+                posting.getRecrutType(),
+                posting.getApplyQualification(),
+                posting.getApplicationMethod(),
+                posting.getHtmlContent(),
+                jdData.text(),
+                resumePayload,
+                toDoubleList(jdData.vector()),
+                resumeVec
+        );
+
+        ScorePublicResponse response = aiScoringClient.scorePublic(request).block();
+        if (response == null) {
+            throw new IllegalStateException("AI 점수 응답 null: postingId=" + posting.getId());
+        }
+
+        publicMatchScoreRepository.save(PublicMatchScore.builder()
+                .member(resume.getMember())
+                .resume(resume)
+                .publicJobPosting(posting)
+                .score((int) Math.round(response.score()))
+                .scoreReason(response.scoreReason())
+                .matchedSkills(toJson(response.matchedSkills()))
+                .missingSkills(toJson(response.missingSkills()))
+                .matchedCerts(toJson(response.matchedCerts()))
+                .missingCerts(toJson(response.missingCerts()))
+                .jobCluster(response.jobCluster())
+                .resumeCluster(response.resumeCluster())
+                .build());
+    }
+
+    private ScorePublicRequest.ResumePayload buildResumePayload(Resumes resume) {
+        List<String> resumeSkills = parseSkills(resume.getResumeSkills());
+        int experienceYears = resolveExperienceYears(resume.getMember());
+        String summary = resume.getExtractedText() != null && resume.getExtractedText().length() > MAX_SUMMARY_LENGTH
+                ? resume.getExtractedText().substring(0, MAX_SUMMARY_LENGTH)
+                : resume.getExtractedText();
+
+        return new ScorePublicRequest.ResumePayload(
+                resumeSkills,
+                List.of(), // TODO: 이력서 자격증 파싱 미구현 — 항상 빈 값으로 전달
+                experienceYears,
+                "", // 이력서 희망직무 입력이 없어 비워둠 — skills/summary 기반으로 클러스터 분류
+                summary
+        );
+    }
+
+    private record JobEmbeddingData(float[] vector, String text) {
+    }
+
+    /**
+     * 공고의 임베딩 벡터/텍스트를 조회하거나, 없으면 생성한다.
+     *
+     * @param posting 대상 공고
+     * @return 임베딩 벡터+텍스트. 생성 실패 시 {@code null}
+     */
+    private JobEmbeddingData getOrCreateJobEmbedding(PublicJobPosting posting) {
+        Optional<JobEmbedding> existing = jobEmbeddingRepository
+                .findBySourceAndSourceId(JobSource.PUBLIC, posting.getId());
+        if (existing.isPresent()) {
+            JobEmbedding je = existing.get();
+            return new JobEmbeddingData(je.getEmbedding(), je.getEmbeddingText());
+        }
+
+        try {
+            embeddingService.embedPublicPosting(posting);
+            return jobEmbeddingRepository
+                    .findBySourceAndSourceId(JobSource.PUBLIC, posting.getId())
+                    .map(je -> new JobEmbeddingData(je.getEmbedding(), je.getEmbeddingText()))
+                    .orElse(null);
+        } catch (Exception e) {
+            log.warn("공고 임베딩 생성 실패: postingId={}, error={}", posting.getId(), e.getMessage());
+            return null;
+        }
+    }
+
+    /** 온보딩 careerType을 경력 연수 정수로 변환한다. 연수 입력 필드 추가 시 교체 예정. */
+    private int resolveExperienceYears(Member member) {
+        if (member.getCareerType() == null) return 0;
+        return switch (member.getCareerType()) {
+            case "신입" -> 0;
+            case "경력" -> 3;
+            default -> 0;
+        };
+    }
+
+    private List<String> parseSkills(String skillsJson) {
+        if (skillsJson == null || skillsJson.isBlank()) return List.of();
+        try {
+            return objectMapper.readValue(skillsJson, new TypeReference<List<String>>() {});
+        } catch (JsonProcessingException e) {
+            return List.of();
+        }
+    }
+
+    private List<Double> toDoubleList(float[] floats) {
+        List<Double> list = new ArrayList<>(floats.length);
+        for (float f : floats) {
+            list.add((double) f);
+        }
+        return list;
+    }
+
+    private String toJson(List<String> list) {
+        if (list == null) return "[]";
+        try {
+            return objectMapper.writeValueAsString(list);
+        } catch (JsonProcessingException e) {
+            return "[]";
+        }
+    }
+}

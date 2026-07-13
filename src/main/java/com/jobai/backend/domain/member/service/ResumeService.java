@@ -8,6 +8,7 @@ import com.jobai.backend.domain.member.repository.ResumesRepository;
 import com.jobai.backend.global.apiPayload.code.GeneralErrorCode;
 import com.jobai.backend.global.apiPayload.exception.GeneralException;
 import com.jobai.backend.domain.home.service.PrivateMatchingService;
+import com.jobai.backend.domain.home.service.PublicMatchingService;
 import com.jobai.backend.domain.search.service.EmbeddingService;
 import com.jobai.backend.global.storage.FileStorageService;
 import lombok.RequiredArgsConstructor;
@@ -34,6 +35,7 @@ public class ResumeService {
     private final ResumeParsingService resumeParsingService;
     private final EmbeddingService embeddingService;
     private final PrivateMatchingService privateMatchingService;
+    private final PublicMatchingService publicMatchingService;
 
     public ResumeResponseDTO.ResumeListDTO getResumes(String email) {
         List<Resumes> resumes = resumesRepository.findByMemberEmailOrderByUpdatedAtDescIdDesc(email);
@@ -81,7 +83,7 @@ public class ResumeService {
                 log.warn("이력서 파싱 실패 (업로드는 정상 완료): resumeId={}, error={}", resumeId, e.getMessage());
             }
 
-            // 이력서 임베딩 (AI 서버 /embed/jd 호출)
+            // 이력서 임베딩 (AI 서버 /embed/jd 호출, 사기업 매칭용)
             if (resume.getExtractedText() != null && !resume.getExtractedText().isBlank()) {
                 try {
                     float[] vector = embeddingService.embedResumeText(resume.getExtractedText());
@@ -89,10 +91,19 @@ public class ResumeService {
                 } catch (Exception e) {
                     log.warn("이력서 임베딩 실패 (업로드는 정상 완료): resumeId={}, error={}", resumeId, e.getMessage());
                 }
+
+                // 이력서 NCS 임베딩 (AI 서버 /embed/ncs 호출, 공기업 매칭용)
+                try {
+                    float[] ncsVector = embeddingService.embedResumeTextNcs(resume.getExtractedText());
+                    resume.updateNcsEmbedding(ncsVector);
+                } catch (Exception e) {
+                    log.warn("이력서 NCS 임베딩 실패 (업로드는 정상 완료): resumeId={}, error={}", resumeId, e.getMessage());
+                }
             }
 
             // 비동기 매칭 점수 계산 트리거
             privateMatchingService.calculateScoresAsync(resumeId);
+            publicMatchingService.calculateScoresAsync(resumeId);
 
             return resumeId;
         } catch (Exception e) {
@@ -116,6 +127,7 @@ public class ResumeService {
 
         // 활성 이력서 변경 시 매칭 점수 재계산
         privateMatchingService.calculateScoresAsync(resumeId);
+        publicMatchingService.calculateScoresAsync(resumeId);
     }
 
     @Transactional

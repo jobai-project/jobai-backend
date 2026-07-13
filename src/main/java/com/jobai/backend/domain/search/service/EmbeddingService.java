@@ -58,11 +58,18 @@ public class EmbeddingService {
         return requestJdEmbedding(query.trim());
     }
 
-    /** 이력서 텍스트를 AI 서버 /embed/jd로 전송하여 768차원 벡터로 변환한다. */
+    /** 이력서 텍스트를 AI 서버 /embed/jd로 전송하여 768차원 벡터로 변환한다(사기업 매칭용). */
     public float[] embedResumeText(String resumeText) {
         String text = resumeText.length() > maxTextLength
                 ? resumeText.substring(0, maxTextLength) : resumeText;
         return requestJdEmbedding(text);
+    }
+
+    /** 이력서 텍스트를 AI 서버 /embed/ncs로 전송하여 768차원 벡터로 변환한다(공기업 매칭용). */
+    public float[] embedResumeTextNcs(String resumeText) {
+        String text = resumeText.length() > maxTextLength
+                ? resumeText.substring(0, maxTextLength) : resumeText;
+        return requestNcsEmbedding(text);
     }
 
     private float[] requestJdEmbedding(String text) {

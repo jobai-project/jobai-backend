@@ -4,9 +4,12 @@ import com.jobai.backend.domain.home.dto.HomeRecommendationResponse;
 import com.jobai.backend.domain.home.dto.HomeRecommendationResponse.RecommendedJob;
 import com.jobai.backend.domain.home.dto.JobCandidate;
 import com.jobai.backend.domain.home.entity.PrivateMatchScore;
+import com.jobai.backend.domain.home.entity.PublicMatchScore;
 import com.jobai.backend.domain.home.repository.HomeJobCandidateRepository;
 import com.jobai.backend.domain.home.repository.PrivateMatchScoreRepository;
+import com.jobai.backend.domain.home.repository.PublicMatchScoreRepository;
 import com.jobai.backend.domain.crawler.entity.PrivateJobPosting;
+import com.jobai.backend.domain.publicInstitution.entity.PublicJobPosting;
 import com.jobai.backend.domain.member.entity.Member;
 import com.jobai.backend.domain.member.entity.PreferredJob;
 import com.jobai.backend.domain.member.entity.PreferredRegion;
@@ -43,6 +46,7 @@ class HomeRecommendationServiceTest {
     private JobMatchScorer jobMatchScorer;
     private ResumesRepository resumesRepository;
     private PrivateMatchScoreRepository privateMatchScoreRepository;
+    private PublicMatchScoreRepository publicMatchScoreRepository;
     private HomeRecommendationService service;
 
     @BeforeEach
@@ -53,9 +57,10 @@ class HomeRecommendationServiceTest {
         jobMatchScorer = new JobMatchScorer();
         resumesRepository = Mockito.mock(ResumesRepository.class);
         privateMatchScoreRepository = Mockito.mock(PrivateMatchScoreRepository.class);
+        publicMatchScoreRepository = Mockito.mock(PublicMatchScoreRepository.class);
         service = new HomeRecommendationService(
                 memberRepository, candidateRepository, notificationRepository,
-                jobMatchScorer, resumesRepository, privateMatchScoreRepository
+                jobMatchScorer, resumesRepository, privateMatchScoreRepository, publicMatchScoreRepository
         );
 
         // 기본값: 온보딩 완료 + 희망직무 설정 + 활성 이력서 있음 → buildScoredResponse 경로
@@ -291,10 +296,37 @@ class HomeRecommendationServiceTest {
     }
 
     @Test
-    @DisplayName("PUBLIC 공고는 실점수와 무관하게 항상 mockScore를 사용한다")
-    void PUBLIC_항상_mockScore() {
+    @DisplayName("활성 이력서가 있으면 PUBLIC 공고에 AI 실점수를 사용한다")
+    void PUBLIC_실점수_사용() {
+        Resumes resume = Resumes.builder().id(10L).isActive(true).build();
+        when(resumesRepository.findByMemberEmailAndIsActiveTrue(EMAIL)).thenReturn(Optional.of(resume));
+
         JobCandidate pub = candidate(1L, "PUBLIC");
         when(candidateRepository.findPublicCandidates(any(), any(), anyInt())).thenReturn(List.of(pub));
+
+        PublicJobPosting posting = PublicJobPosting.builder().id(1L).build();
+        PublicMatchScore score = PublicMatchScore.builder()
+                .resume(resume).publicJobPosting(posting).score(88).build();
+        when(publicMatchScoreRepository.findByResumeIdAndPublicJobPostingIdIn(10L, List.of(1L)))
+                .thenReturn(List.of(score));
+
+        HomeRecommendationResponse response = service.getRecommendedJobs(EMAIL, List.of("PUBLIC"), null, null, 0, 10);
+
+        assertThat(response.jobs()).hasSize(1);
+        assertThat(response.jobs().get(0).matchScore()).isEqualTo(88);
+    }
+
+    @Test
+    @DisplayName("실점수가 없는 PUBLIC 공고는 mockScore 폴백을 사용한다")
+    void PUBLIC_점수미계산_mockScore폴백() {
+        Resumes resume = Resumes.builder().id(10L).isActive(true).build();
+        when(resumesRepository.findByMemberEmailAndIsActiveTrue(EMAIL)).thenReturn(Optional.of(resume));
+
+        JobCandidate pub = candidate(1L, "PUBLIC");
+        when(candidateRepository.findPublicCandidates(any(), any(), anyInt())).thenReturn(List.of(pub));
+
+        when(publicMatchScoreRepository.findByResumeIdAndPublicJobPostingIdIn(10L, List.of(1L)))
+                .thenReturn(List.of());
 
         HomeRecommendationResponse response = service.getRecommendedJobs(EMAIL, List.of("PUBLIC"), null, null, 0, 10);
 

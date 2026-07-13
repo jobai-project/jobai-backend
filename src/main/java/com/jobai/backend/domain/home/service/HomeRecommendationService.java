@@ -4,8 +4,10 @@ import com.jobai.backend.domain.home.dto.HomeRecommendationResponse;
 import com.jobai.backend.domain.home.dto.HomeRecommendationResponse.RecommendedJob;
 import com.jobai.backend.domain.home.dto.JobCandidate;
 import com.jobai.backend.domain.home.entity.PrivateMatchScore;
+import com.jobai.backend.domain.home.entity.PublicMatchScore;
 import com.jobai.backend.domain.home.repository.HomeJobCandidateRepository;
 import com.jobai.backend.domain.home.repository.PrivateMatchScoreRepository;
+import com.jobai.backend.domain.home.repository.PublicMatchScoreRepository;
 import com.jobai.backend.domain.member.entity.Member;
 import com.jobai.backend.domain.member.entity.PreferredJob;
 import com.jobai.backend.domain.member.entity.PreferredRegion;
@@ -48,6 +50,7 @@ public class HomeRecommendationService {
     private final JobMatchScorer jobMatchScorer;
     private final ResumesRepository resumesRepository;
     private final PrivateMatchScoreRepository privateMatchScoreRepository;
+    private final PublicMatchScoreRepository publicMatchScoreRepository;
 
     public HomeRecommendationResponse getRecommendedJobs(
             String email,
@@ -98,9 +101,10 @@ public class HomeRecommendationService {
     ) {
         int matchScoreThreshold = resolveMatchScoreThreshold(email);
         Map<Long, Integer> privateScoreMap = loadPrivateScores(activeResume, candidates);
+        Map<Long, Integer> publicScoreMap = loadPublicScores(activeResume, candidates);
 
         List<ScoredCandidate> scoredCandidates = candidates.stream()
-                .map(c -> new ScoredCandidate(c, resolveScore(c, privateScoreMap)))
+                .map(c -> new ScoredCandidate(c, resolveScore(c, privateScoreMap, publicScoreMap)))
                 .filter(sc -> sc.score() >= matchScoreThreshold)
                 .sorted(Comparator
                         .comparingInt(ScoredCandidate::score)
@@ -140,12 +144,33 @@ public class HomeRecommendationService {
                 ));
     }
 
-    private int resolveScore(JobCandidate candidate, Map<Long, Integer> privateScoreMap) {
-        if ("PRIVATE".equals(candidate.source())) {
-            Integer realScore = privateScoreMap.get(candidate.id());
-            if (realScore != null) {
-                return realScore;
-            }
+    /**
+     * 활성 이력서의 PUBLIC 공고 AI 매칭 점수를 벌크 조회하여 Map으로 반환한다.
+     * PUBLIC 공고가 없으면 빈 Map을 반환한다.
+     */
+    private Map<Long, Integer> loadPublicScores(Resumes activeResume, List<JobCandidate> candidates) {
+        List<Long> publicJobIds = candidates.stream()
+                .filter(c -> "PUBLIC".equals(c.source()))
+                .map(JobCandidate::id)
+                .toList();
+        if (publicJobIds.isEmpty()) {
+            return Map.of();
+        }
+
+        return publicMatchScoreRepository
+                .findByResumeIdAndPublicJobPostingIdIn(activeResume.getId(), publicJobIds)
+                .stream()
+                .collect(Collectors.toMap(
+                        s -> s.getPublicJobPosting().getId(),
+                        PublicMatchScore::getScore
+                ));
+    }
+
+    private int resolveScore(JobCandidate candidate, Map<Long, Integer> privateScoreMap, Map<Long, Integer> publicScoreMap) {
+        Map<Long, Integer> scoreMap = "PRIVATE".equals(candidate.source()) ? privateScoreMap : publicScoreMap;
+        Integer realScore = scoreMap.get(candidate.id());
+        if (realScore != null) {
+            return realScore;
         }
         return jobMatchScorer.mockScore(candidate.source(), candidate.id());
     }
