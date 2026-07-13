@@ -5,8 +5,7 @@ import java.util.List;
 // 나중에 점수 추가
 public record SearchCondition(
         List<String> categories,
-        List<String> fallbackCategories,
-        List<String> titleKeywords,
+        String company,
         String location,
         String experience,
         List<String> experienceLevels,

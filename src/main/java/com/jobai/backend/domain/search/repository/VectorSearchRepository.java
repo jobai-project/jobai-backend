@@ -45,6 +45,9 @@ public class VectorSearchRepository {
         if (hasCategories) {
             sql.append(" AND p.job_category IN (:categories)");
         }
+        if (hasText(condition.company())) {
+            sql.append(" AND p.company = :company");
+        }
         if (hasText(condition.location())) {
             sql.append(" AND (LOWER(p.location) LIKE :locationPattern OR p.location IS NULL)");
         }
@@ -64,6 +67,9 @@ public class VectorSearchRepository {
         query.setParameter("threshold", threshold);
         if (hasCategories) {
             query.setParameter("categories", condition.categories());
+        }
+        if (hasText(condition.company())) {
+            query.setParameter("company", condition.company());
         }
         if (hasText(condition.location())) {
             query.setParameter("locationPattern", "%" + condition.location().trim().toLowerCase() + "%");
@@ -176,6 +182,9 @@ public class VectorSearchRepository {
         if (hasCategories) {
             sql.append(" AND p.job_category IN (:categories)");
         }
+        if (hasText(condition.company())) {
+            sql.append(" AND p.company = :company");
+        }
         if (hasText(condition.location())) {
             sql.append(" AND (LOWER(p.location) LIKE :locationPattern OR p.location IS NULL)");
         }
@@ -193,6 +202,9 @@ public class VectorSearchRepository {
         query.setParameter("threshold", threshold);
         if (hasCategories) {
             query.setParameter("categories", condition.categories());
+        }
+        if (hasText(condition.company())) {
+            query.setParameter("company", condition.company());
         }
         if (hasText(condition.location())) {
             query.setParameter("locationPattern", "%" + condition.location().trim().toLowerCase() + "%");

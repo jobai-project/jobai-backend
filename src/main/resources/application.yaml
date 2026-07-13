@@ -101,6 +101,9 @@ scheduler:
     enabled: ${DAILY_SCHEDULER_ENABLED:true}
     cron: ${DAILY_SCHEDULER_CRON:0 0 2 * * *}
     exclude-companies: ${DAILY_SCHEDULER_EXCLUDE_COMPANIES:testco}
+  techcard:
+    enabled: ${TECHCARD_SCHEDULER_ENABLED:true}
+    cron: ${TECHCARD_SCHEDULER_CRON:0 0 7 * * *}
 
 app:
   auth:
@@ -177,6 +180,9 @@ scheduler:
     enabled: ${DAILY_SCHEDULER_ENABLED:true}
     cron: ${DAILY_SCHEDULER_CRON:0 0 2 * * *}
     exclude-companies: ${DAILY_SCHEDULER_EXCLUDE_COMPANIES:testco}
+  techcard:
+    enabled: ${TECHCARD_SCHEDULER_ENABLED:true}
+    cron: ${TECHCARD_SCHEDULER_CRON:0 0 7 * * *}
 
 app:
   auth:

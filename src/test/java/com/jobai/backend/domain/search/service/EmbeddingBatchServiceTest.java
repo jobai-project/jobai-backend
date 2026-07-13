@@ -41,8 +41,8 @@ class EmbeddingBatchServiceTest {
         resumesRepository = Mockito.mock(ResumesRepository.class);
 
         batchService = new EmbeddingBatchService(
-                embeddingService, jobEmbeddingRepository, privateJobPostingRepository, jobPostingRepository,
-                resumesRepository);
+                embeddingService, jobEmbeddingRepository, privateJobPostingRepository,
+                jobPostingRepository, resumesRepository);
 
         setField("embeddingEnabled", true);
         setField("batchSize", 50);
