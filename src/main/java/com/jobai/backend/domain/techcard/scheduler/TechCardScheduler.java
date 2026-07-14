@@ -7,6 +7,11 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
+/**
+ * IT 뉴스 카드 자동 수집 스케줄러.
+ * <p>매일 오전 7시(KST)에 외부 소스에서 기사를 수집하고 LLM 요약을 수행한다.
+ * {@code scheduler.techcard.enabled=false}로 비활성화할 수 있다.</p>
+ */
 @Slf4j
 @Component
 @RequiredArgsConstructor

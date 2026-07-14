@@ -12,6 +12,12 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
+/**
+ * 테크 카드 수집 오케스트레이션 서비스.
+ * <p>등록된 모든 {@link ArticleCollector}로부터 기사를 수집하고,
+ * Bloom Filter로 중복을 제거한 뒤, LLM 요약을 거쳐 DB에 저장한다.</p>
+ * <p>소스별로 try-catch가 격리되어 있어 하나의 소스 실패가 다른 소스에 영향을 주지 않는다.</p>
+ */
 @Slf4j
 @Service
 public class TechCardCollectService {
@@ -31,6 +37,7 @@ public class TechCardCollectService {
         this.techCardRepository = techCardRepository;
     }
 
+    /** 모든 소스에서 기사를 수집하고 요약하여 저장한다. 스케줄러에서 호출된다. */
     public void collectAndSummarize() {
         for (ArticleCollector collector : collectors) {
             try {
@@ -77,7 +84,7 @@ public class TechCardCollectService {
         }
 
         techCardRepository.saveAll(cards);
-        bloomFilter.ifPresent(bf -> newArticles.forEach(a -> bf.add(a.externalId())));
+        bloomFilter.ifPresent(bf -> cards.forEach(c -> bf.add(c.getExternalId())));
         log.info("[TechCard] {} — {}건 저장 완료", collector.source(), cards.size());
     }
 }

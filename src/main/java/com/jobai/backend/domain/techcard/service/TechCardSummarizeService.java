@@ -12,6 +12,10 @@ import org.springframework.stereotype.Component;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * 수집된 기사 제목을 Claude Haiku LLM으로 요약하여 카드용 headline/subtext를 생성하는 서비스.
+ * <p>{@value BATCH_SIZE}건 단위로 배치 요약하며, IT 취업 준비생 관점의 한국어 톤으로 변환한다.</p>
+ */
 @Slf4j
 @Component
 @RequiredArgsConstructor

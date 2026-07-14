@@ -16,6 +16,11 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * 홈 화면 테크 카드 조회 서비스.
+ * <p>신규 공고 1장 + 오늘 수집된 테크 뉴스 중 랜덤 2장을 조합하여 반환한다.
+ * 데이터가 없는 카드는 생략되므로 최대 3장, 최소 0장이 반환될 수 있다.</p>
+ */
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
@@ -24,8 +29,7 @@ public class TechCardService {
     private final TechCardRepository techCardRepository;
     private final EntityManager entityManager;
 
-    private static final int NEWS_CARD_COUNT = 2;
-
+    /** 홈 화면에 표시할 테크 카드 목록을 조회한다. */
     public TechCardResponse getTechCards() {
         List<CardItem> cards = new ArrayList<>();
 
@@ -37,9 +41,7 @@ public class TechCardService {
 
         // 2, 3. 테크 뉴스 카드 (오늘 수집분에서 랜덤 2건)
         List<TechCard> newsCards = techCardRepository.findTodayNewsCardsRandom();
-        int newsCount = Math.min(newsCards.size(), NEWS_CARD_COUNT);
-        for (int i = 0; i < newsCount; i++) {
-            TechCard card = newsCards.get(i);
+        for (TechCard card : newsCards) {
             cards.add(new CardItem(
                     card.getId(),
                     card.getSource().name(),
@@ -56,14 +58,28 @@ public class TechCardService {
         return new TechCardResponse(cards);
     }
 
+    /**
+     * 오늘 수집된 신규 공고를 집계하여 카드를 생성한다.
+     * <p>민간 공고와 공공 공고를 모두 포함하며, 비대상/미분류 카테고리를 제외한다.</p>
+     *
+     * @return 신규 공고 카드 (오늘 공고가 없으면 {@code null})
+     */
     private CardItem generateNewJobsCard() {
         @SuppressWarnings("unchecked")
         List<Tuple> jobResults = entityManager.createNativeQuery("""
-                SELECT id, company, title
-                FROM private_job_postings
-                WHERE created_at >= CURRENT_DATE
-                  AND created_at < CURRENT_DATE + 1
-                  AND (job_category IS NULL OR job_category NOT IN ('비대상', '미분류'))
+                SELECT id, source, company_name, title FROM (
+                    SELECT id, 'PRIVATE' AS source, company AS company_name, title, created_at
+                    FROM private_job_postings
+                    WHERE created_at >= CURRENT_DATE
+                      AND created_at < CURRENT_DATE + 1
+                      AND (job_category IS NULL OR job_category NOT IN ('비대상', '미분류'))
+                    UNION ALL
+                    SELECT jp.id, 'PUBLIC' AS source, jp.company_name, jp.title, jp.created_at
+                    FROM public_job_postings pjp
+                    JOIN job_postings jp ON pjp.id = jp.id
+                    WHERE jp.created_at >= CURRENT_DATE
+                      AND jp.created_at < CURRENT_DATE + 1
+                ) AS all_jobs
                 ORDER BY created_at DESC
                 """, Tuple.class)
                 .getResultList();
@@ -75,8 +91,8 @@ public class TechCardService {
         List<RelatedJob> relatedJobs = jobResults.stream()
                 .map(row -> new RelatedJob(
                         ((Number) row.get("id")).longValue(),
-                        "PRIVATE",
-                        (String) row.get("company"),
+                        (String) row.get("source"),
+                        (String) row.get("company_name"),
                         (String) row.get("title")
                 ))
                 .toList();

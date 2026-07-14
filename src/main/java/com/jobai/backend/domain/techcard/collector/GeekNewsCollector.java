@@ -20,6 +20,10 @@ import java.time.ZoneId;
 import java.util.HexFormat;
 import java.util.List;
 
+/**
+ * GeekNews(news.hada.io) RSS 피드에서 최신 기사를 수집하는 컬렉터.
+ * <p>externalId는 URL의 SHA-256 해시 앞 16자리를 사용한다 ({@code gn:{hash}}).</p>
+ */
 @Slf4j
 @Component
 public class GeekNewsCollector implements ArticleCollector {
@@ -33,6 +37,7 @@ public class GeekNewsCollector implements ArticleCollector {
     public GeekNewsCollector() {
         this.httpClient = HttpClient.newBuilder()
                 .connectTimeout(TIMEOUT)
+                .followRedirects(HttpClient.Redirect.NORMAL)
                 .build();
     }
 
@@ -53,13 +58,16 @@ public class GeekNewsCollector implements ArticleCollector {
             HttpResponse<java.io.InputStream> response = httpClient.send(request,
                     HttpResponse.BodyHandlers.ofInputStream());
 
-            SyndFeed feed = new SyndFeedInput().build(new XmlReader(response.body()));
-            List<SyndEntry> entries = feed.getEntries();
+            try (XmlReader xmlReader = new XmlReader(response.body())) {
+                SyndFeed feed = new SyndFeedInput().build(xmlReader);
+                List<SyndEntry> entries = feed.getEntries();
 
-            return entries.stream()
-                    .limit(FETCH_COUNT)
-                    .map(this::toRawArticle)
-                    .toList();
+                return entries.stream()
+                        .limit(FETCH_COUNT)
+                        .filter(entry -> entry.getLink() != null && !entry.getLink().isBlank())
+                        .map(this::toRawArticle)
+                        .toList();
+            }
         } catch (Exception e) {
             log.error("[GeekNews] 수집 실패: {}", e.getMessage(), e);
             return List.of();
@@ -67,7 +75,7 @@ public class GeekNewsCollector implements ArticleCollector {
     }
 
     private RawArticle toRawArticle(SyndEntry entry) {
-        String url = entry.getLink() != null ? entry.getLink() : "";
+        String url = entry.getLink();
         String title = entry.getTitle() != null ? entry.getTitle() : "";
         LocalDateTime publishedAt = entry.getPublishedDate() != null
                 ? entry.getPublishedDate().toInstant().atZone(ZoneId.of("Asia/Seoul")).toLocalDateTime()
@@ -83,7 +91,7 @@ public class GeekNewsCollector implements ArticleCollector {
         );
     }
 
-    private String sha256(String input) {
+    String sha256(String input) {
         try {
             MessageDigest md = MessageDigest.getInstance("SHA-256");
             byte[] hash = md.digest(input.getBytes(StandardCharsets.UTF_8));

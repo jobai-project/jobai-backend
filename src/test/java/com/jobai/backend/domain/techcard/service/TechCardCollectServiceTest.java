@@ -148,23 +148,26 @@ class TechCardCollectServiceTest {
     }
 
     @Test
-    @DisplayName("저장 후 모든 신규 기사를 Bloom 필터에 등록한다")
-    void registersAllToBloomAfterSave() {
+    @DisplayName("저장 성공한 기사만 Bloom 필터에 등록한다")
+    void registersOnlySavedToBloom() {
         List<RawArticle> articles = List.of(
                 article("hn:1", "Title1"),
-                article("hn:2", "Title2")
+                article("hn:2", "Title2"),
+                article("hn:3", "Title3")
         );
         when(collector.collect()).thenReturn(articles);
         when(bloomFilter.mightContain(anyString())).thenReturn(false);
-        when(summarizeService.summarize(anyList())).thenReturn(List.of(
+        when(summarizeService.summarize(anyList())).thenReturn(Arrays.asList(
                 new CardSummary("제목1", "부연1"),
-                new CardSummary("제목2", "부연2")
+                null,
+                new CardSummary("제목3", "부연3")
         ));
 
         collectService.collectAndSummarize();
 
         verify(bloomFilter).add("hn:1");
-        verify(bloomFilter).add("hn:2");
+        verify(bloomFilter, never()).add("hn:2");
+        verify(bloomFilter).add("hn:3");
     }
 
     @Test
