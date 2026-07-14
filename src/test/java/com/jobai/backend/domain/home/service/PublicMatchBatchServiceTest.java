@@ -10,6 +10,8 @@ import com.jobai.backend.domain.member.entity.Resumes;
 import com.jobai.backend.domain.member.repository.ResumesRepository;
 import com.jobai.backend.domain.publicInstitution.entity.PublicJobPosting;
 import com.jobai.backend.domain.publicInstitution.repository.JobPostingRepository;
+import com.jobai.backend.domain.notification.repository.NotificationRepository;
+import com.jobai.backend.domain.notification.service.NotificationDispatchService;
 import com.jobai.backend.domain.search.entity.JobEmbedding;
 import com.jobai.backend.domain.search.entity.JobSource;
 import com.jobai.backend.domain.search.repository.JobEmbeddingRepository;
@@ -39,6 +41,8 @@ class PublicMatchBatchServiceTest {
     private PublicMatchScoreRepository publicMatchScoreRepository;
     private ResumesRepository resumesRepository;
     private ObjectMapper objectMapper;
+    private NotificationDispatchService notificationDispatchService;
+    private NotificationRepository notificationRepository;
 
     private PublicMatchBatchService service;
 
@@ -53,6 +57,8 @@ class PublicMatchBatchServiceTest {
         publicMatchScoreRepository = Mockito.mock(PublicMatchScoreRepository.class);
         resumesRepository = Mockito.mock(ResumesRepository.class);
         objectMapper = new ObjectMapper();
+        notificationDispatchService = Mockito.mock(NotificationDispatchService.class);
+        notificationRepository = Mockito.mock(NotificationRepository.class);
 
         service = new PublicMatchBatchService(
                 aiScoringClient,
@@ -61,7 +67,9 @@ class PublicMatchBatchServiceTest {
                 embeddingService,
                 publicMatchScoreRepository,
                 resumesRepository,
-                objectMapper
+                objectMapper,
+                notificationDispatchService,
+                notificationRepository
         );
 
         // self-injection 필드를 리플렉션으로 설정 (단위 테스트에서는 프록시 없이 자기 자신 주입)
