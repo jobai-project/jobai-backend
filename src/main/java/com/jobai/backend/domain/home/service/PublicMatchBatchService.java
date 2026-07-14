@@ -11,10 +11,8 @@ import com.jobai.backend.domain.home.repository.PublicMatchScoreRepository;
 import com.jobai.backend.domain.member.entity.Member;
 import com.jobai.backend.domain.member.entity.Resumes;
 import com.jobai.backend.domain.member.repository.ResumesRepository;
-import com.jobai.backend.domain.notification.dto.RealtimeNotificationPayload;
 import com.jobai.backend.domain.notification.entity.Notification;
 import com.jobai.backend.domain.notification.repository.NotificationRepository;
-import com.jobai.backend.domain.notification.service.NotificationDispatchService;
 import com.jobai.backend.domain.publicInstitution.entity.PublicJobPosting;
 import com.jobai.backend.domain.publicInstitution.repository.JobPostingRepository;
 import com.jobai.backend.domain.search.entity.JobEmbedding;
@@ -58,8 +56,8 @@ public class PublicMatchBatchService {
     private final PublicMatchScoreRepository publicMatchScoreRepository;
     private final ResumesRepository resumesRepository;
     private final ObjectMapper objectMapper;
-    private final NotificationDispatchService notificationDispatchService;
     private final NotificationRepository notificationRepository;
+    private final BatchNotificationHelper batchNotificationHelper;
 
     /**
      * 모든 활성 이력서 × 활성 공고 조합에서 점수가 없거나 변경된 공고에 대해 점수를 산출한다.
@@ -101,7 +99,8 @@ public class PublicMatchBatchService {
                 totalUpdated += result.updatedCount();
                 totalFail += result.failCount();
 
-                sendNotificationIfNeeded(resume.getMember(), result.aboveThresholdPostings());
+                batchNotificationHelper.sendIfNeeded(
+                        resume.getMember(), result.aboveThresholdPostings(), "새 추천 공고 (공기업)");
             } catch (Exception e) {
                 log.error("[공기업 배치점수] 이력서 {} 처리 중 오류: {}", resume.getId(), e.getMessage(), e);
             }
@@ -113,11 +112,7 @@ public class PublicMatchBatchService {
 
     /** 이력서별 점수 산출 결과. 알림 대상 공고 목록을 포함한다. */
     record ScoreResult(int newCount, int updatedCount, int failCount,
-                       List<ScoredPosting> aboveThresholdPostings) {
-    }
-
-    /** 임계값 이상 점수를 받은 공고 정보. 알림 메시지 구성에 사용된다. */
-    record ScoredPosting(String title, String company, int score, Long postingId) {
+                       List<BatchNotificationHelper.ScoredPosting> aboveThresholdPostings) {
     }
 
     /**
@@ -134,9 +129,15 @@ public class PublicMatchBatchService {
         Long resumeId = resume.getId();
         String email = resume.getMember().getEmail();
 
-        int threshold = notificationRepository.findByMemberEmail(email)
-                .map(Notification::getMatchScoreThreshold)
-                .orElse(70);
+        // 사용자 임계값 조회 (조회 실패 시에도 점수 산출은 계속 진행)
+        int threshold = 70;
+        try {
+            threshold = notificationRepository.findByMemberEmail(email)
+                    .map(Notification::getMatchScoreThreshold)
+                    .orElse(70);
+        } catch (Exception e) {
+            log.warn("[공기업 배치점수] 알림 임계값 조회 실패, 기본값 사용: email={}, error={}", email, e.getMessage());
+        }
 
         List<PublicMatchScore> existingScores = publicMatchScoreRepository.findByResumeId(resumeId);
         Map<Long, PublicMatchScore> scoreByPostingId = existingScores.stream()
@@ -151,7 +152,7 @@ public class PublicMatchBatchService {
         int newCount = 0;
         int updatedCount = 0;
         int failCount = 0;
-        List<ScoredPosting> aboveThreshold = new ArrayList<>();
+        List<BatchNotificationHelper.ScoredPosting> aboveThreshold = new ArrayList<>();
 
         for (PublicJobPosting posting : activePostingMap.values()) {
             PublicMatchScore existing = scoreByPostingId.get(posting.getId());
@@ -161,8 +162,8 @@ public class PublicMatchBatchService {
                     int score = calculateAndSave(resume, posting, resumePayload, resumeVec);
                     newCount++;
                     if (score >= threshold) {
-                        aboveThreshold.add(new ScoredPosting(
-                                posting.getTitle(), posting.getCompanyName(), score, posting.getId()));
+                        aboveThreshold.add(new BatchNotificationHelper.ScoredPosting(
+                                posting.getTitle(), posting.getCompanyName(), score, posting.getId(), "/jobs/public/"));
                     }
                 } catch (Exception e) {
                     log.warn("[공기업 배치점수] 신규 점수 산출 실패: resumeId={}, postingId={}, error={}",
@@ -177,8 +178,8 @@ public class PublicMatchBatchService {
                 int score = calculateAndSave(resume, posting, resumePayload, resumeVec);
                 updatedCount++;
                 if (score >= threshold) {
-                    aboveThreshold.add(new ScoredPosting(
-                            posting.getTitle(), posting.getCompanyName(), score, posting.getId()));
+                    aboveThreshold.add(new BatchNotificationHelper.ScoredPosting(
+                            posting.getTitle(), posting.getCompanyName(), score, posting.getId(), "/jobs/public/"));
                 }
             }
             // else: 기존 점수 존재 + 변경 없음 → skip
@@ -237,40 +238,6 @@ public class PublicMatchBatchService {
                 .resumeCluster(response.resumeCluster())
                 .build());
         return score;
-    }
-
-    /**
-     * 임계값 이상 공고가 있으면 사용자에게 묶음 알림을 발송한다.
-     * 1건이면 해당 공고 제목·점수를 표시하고, 여러 건이면 최고 점수 공고 + 나머지 건수로 요약한다.
-     * 알림 발송 실패 시에도 점수 산출에는 영향을 주지 않는다.
-     */
-    private void sendNotificationIfNeeded(Member member, List<ScoredPosting> aboveThreshold) {
-        if (aboveThreshold.isEmpty()) return;
-
-        try {
-            String message;
-            String linkUrl;
-            if (aboveThreshold.size() == 1) {
-                ScoredPosting top = aboveThreshold.get(0);
-                message = String.format("[%s] %s (매칭 %d점)", top.company(), top.title(), top.score());
-                linkUrl = "/jobs/public/" + top.postingId();
-            } else {
-                ScoredPosting top = aboveThreshold.stream()
-                        .max(Comparator.comparingInt(ScoredPosting::score))
-                        .orElse(aboveThreshold.get(0));
-                message = String.format("[%s] %s 외 %d건 (최고 %d점)",
-                        top.company(), top.title(), aboveThreshold.size() - 1, top.score());
-                linkUrl = "/jobs";
-            }
-
-            notificationDispatchService.notifyUser(
-                    member.getEmail(),
-                    RealtimeNotificationPayload.of("MATCH", "새 추천 공고 (공기업)", message, linkUrl)
-            );
-            log.info("[공기업 배치알림] {} — {}건 알림 발송", member.getEmail(), aboveThreshold.size());
-        } catch (Exception e) {
-            log.warn("[공기업 배치알림] 알림 발송 실패: email={}, error={}", member.getEmail(), e.getMessage());
-        }
     }
 
     private ScorePublicRequest.ResumePayload buildResumePayload(Resumes resume) {

@@ -95,39 +95,4 @@ public interface NotificationControllerDocs {
             )
     })
     ApiResponse<Void> triggerLambdaNotification(LambdaTestRequest request);
-
-    @Operation(
-            summary = "[테스트] 점수 산출 + 알림 발송 수동 실행",
-            description = """
-                    스케줄러의 Step 4(사기업·공기업 매칭 점수 산출)를 수동으로 실행합니다.
-
-                    > ⚠️ **테스트용 API입니다.** 실 서비스에서는 새벽 2시 스케줄러가 자동 실행합니다.
-
-                    **동작 방식**:
-                    1. 신규/변경된 공고에 대해 AI 매칭 점수를 산출합니다.
-                    2. 사용자가 설정한 임계값(matchScoreThreshold) 이상인 공고가 있으면
-                       WebSocket 실시간 알림 + Slack/Discord webhook 알림을 발송합니다.
-
-                    **인증 불필요**: 배치 작업이므로 별도 인증 없이 호출 가능합니다.
-                    처리 시간이 길 수 있습니다 (이력서 수 × 공고 수만큼 AI 호출).
-                    """
-    )
-    @ApiResponses(value = {
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(
-                    responseCode = "200",
-                    description = "점수 산출 + 알림 발송 완료",
-                    content = @Content(
-                            mediaType = "application/json",
-                            examples = @ExampleObject(value = """
-                                    {
-                                      "isSuccess": true,
-                                      "code": "COMMON_200_001",
-                                      "message": "요청이 성공적으로 처리되었습니다.",
-                                      "result": null
-                                    }
-                                    """)
-                    )
-            )
-    })
-    ApiResponse<Void> triggerScoreAndNotify();
 }
