@@ -43,27 +43,29 @@ class HackerNewsCollectorTest {
     }
 
     @Test
-    @DisplayName("score 상위 5개 기사만 반환한다")
-    void returnsTop5ByScore() {
-        // topstories 응답: 6개 ID
+    @DisplayName("score 상위 10개 기사만 반환한다")
+    void returnsTop10ByScore() {
+        // topstories 응답: 12개 ID
+        StringBuilder ids = new StringBuilder("[");
+        for (int i = 1; i <= 12; i++) {
+            if (i > 1) ids.append(",");
+            ids.append(i);
+        }
+        ids.append("]");
         server.enqueue(new MockResponse()
-                .setBody("[1,2,3,4,5,6]")
+                .setBody(ids.toString())
                 .addHeader("Content-Type", "application/json"));
 
         // 각 스토리 응답 (score 다양)
-        enqueueStory(1, "Low Score Story", 10);
-        enqueueStory(2, "High Score Story", 500);
-        enqueueStory(3, "Medium Story", 100);
-        enqueueStory(4, "Very High Score", 800);
-        enqueueStory(5, "Another Medium", 150);
-        enqueueStory(6, "Decent Story", 200);
+        for (int i = 1; i <= 12; i++) {
+            enqueueStory(i, "Story " + i, i * 100);
+        }
 
         List<RawArticle> result = collector.collect();
 
-        assertThat(result).hasSize(5);
-        // score 순: 800, 500, 200, 150, 100
-        assertThat(result.get(0).title()).isEqualTo("Very High Score");
-        assertThat(result.get(1).title()).isEqualTo("High Score Story");
+        assertThat(result).hasSize(10);
+        // score 최고(1200)가 첫 번째
+        assertThat(result.get(0).title()).isEqualTo("Story 12");
     }
 
     @Test

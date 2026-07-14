@@ -21,7 +21,7 @@ public class HackerNewsCollector implements ArticleCollector {
 
     private static final String BASE_URL = "https://hacker-news.firebaseio.com/v0";
     private static final int FETCH_COUNT = 20;
-    private static final int TOP_COUNT = 5;
+    private static final int TOP_COUNT = 10;
     private static final int CONCURRENCY = 5;
     private static final Duration TIMEOUT = Duration.ofSeconds(10);
 

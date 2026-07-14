@@ -7,6 +7,8 @@ import com.jobai.backend.domain.techcard.entity.TechCard;
 import com.jobai.backend.domain.techcard.repository.TechCardRepository;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
@@ -52,25 +54,30 @@ public class TechCardCollectService {
             return;
         }
 
-        TechCardSummarizeService.PickedSummary picked = summarizeService.pickAndSummarize(newArticles);
-        if (picked == null) {
-            log.warn("[TechCard] {} — LLM 선별 실패, 저장 건너뜀", collector.source());
-            return;
+        List<TechCardSummarizeService.CardSummary> summaries = summarizeService.summarize(newArticles);
+
+        List<TechCard> cards = new ArrayList<>();
+        for (int i = 0; i < newArticles.size(); i++) {
+            RawArticle raw = newArticles.get(i);
+            TechCardSummarizeService.CardSummary summary = summaries.get(i);
+            if (summary == null) {
+                log.warn("[TechCard] {} — '{}' 요약 실패, 건너뜀", collector.source(), raw.title());
+                continue;
+            }
+
+            cards.add(TechCard.builder()
+                    .source(raw.source())
+                    .externalId(raw.externalId())
+                    .originalTitle(raw.title())
+                    .originalUrl(raw.url())
+                    .headline(summary.headline())
+                    .subtext(summary.subtext())
+                    .publishedAt(raw.publishedAt())
+                    .build());
         }
 
-        RawArticle raw = newArticles.get(picked.pickedIndex());
-        TechCard card = TechCard.builder()
-                .source(raw.source())
-                .externalId(raw.externalId())
-                .originalTitle(raw.title())
-                .originalUrl(raw.url())
-                .headline(picked.headline())
-                .subtext(picked.subtext())
-                .publishedAt(raw.publishedAt())
-                .build();
-
-        techCardRepository.save(card);
+        techCardRepository.saveAll(cards);
         bloomFilter.ifPresent(bf -> newArticles.forEach(a -> bf.add(a.externalId())));
-        log.info("[TechCard] {} — 선별 기사 '{}' 저장 완료", collector.source(), raw.title());
+        log.info("[TechCard] {} — {}건 저장 완료", collector.source(), cards.size());
     }
 }
