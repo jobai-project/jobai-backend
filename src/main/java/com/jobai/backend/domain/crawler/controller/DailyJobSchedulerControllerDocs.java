@@ -155,4 +155,27 @@ public interface DailyJobSchedulerControllerDocs {
             )
     })
     ResponseEntity<String> collectTechCards();
+
+    @Operation(
+            summary = "[테스트] 알림 발송 테스트",
+            description = """
+                    기존 DB에 저장된 점수를 기반으로 임계값 이상 공고에 대해 알림을 발송한다.
+                    점수 산출은 하지 않으며, 알림 파이프라인(WebSocket·Slack·Discord)만 테스트한다.
+
+                    > ⚠️ **테스트용 API입니다.** 실 서비스에서는 새벽 2시 스케줄러가 점수 산출 후 자동 발송합니다.
+
+                    **인증 불필요**: `/api/v1/scheduler/**` 경로는 permitAll 설정이므로 인증 없이 호출 가능합니다.
+                    """
+    )
+    @ApiResponses(value = {
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "200",
+                    description = "알림 발송 완료",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = @ExampleObject(value = "\"알림 테스트 완료 — 임계값 이상 공고 5건 알림 발송\"")
+                    )
+            )
+    })
+    ResponseEntity<String> triggerNotifyTest();
 }

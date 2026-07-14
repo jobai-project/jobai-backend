@@ -11,7 +11,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 
-@Tag(name = "Notification", description = "알림 기능 API (현재 Lambda 테스트용)")
+@Tag(name = "Notification", description = "알림 기능 API")
 @SecurityRequirement(name = "cookieAuth")
 public interface NotificationControllerDocs {
 

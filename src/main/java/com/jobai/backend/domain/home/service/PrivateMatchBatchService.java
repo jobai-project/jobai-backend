@@ -13,6 +13,8 @@ import com.jobai.backend.domain.home.repository.PrivateMatchScoreRepository;
 import com.jobai.backend.domain.member.entity.Member;
 import com.jobai.backend.domain.member.entity.Resumes;
 import com.jobai.backend.domain.member.repository.ResumesRepository;
+import com.jobai.backend.domain.notification.entity.Notification;
+import com.jobai.backend.domain.notification.repository.NotificationRepository;
 import com.jobai.backend.domain.search.entity.JobEmbedding;
 import com.jobai.backend.domain.search.entity.JobSource;
 import com.jobai.backend.domain.search.repository.JobEmbeddingRepository;
@@ -52,6 +54,8 @@ public class PrivateMatchBatchService {
     private final PrivateMatchScoreRepository privateMatchScoreRepository;
     private final ResumesRepository resumesRepository;
     private final ObjectMapper objectMapper;
+    private final NotificationRepository notificationRepository;
+    private final BatchNotificationHelper batchNotificationHelper;
 
     private static final List<String> VALID_CATEGORIES = List.of(
             "백엔드", "프론트엔드", "풀스택", "모바일", "AI/ML",
@@ -96,10 +100,13 @@ public class PrivateMatchBatchService {
 
         for (Resumes resume : activeResumes) {
             try {
-                int[] counts = self.scoreForResume(resume, postingMap);
-                totalNew += counts[0];
-                totalUpdated += counts[1];
-                totalFail += counts[2];
+                ScoreResult result = self.scoreForResume(resume, postingMap);
+                totalNew += result.newCount();
+                totalUpdated += result.updatedCount();
+                totalFail += result.failCount();
+
+                batchNotificationHelper.sendIfNeeded(
+                        resume.getMember(), result.aboveThresholdPostings(), "새 추천 공고");
             } catch (Exception e) {
                 log.error("[배치점수] 이력서 {} 처리 중 오류: {}", resume.getId(), e.getMessage(), e);
             }
@@ -109,19 +116,36 @@ public class PrivateMatchBatchService {
                 totalNew, totalUpdated, totalFail);
     }
 
+    /** 이력서별 점수 산출 결과. 알림 대상 공고 목록을 포함한다. */
+    record ScoreResult(int newCount, int updatedCount, int failCount,
+                       List<BatchNotificationHelper.ScoredPosting> aboveThresholdPostings) {
+    }
+
     /**
      * 한 이력서에 대해 신규/변경 공고의 점수를 산출한다.
      *
      * <p>기존 점수를 공고ID별로 맵핑한 뒤, 활성 공고를 순회하며
-     * 점수가 없으면 신규 산출, 공고 변경 시각이 점수 생성 시각보다 늦으면 재산출한다.</p>
+     * 점수가 없으면 신규 산출, 공고 변경 시각이 점수 생성 시각보다 늦으면 재산출한다.
+     * 산출된 점수가 사용자의 {@code matchScoreThreshold} 이상이면 알림 대상으로 수집한다.</p>
      *
      * @param resume           점수를 산출할 이력서
      * @param activePostingMap 활성 공고 맵 (공고 ID → 엔티티)
-     * @return {@code [신규 점수 수, 변경 재산출 수, 실패 수]} 배열
+     * @return 산출 건수 및 임계값 이상 공고 목록을 담은 {@link ScoreResult}
      */
     @Transactional
-    public int[] scoreForResume(Resumes resume, Map<Long, PrivateJobPosting> activePostingMap) {
+    public ScoreResult scoreForResume(Resumes resume, Map<Long, PrivateJobPosting> activePostingMap) {
         Long resumeId = resume.getId();
+        String email = resume.getMember().getEmail();
+
+        // 사용자 임계값 조회 (조회 실패 시에도 점수 산출은 계속 진행)
+        int threshold = 70;
+        try {
+            threshold = notificationRepository.findByMemberEmail(email)
+                    .map(Notification::getMatchScoreThreshold)
+                    .orElse(70);
+        } catch (Exception e) {
+            log.warn("[배치점수] 알림 임계값 조회 실패, 기본값 사용: email={}, error={}", email, e.getMessage());
+        }
 
         // 기존 점수 조회 → 공고ID별 점수 맵
         List<PrivateMatchScore> existingScores = privateMatchScoreRepository.findByResumeId(resumeId);
@@ -138,6 +162,7 @@ public class PrivateMatchBatchService {
         int newCount = 0;
         int updatedCount = 0;
         int failCount = 0;
+        List<BatchNotificationHelper.ScoredPosting> aboveThreshold = new ArrayList<>();
 
         for (PrivateJobPosting posting : activePostingMap.values()) {
             PrivateMatchScore existing = scoreByPostingId.get(posting.getId());
@@ -145,8 +170,12 @@ public class PrivateMatchBatchService {
             if (existing == null) {
                 // 신규: 점수 없음 → 산출
                 try {
-                    calculateAndSave(resume, posting, resumeVec, resumeSkills, experienceYears);
+                    int score = calculateAndSave(resume, posting, resumeVec, resumeSkills, experienceYears);
                     newCount++;
+                    if (score >= threshold) {
+                        aboveThreshold.add(new BatchNotificationHelper.ScoredPosting(
+                                posting.getTitle(), posting.getCompany(), score, posting.getId(), "/jobs/private/"));
+                    }
                 } catch (Exception e) {
                     log.warn("[배치점수] 신규 점수 산출 실패: resumeId={}, postingId={}, error={}",
                             resumeId, posting.getId(), e.getMessage());
@@ -159,18 +188,22 @@ public class PrivateMatchBatchService {
                 // try-catch 없음: 실패 시 예외가 트랜잭션 경계까지 전파되어 delete도 함께 롤백된다.
                 privateMatchScoreRepository.delete(existing);
                 privateMatchScoreRepository.flush();
-                calculateAndSave(resume, posting, resumeVec, resumeSkills, experienceYears);
+                int score = calculateAndSave(resume, posting, resumeVec, resumeSkills, experienceYears);
                 updatedCount++;
+                if (score >= threshold) {
+                    aboveThreshold.add(new BatchNotificationHelper.ScoredPosting(
+                            posting.getTitle(), posting.getCompany(), score, posting.getId(), "/jobs/private/"));
+                }
             }
             // else: 기존 점수 존재 + 변경 없음 → skip
         }
 
         if (newCount + updatedCount > 0) {
-            log.info("[배치점수] resumeId={} — 신규 {}, 변경 {}, 실패 {}",
-                    resumeId, newCount, updatedCount, failCount);
+            log.info("[배치점수] resumeId={} — 신규 {}, 변경 {}, 실패 {}, 알림대상 {}",
+                    resumeId, newCount, updatedCount, failCount, aboveThreshold.size());
         }
 
-        return new int[]{newCount, updatedCount, failCount};
+        return new ScoreResult(newCount, updatedCount, failCount, aboveThreshold);
     }
 
     /**
@@ -183,9 +216,9 @@ public class PrivateMatchBatchService {
      * @param experienceYears 경력 연수
      * @throws IllegalStateException 공고 임베딩 생성 불가 또는 AI 응답이 null인 경우
      */
-    private void calculateAndSave(Resumes resume, PrivateJobPosting posting,
-                                  List<Double> resumeVec, List<String> resumeSkills,
-                                  int experienceYears) {
+    private int calculateAndSave(Resumes resume, PrivateJobPosting posting,
+                                 List<Double> resumeVec, List<String> resumeSkills,
+                                 int experienceYears) {
         float[] jdVec = getOrCreateJobEmbedding(posting);
         if (jdVec == null) {
             throw new IllegalStateException("공고 임베딩 생성 불가: postingId=" + posting.getId());
@@ -200,18 +233,21 @@ public class PrivateMatchBatchService {
             throw new IllegalStateException("AI 점수 응답 null: postingId=" + posting.getId());
         }
 
+        int score = (int) Math.round(response.score());
         privateMatchScoreRepository.save(PrivateMatchScore.builder()
                 .member(resume.getMember())
                 .resume(resume)
                 .privateJobPosting(posting)
-                .score((int) Math.round(response.score()))
+                .score(score)
                 .scoreReason(response.scoreReason())
                 .matchedSkills(toJson(response.matchedSkills()))
                 .missingSkills(toJson(response.missingSkills()))
                 .careerMet(response.careerMet())
                 .modelVersion(response.modelVersion())
                 .build());
+        return score;
     }
+
 
     /**
      * 공고의 임베딩 벡터를 조회하거나, 없으면 생성한다.

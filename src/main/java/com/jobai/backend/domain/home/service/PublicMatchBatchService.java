@@ -11,6 +11,8 @@ import com.jobai.backend.domain.home.repository.PublicMatchScoreRepository;
 import com.jobai.backend.domain.member.entity.Member;
 import com.jobai.backend.domain.member.entity.Resumes;
 import com.jobai.backend.domain.member.repository.ResumesRepository;
+import com.jobai.backend.domain.notification.entity.Notification;
+import com.jobai.backend.domain.notification.repository.NotificationRepository;
 import com.jobai.backend.domain.publicInstitution.entity.PublicJobPosting;
 import com.jobai.backend.domain.publicInstitution.repository.JobPostingRepository;
 import com.jobai.backend.domain.search.entity.JobEmbedding;
@@ -54,6 +56,8 @@ public class PublicMatchBatchService {
     private final PublicMatchScoreRepository publicMatchScoreRepository;
     private final ResumesRepository resumesRepository;
     private final ObjectMapper objectMapper;
+    private final NotificationRepository notificationRepository;
+    private final BatchNotificationHelper batchNotificationHelper;
 
     /**
      * 모든 활성 이력서 × 활성 공고 조합에서 점수가 없거나 변경된 공고에 대해 점수를 산출한다.
@@ -90,10 +94,13 @@ public class PublicMatchBatchService {
 
         for (Resumes resume : activeResumes) {
             try {
-                int[] counts = self.scoreForResume(resume, postingMap);
-                totalNew += counts[0];
-                totalUpdated += counts[1];
-                totalFail += counts[2];
+                ScoreResult result = self.scoreForResume(resume, postingMap);
+                totalNew += result.newCount();
+                totalUpdated += result.updatedCount();
+                totalFail += result.failCount();
+
+                batchNotificationHelper.sendIfNeeded(
+                        resume.getMember(), result.aboveThresholdPostings(), "새 추천 공고 (공기업)");
             } catch (Exception e) {
                 log.error("[공기업 배치점수] 이력서 {} 처리 중 오류: {}", resume.getId(), e.getMessage(), e);
             }
@@ -103,16 +110,34 @@ public class PublicMatchBatchService {
                 totalNew, totalUpdated, totalFail);
     }
 
+    /** 이력서별 점수 산출 결과. 알림 대상 공고 목록을 포함한다. */
+    record ScoreResult(int newCount, int updatedCount, int failCount,
+                       List<BatchNotificationHelper.ScoredPosting> aboveThresholdPostings) {
+    }
+
     /**
      * 한 이력서에 대해 신규/변경 공고의 점수를 산출한다.
      *
+     * <p>산출된 점수가 사용자의 {@code matchScoreThreshold} 이상이면 알림 대상으로 수집한다.</p>
+     *
      * @param resume           점수를 산출할 이력서
      * @param activePostingMap 활성 공고 맵 (공고 ID → 엔티티)
-     * @return {@code [신규 점수 수, 변경 재산출 수, 실패 수]} 배열
+     * @return 산출 건수 및 임계값 이상 공고 목록을 담은 {@link ScoreResult}
      */
     @Transactional
-    public int[] scoreForResume(Resumes resume, Map<Long, PublicJobPosting> activePostingMap) {
+    public ScoreResult scoreForResume(Resumes resume, Map<Long, PublicJobPosting> activePostingMap) {
         Long resumeId = resume.getId();
+        String email = resume.getMember().getEmail();
+
+        // 사용자 임계값 조회 (조회 실패 시에도 점수 산출은 계속 진행)
+        int threshold = 70;
+        try {
+            threshold = notificationRepository.findByMemberEmail(email)
+                    .map(Notification::getMatchScoreThreshold)
+                    .orElse(70);
+        } catch (Exception e) {
+            log.warn("[공기업 배치점수] 알림 임계값 조회 실패, 기본값 사용: email={}, error={}", email, e.getMessage());
+        }
 
         List<PublicMatchScore> existingScores = publicMatchScoreRepository.findByResumeId(resumeId);
         Map<Long, PublicMatchScore> scoreByPostingId = existingScores.stream()
@@ -127,14 +152,19 @@ public class PublicMatchBatchService {
         int newCount = 0;
         int updatedCount = 0;
         int failCount = 0;
+        List<BatchNotificationHelper.ScoredPosting> aboveThreshold = new ArrayList<>();
 
         for (PublicJobPosting posting : activePostingMap.values()) {
             PublicMatchScore existing = scoreByPostingId.get(posting.getId());
 
             if (existing == null) {
                 try {
-                    calculateAndSave(resume, posting, resumePayload, resumeVec);
+                    int score = calculateAndSave(resume, posting, resumePayload, resumeVec);
                     newCount++;
+                    if (score >= threshold) {
+                        aboveThreshold.add(new BatchNotificationHelper.ScoredPosting(
+                                posting.getTitle(), posting.getCompanyName(), score, posting.getId(), "/jobs/public/"));
+                    }
                 } catch (Exception e) {
                     log.warn("[공기업 배치점수] 신규 점수 산출 실패: resumeId={}, postingId={}, error={}",
                             resumeId, posting.getId(), e.getMessage());
@@ -145,21 +175,25 @@ public class PublicMatchBatchService {
                     && posting.getUpdatedAt().isAfter(existing.getCreatedAt())) {
                 publicMatchScoreRepository.delete(existing);
                 publicMatchScoreRepository.flush();
-                calculateAndSave(resume, posting, resumePayload, resumeVec);
+                int score = calculateAndSave(resume, posting, resumePayload, resumeVec);
                 updatedCount++;
+                if (score >= threshold) {
+                    aboveThreshold.add(new BatchNotificationHelper.ScoredPosting(
+                            posting.getTitle(), posting.getCompanyName(), score, posting.getId(), "/jobs/public/"));
+                }
             }
             // else: 기존 점수 존재 + 변경 없음 → skip
         }
 
         if (newCount + updatedCount > 0) {
-            log.info("[공기업 배치점수] resumeId={} — 신규 {}, 변경 {}, 실패 {}",
-                    resumeId, newCount, updatedCount, failCount);
+            log.info("[공기업 배치점수] resumeId={} — 신규 {}, 변경 {}, 실패 {}, 알림대상 {}",
+                    resumeId, newCount, updatedCount, failCount, aboveThreshold.size());
         }
 
-        return new int[]{newCount, updatedCount, failCount};
+        return new ScoreResult(newCount, updatedCount, failCount, aboveThreshold);
     }
 
-    private void calculateAndSave(
+    private int calculateAndSave(
             Resumes resume, PublicJobPosting posting,
             ScorePublicRequest.ResumePayload resumePayload, List<Double> resumeVec
     ) {
@@ -189,11 +223,12 @@ public class PublicMatchBatchService {
             throw new IllegalStateException("AI 점수 응답 null: postingId=" + posting.getId());
         }
 
+        int score = (int) Math.round(response.score());
         publicMatchScoreRepository.save(PublicMatchScore.builder()
                 .member(resume.getMember())
                 .resume(resume)
                 .publicJobPosting(posting)
-                .score((int) Math.round(response.score()))
+                .score(score)
                 .scoreReason(response.scoreReason())
                 .matchedSkills(toJson(response.matchedSkills()))
                 .missingSkills(toJson(response.missingSkills()))
@@ -202,6 +237,7 @@ public class PublicMatchBatchService {
                 .jobCluster(response.jobCluster())
                 .resumeCluster(response.resumeCluster())
                 .build());
+        return score;
     }
 
     private ScorePublicRequest.ResumePayload buildResumePayload(Resumes resume) {

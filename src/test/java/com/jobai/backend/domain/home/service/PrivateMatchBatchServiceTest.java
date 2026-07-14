@@ -10,6 +10,7 @@ import com.jobai.backend.domain.home.repository.PrivateMatchScoreRepository;
 import com.jobai.backend.domain.member.entity.Member;
 import com.jobai.backend.domain.member.entity.Resumes;
 import com.jobai.backend.domain.member.repository.ResumesRepository;
+import com.jobai.backend.domain.notification.repository.NotificationRepository;
 import com.jobai.backend.domain.search.entity.JobEmbedding;
 import com.jobai.backend.domain.search.entity.JobSource;
 import com.jobai.backend.domain.search.repository.JobEmbeddingRepository;
@@ -39,6 +40,8 @@ class PrivateMatchBatchServiceTest {
     private PrivateMatchScoreRepository privateMatchScoreRepository;
     private ResumesRepository resumesRepository;
     private ObjectMapper objectMapper;
+    private NotificationRepository notificationRepository;
+    private BatchNotificationHelper batchNotificationHelper;
 
     private PrivateMatchBatchService service;
 
@@ -60,6 +63,8 @@ class PrivateMatchBatchServiceTest {
         privateMatchScoreRepository = Mockito.mock(PrivateMatchScoreRepository.class);
         resumesRepository = Mockito.mock(ResumesRepository.class);
         objectMapper = new ObjectMapper();
+        notificationRepository = Mockito.mock(NotificationRepository.class);
+        batchNotificationHelper = Mockito.mock(BatchNotificationHelper.class);
 
         service = new PrivateMatchBatchService(
                 aiScoringClient,
@@ -68,7 +73,9 @@ class PrivateMatchBatchServiceTest {
                 embeddingService,
                 privateMatchScoreRepository,
                 resumesRepository,
-                objectMapper
+                objectMapper,
+                notificationRepository,
+                batchNotificationHelper
         );
 
         // self-injection 필드를 리플렉션으로 설정 (단위 테스트에서는 프록시 없이 자기 자신 주입)

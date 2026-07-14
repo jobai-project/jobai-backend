@@ -22,14 +22,12 @@ public class notificationController implements NotificationControllerDocs {
     @PostMapping("/lambda-test")
     public ApiResponse<Void> triggerLambdaNotification(@RequestBody LambdaTestRequest request) {
 
-        // 1. 주입받은 서비스의 Lambda 호출 로직 실행
         lambdaNotificationService.sendMatchNotification(
                 request.userName(),
                 request.companyName(),
                 request.score()
         );
 
-        // 2. 프로젝트 공통 응답 규격(COMMON_200_001)으로 반환
         return ApiResponse.onSuccess(GeneralSuccessCode.OK);
     }
 }
