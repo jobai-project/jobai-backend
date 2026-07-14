@@ -6,13 +6,14 @@ import com.jobai.backend.domain.techcard.collector.RawArticle;
 import com.jobai.backend.domain.techcard.entity.ContentSource;
 import com.jobai.backend.domain.techcard.entity.TechCard;
 import com.jobai.backend.domain.techcard.repository.TechCardRepository;
-import com.jobai.backend.domain.techcard.service.TechCardSummarizeService.PickedSummary;
+import com.jobai.backend.domain.techcard.service.TechCardSummarizeService.CardSummary;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 
@@ -47,8 +48,8 @@ class TechCardCollectServiceTest {
     }
 
     @Test
-    @DisplayName("정상 흐름: 수집 → Bloom 필터링 → LLM 선별 → 선택된 1건 저장")
-    void collectsAndSavesPicked() {
+    @DisplayName("정상 흐름: 수집 → Bloom 필터링 → 배치 요약 → 전체 저장")
+    void collectsAndSavesAll() {
         List<RawArticle> articles = List.of(
                 article("hn:1", "AI Tool Released"),
                 article("hn:2", "Go Popularity Surges"),
@@ -56,18 +57,47 @@ class TechCardCollectServiceTest {
         );
         when(collector.collect()).thenReturn(articles);
         when(bloomFilter.mightContain(anyString())).thenReturn(false);
-        when(summarizeService.pickAndSummarize(anyList()))
-                .thenReturn(new PickedSummary(1, "Go 인기가 심상치 않아요", "백엔드 공고에서 Go 언급이 늘고 있어요"));
+        when(summarizeService.summarize(anyList())).thenReturn(List.of(
+                new CardSummary("AI 도구 출시됐어요", "개발자 생산성이 올라갈 것 같아요"),
+                new CardSummary("Go 인기가 심상치 않아요", "백엔드 공고에서 Go 언급이 늘고 있어요"),
+                new CardSummary("CSS 새 기능이 나왔어요", "프론트엔드 개발이 편해질 것 같아요")
+        ));
 
         collectService.collectAndSummarize();
 
-        ArgumentCaptor<TechCard> captor = ArgumentCaptor.forClass(TechCard.class);
-        verify(techCardRepository).save(captor.capture());
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<List<TechCard>> captor = ArgumentCaptor.forClass(List.class);
+        verify(techCardRepository).saveAll(captor.capture());
 
-        TechCard saved = captor.getValue();
-        assertThat(saved.getExternalId()).isEqualTo("hn:2");
-        assertThat(saved.getHeadline()).isEqualTo("Go 인기가 심상치 않아요");
-        assertThat(saved.getSubtext()).isEqualTo("백엔드 공고에서 Go 언급이 늘고 있어요");
+        List<TechCard> saved = captor.getValue();
+        assertThat(saved).hasSize(3);
+        assertThat(saved.get(0).getExternalId()).isEqualTo("hn:1");
+        assertThat(saved.get(1).getHeadline()).isEqualTo("Go 인기가 심상치 않아요");
+    }
+
+    @Test
+    @DisplayName("요약 실패한 항목은 건너뛰고 나머지만 저장한다")
+    void skipsNullSummaries() {
+        List<RawArticle> articles = List.of(
+                article("hn:1", "Title 1"),
+                article("hn:2", "Title 2"),
+                article("hn:3", "Title 3")
+        );
+        when(collector.collect()).thenReturn(articles);
+        when(bloomFilter.mightContain(anyString())).thenReturn(false);
+        when(summarizeService.summarize(anyList())).thenReturn(Arrays.asList(
+                new CardSummary("제목1", "부연1"),
+                null,
+                new CardSummary("제목3", "부연3")
+        ));
+
+        collectService.collectAndSummarize();
+
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<List<TechCard>> captor = ArgumentCaptor.forClass(List.class);
+        verify(techCardRepository).saveAll(captor.capture());
+
+        assertThat(captor.getValue()).hasSize(2);
     }
 
     @Test
@@ -80,14 +110,15 @@ class TechCardCollectServiceTest {
         when(collector.collect()).thenReturn(articles);
         when(bloomFilter.mightContain("hn:1")).thenReturn(true);
         when(bloomFilter.mightContain("hn:2")).thenReturn(false);
-        when(summarizeService.pickAndSummarize(anyList()))
-                .thenReturn(new PickedSummary(0, "제목", "부연"));
+        when(summarizeService.summarize(anyList())).thenReturn(List.of(
+                new CardSummary("제목", "부연")
+        ));
 
         collectService.collectAndSummarize();
 
         @SuppressWarnings("unchecked")
         ArgumentCaptor<List<RawArticle>> captor = ArgumentCaptor.forClass(List.class);
-        verify(summarizeService).pickAndSummarize(captor.capture());
+        verify(summarizeService).summarize(captor.capture());
 
         assertThat(captor.getValue()).hasSize(1);
         assertThat(captor.getValue().get(0).externalId()).isEqualTo("hn:2");
@@ -102,7 +133,7 @@ class TechCardCollectServiceTest {
         collectService.collectAndSummarize();
 
         verifyNoInteractions(summarizeService);
-        verify(techCardRepository, never()).save(any());
+        verify(techCardRepository, never()).saveAll(anyList());
     }
 
     @Test
@@ -113,24 +144,12 @@ class TechCardCollectServiceTest {
         collectService.collectAndSummarize();
 
         verifyNoInteractions(summarizeService);
-        verify(techCardRepository, never()).save(any());
+        verify(techCardRepository, never()).saveAll(anyList());
     }
 
     @Test
-    @DisplayName("LLM 선별 실패(null 반환)시 저장하지 않는다")
-    void llmFailureSkipsSave() {
-        when(collector.collect()).thenReturn(List.of(article("hn:1", "Title")));
-        when(bloomFilter.mightContain(anyString())).thenReturn(false);
-        when(summarizeService.pickAndSummarize(anyList())).thenReturn(null);
-
-        collectService.collectAndSummarize();
-
-        verify(techCardRepository, never()).save(any());
-    }
-
-    @Test
-    @DisplayName("저장 후 모든 신규 기사를 Bloom 필터에 등록한다")
-    void registersAllToBloomAfterSave() {
+    @DisplayName("저장 성공한 기사만 Bloom 필터에 등록한다")
+    void registersOnlySavedToBloom() {
         List<RawArticle> articles = List.of(
                 article("hn:1", "Title1"),
                 article("hn:2", "Title2"),
@@ -138,13 +157,16 @@ class TechCardCollectServiceTest {
         );
         when(collector.collect()).thenReturn(articles);
         when(bloomFilter.mightContain(anyString())).thenReturn(false);
-        when(summarizeService.pickAndSummarize(anyList()))
-                .thenReturn(new PickedSummary(0, "제목", "부연"));
+        when(summarizeService.summarize(anyList())).thenReturn(Arrays.asList(
+                new CardSummary("제목1", "부연1"),
+                null,
+                new CardSummary("제목3", "부연3")
+        ));
 
         collectService.collectAndSummarize();
 
         verify(bloomFilter).add("hn:1");
-        verify(bloomFilter).add("hn:2");
+        verify(bloomFilter, never()).add("hn:2");
         verify(bloomFilter).add("hn:3");
     }
 
@@ -159,12 +181,13 @@ class TechCardCollectServiceTest {
         );
 
         when(collector.collect()).thenReturn(List.of(article("hn:1", "Title")));
-        when(summarizeService.pickAndSummarize(anyList()))
-                .thenReturn(new PickedSummary(0, "제목", "부연"));
+        when(summarizeService.summarize(anyList())).thenReturn(List.of(
+                new CardSummary("제목", "부연")
+        ));
 
         collectService.collectAndSummarize();
 
-        verify(techCardRepository).save(any());
+        verify(techCardRepository).saveAll(anyList());
     }
 
     @Test
@@ -175,8 +198,8 @@ class TechCardCollectServiceTest {
         when(failCollector.collect()).thenThrow(new RuntimeException("네트워크 오류"));
 
         ArticleCollector okCollector = Mockito.mock(ArticleCollector.class);
-        when(okCollector.source()).thenReturn(ContentSource.HACKERNEWS);
-        when(okCollector.collect()).thenReturn(List.of(article("hn:1", "Title")));
+        when(okCollector.source()).thenReturn(ContentSource.GEEKNEWS);
+        when(okCollector.collect()).thenReturn(List.of(article("gn:1", "Title")));
 
         collectService = new TechCardCollectService(
                 List.of(failCollector, okCollector),
@@ -185,12 +208,13 @@ class TechCardCollectServiceTest {
                 techCardRepository
         );
 
-        when(summarizeService.pickAndSummarize(anyList()))
-                .thenReturn(new PickedSummary(0, "제목", "부연"));
+        when(summarizeService.summarize(anyList())).thenReturn(List.of(
+                new CardSummary("제목", "부연")
+        ));
 
         collectService.collectAndSummarize();
 
-        verify(techCardRepository).save(any());
+        verify(techCardRepository).saveAll(anyList());
     }
 
     private RawArticle article(String externalId, String title) {

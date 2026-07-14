@@ -15,13 +15,18 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * HackerNews Firebase API에서 인기 기사를 수집하는 컬렉터.
+ * <p>Top Stories 중 상위 {@value FETCH_COUNT}개를 조회하고, score 기준 상위 {@value TOP_COUNT}개를 반환한다.
+ * 개별 스토리 fetch는 최대 {@value CONCURRENCY}개 동시 요청으로 처리한다.</p>
+ */
 @Slf4j
 @Component
 public class HackerNewsCollector implements ArticleCollector {
 
     private static final String BASE_URL = "https://hacker-news.firebaseio.com/v0";
     private static final int FETCH_COUNT = 20;
-    private static final int TOP_COUNT = 5;
+    private static final int TOP_COUNT = 10;
     private static final int CONCURRENCY = 5;
     private static final Duration TIMEOUT = Duration.ofSeconds(10);
 

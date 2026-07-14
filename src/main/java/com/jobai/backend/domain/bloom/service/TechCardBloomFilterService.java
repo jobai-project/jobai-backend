@@ -7,6 +7,12 @@ import org.redisson.api.RedissonClient;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Service;
 
+/**
+ * 테크 카드 중복 수집 방지를 위한 Redis Bloom Filter 서비스.
+ * <p>externalId를 키로 사용하여 이미 수집된 기사를 필터링한다.
+ * 프로파일 조건에 따라 빈으로 등록되지 않을 수 있으며,
+ * 이 경우 {@link TechCardCollectService}에서 Optional로 처리한다.</p>
+ */
 @Service
 @RequiredArgsConstructor
 @Profile("!classify & !export & !collect & !local")

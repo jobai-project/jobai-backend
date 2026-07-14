@@ -12,4 +12,4 @@ CREATE TABLE IF NOT EXISTS tech_cards (
     CONSTRAINT uk_tech_card_source_external_id UNIQUE (source, external_id)
 );
 
-CREATE INDEX IF NOT EXISTS idx_tech_cards_source_created_at ON tech_cards (source, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_tech_cards_created_at ON tech_cards (created_at DESC);
