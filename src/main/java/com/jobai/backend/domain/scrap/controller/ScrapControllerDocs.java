@@ -229,4 +229,41 @@ public interface ScrapControllerDocs {
             )
     })
     ApiResponse<ScrapResponseDTO.ScrapListDTO> getMyScraps(String email);
+
+    @Operation(
+            summary = "곧 마감되는 스크랩 공고 조회",
+            description = """
+                    홈 화면의 곧 마감되는 스크랩 공고 영역에서 사용할 목록을 조회합니다.
+
+                    마감일이 오늘 이후인 스크랩 공고를 대상으로 하며, 최대 3개까지 반환합니다.
+                    정렬 기준은 마감일 오름차순, 같은 마감일이면 최근 스크랩한 순, 그래도 같으면 공고 ID 내림차순입니다.
+                    마감일이 없거나 이미 지난 공고는 제외됩니다.
+                    """
+    )
+    @ApiResponses(value = {
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "200",
+                    description = "조회 성공",
+                    content = @Content(
+                            mediaType = "application/json",
+                            schema = @Schema(implementation = ScrapResponseDTO.ScrapListDTO.class)
+                    )
+            ),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "401",
+                    description = "인증되지 않은 사용자",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = @ExampleObject(value = """
+                                    {
+                                      "isSuccess": false,
+                                      "code": "COMMON_401_001",
+                                      "message": "인증이 필요합니다.",
+                                      "result": null
+                                    }
+                                    """)
+                    )
+            )
+    })
+    ApiResponse<ScrapResponseDTO.ScrapListDTO> getUpcomingDeadlineScraps(String email);
 }

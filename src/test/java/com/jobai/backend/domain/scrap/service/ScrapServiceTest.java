@@ -16,6 +16,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -180,5 +181,44 @@ class ScrapServiceTest {
         ScrapResponseDTO.ScrapListDTO result = service.getMyScraps(EMAIL);
 
         assertThat(result.getScraps()).isEmpty();
+    }
+    @Test
+    @DisplayName("마감 임박 스크랩 공고는 최대 3개를 고정된 기준으로 정렬해 조회한다")
+    void 마감_임박_스크랩_조회() {
+        LocalDate today = LocalDate.now();
+        when(scrapHistoryRepository.findUpcomingPublicDeadlineScraps(any(), any(), any()))
+                .thenReturn(List.<Object[]>of(
+                        upcomingRow(1L, "PUBLIC", 1L, today.plusDays(1), LocalDateTime.of(2026, 7, 1, 9, 0)),
+                        upcomingRow(2L, "PUBLIC", 2L, today.plusDays(2), LocalDateTime.of(2026, 7, 3, 9, 0)),
+                        upcomingRow(3L, "PUBLIC", 3L, today.plusDays(2), LocalDateTime.of(2026, 7, 2, 9, 0))
+                ));
+        when(scrapHistoryRepository.findUpcomingPrivateDeadlineScraps(any(), any(), any()))
+                .thenReturn(List.<Object[]>of(
+                        upcomingRow(4L, "PRIVATE", 4L, today.plusDays(3), LocalDateTime.of(2026, 7, 4, 9, 0))
+                ));
+
+        ScrapResponseDTO.ScrapListDTO result = service.getUpcomingDeadlineScraps(EMAIL);
+
+        assertThat(result.getScraps()).extracting(ScrapResponseDTO.ScrapItemDTO::getSourceId)
+                .containsExactly(1L, 2L, 3L);
+    }
+
+    private JobCandidate candidate(Long id, LocalDate deadline) {
+        return new JobCandidate(id, "PUBLIC", "company" + id, "title" + id,
+                "Seoul", "full-time", "backend", deadline, LocalDateTime.now());
+    }
+
+    private Object[] upcomingRow(Long scrapId, String source, Long sourceId, LocalDate deadline, LocalDateTime scrappedAt) {
+        return new Object[]{
+                scrapId,
+                source,
+                sourceId,
+                "company" + sourceId,
+                "title" + sourceId,
+                "Seoul",
+                "full-time",
+                deadline,
+                scrappedAt
+        };
     }
 }
