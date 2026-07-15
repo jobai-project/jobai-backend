@@ -1,5 +1,11 @@
 package com.jobai.backend.domain.search.service;
 
+import com.jobai.backend.domain.home.entity.PrivateMatchScore;
+import com.jobai.backend.domain.home.entity.PublicMatchScore;
+import com.jobai.backend.domain.home.repository.PrivateMatchScoreRepository;
+import com.jobai.backend.domain.home.repository.PublicMatchScoreRepository;
+import com.jobai.backend.domain.member.entity.Resumes;
+import com.jobai.backend.domain.member.repository.ResumesRepository;
 import com.jobai.backend.domain.search.dto.JobSearchResponse;
 import com.jobai.backend.domain.search.dto.JobSearchResponse.JobSummary;
 import com.jobai.backend.domain.search.dto.JobSearchResponse.SearchInfo;
@@ -15,6 +21,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 /**
@@ -32,6 +40,9 @@ public class JobSearchService {
     private final JobSearchRepository jobSearchRepository;
     private final EmbeddingService embeddingService;
     private final VectorSearchRepository vectorSearchRepository;
+    private final ResumesRepository resumesRepository;
+    private final PrivateMatchScoreRepository privateMatchScoreRepository;
+    private final PublicMatchScoreRepository publicMatchScoreRepository;
 
     @Value("${search.embedding.enabled:true}")
     private boolean embeddingEnabled;
@@ -39,11 +50,13 @@ public class JobSearchService {
     private static final double VECTOR_THRESHOLD = 0.4;
 
     /** 쿼리를 분석하여 키워드 검색 또는 벡터 검색을 실행한다. */
-    public JobSearchResponse search(String query, int page, int size) {
+    public JobSearchResponse search(String query, int page, int size, String email) {
         MatchResult match = keywordMatcher.extract(query);
 
         log.info("키워드 분석: query={}, categories={}, company={}, location={}, experience={}, unmatchedTokens={}",
                 query, match.categories(), match.company(), match.location(), match.experience(), match.unmatchedTokens());
+
+        JobSearchResponse response;
 
         if (!match.hasUnmatchedTokens()) {
             // 경로 A: 모든 토큰이 매칭됨 → 기존 검색
@@ -53,11 +66,9 @@ public class JobSearchService {
                     match.location(), match.experience(),
                     match.experienceLevels(), match.employmentTypes(),
                     SearchCondition.METHOD_KEYWORD);
-            return executeTraditionalSearch(condition, page, size);
-        }
-
-        // 경로 B: 미매칭 토큰 있음 → 벡터 검색
-        if (embeddingEnabled) {
+            response = executeTraditionalSearch(condition, page, size);
+        } else if (embeddingEnabled) {
+            // 경로 B: 미매칭 토큰 있음 → 벡터 검색
             try {
                 float[] queryVector = embeddingService.embedQuery(query);
                 log.info("벡터 검색 실행: query={}, dimension={}", query, queryVector.length);
@@ -68,22 +79,85 @@ public class JobSearchService {
                         match.experienceLevels(), match.employmentTypes(),
                         SearchCondition.METHOD_VECTOR);
 
-                JobSearchResponse result = executeVectorSearch(queryVector, condition, page, size);
-                log.info("벡터 검색 결과: {} 건", result.jobs().size());
-                return result;
+                response = executeVectorSearch(queryVector, condition, page, size);
+                log.info("벡터 검색 결과: {} 건", response.jobs().size());
             } catch (Exception e) {
                 log.warn("벡터 검색 실패, 기존 검색으로 폴백: query={}", query, e);
+                SearchCondition fallback = new SearchCondition(
+                        match.categories(), match.company(),
+                        match.location(), match.experience(),
+                        match.experienceLevels(), match.employmentTypes(),
+                        SearchCondition.METHOD_KEYWORD);
+                response = executeTraditionalSearch(fallback, page, size);
             }
+        } else {
+            // 벡터 검색 비활성화 시 구조화 조건만으로 폴백 검색
+            SearchCondition fallback = new SearchCondition(
+                    match.categories(), match.company(),
+                    match.location(), match.experience(),
+                    match.experienceLevels(), match.employmentTypes(),
+                    SearchCondition.METHOD_KEYWORD);
+            response = executeTraditionalSearch(fallback, page, size);
         }
 
-        // 벡터 검색 비활성화 또는 실패 시 구조화 조건만으로 폴백 검색
-        // unmatchedTokens는 의미 검색용이므로 LIKE 키워드로 사용하지 않는다
-        SearchCondition fallback = new SearchCondition(
-                match.categories(), match.company(),
-                match.location(), match.experience(),
-                match.experienceLevels(), match.employmentTypes(),
-                SearchCondition.METHOD_KEYWORD);
-        return executeTraditionalSearch(fallback, page, size);
+        // 매칭 점수 로딩
+        List<JobSummary> scoredJobs = attachMatchScores(response.jobs(), email);
+        return new JobSearchResponse(response.totalCount(), scoredJobs, response.searchInfo());
+    }
+
+    /** 검색 결과에 매칭 점수를 부착한다. */
+    private List<JobSummary> attachMatchScores(List<JobSummary> jobs, String email) {
+        if (email == null || "anonymousUser".equals(email) || jobs.isEmpty()) {
+            return jobs;
+        }
+
+        Resumes activeResume = resumesRepository.findByMemberEmailAndIsActiveTrue(email).orElse(null);
+        if (activeResume == null) {
+            return jobs;
+        }
+
+        List<Long> privateIds = jobs.stream()
+                .filter(j -> "PRIVATE".equals(j.source()))
+                .map(JobSummary::id)
+                .toList();
+        List<Long> publicIds = jobs.stream()
+                .filter(j -> "PUBLIC".equals(j.source()))
+                .map(JobSummary::id)
+                .toList();
+
+        Map<Long, Integer> privateScores = Map.of();
+        Map<Long, Integer> publicScores = Map.of();
+
+        if (!privateIds.isEmpty()) {
+            privateScores = privateMatchScoreRepository
+                    .findByResumeIdAndPrivateJobPostingIdIn(activeResume.getId(), privateIds)
+                    .stream()
+                    .collect(Collectors.toMap(
+                            s -> s.getPrivateJobPosting().getId(),
+                            PrivateMatchScore::getScore,
+                                    (existing, replacement) -> existing));
+        }
+        if (!publicIds.isEmpty()) {
+            publicScores = publicMatchScoreRepository
+                    .findByResumeIdAndPublicJobPostingIdIn(activeResume.getId(), publicIds)
+                    .stream()
+                    .collect(Collectors.toMap(
+                            s -> s.getPublicJobPosting().getId(),
+                            PublicMatchScore::getScore,
+                                    (existing, replacement) -> existing));
+        }
+
+        Map<Long, Integer> finalPrivateScores = privateScores;
+        Map<Long, Integer> finalPublicScores = publicScores;
+
+        return jobs.stream()
+                .map(job -> {
+                    Integer score = "PRIVATE".equals(job.source())
+                            ? finalPrivateScores.get(job.id())
+                            : finalPublicScores.get(job.id());
+                    return job.withMatchScore(score);
+                })
+                .toList();
     }
 
     private JobSearchResponse executeVectorSearch(float[] queryVector, SearchCondition condition,

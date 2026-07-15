@@ -7,6 +7,8 @@ import com.jobai.backend.domain.crawler.repository.JobPostingSummaryRepository;
 import com.jobai.backend.domain.crawler.repository.PrivateJobPostingRepository;
 import com.jobai.backend.domain.crawler.service.JobSummaryService;
 import com.jobai.backend.domain.crawler.summary.JobSummarizer;
+import com.jobai.backend.domain.home.repository.PrivateMatchScoreRepository;
+import com.jobai.backend.domain.member.repository.ResumesRepository;
 import com.jobai.backend.global.apiPayload.handler.GeneralExceptionAdvice;
 import com.jobai.backend.global.llm.LlmException;
 import org.junit.jupiter.api.BeforeEach;
@@ -32,6 +34,8 @@ class PrivateJobControllerTest {
     private PrivateJobPostingRepository jobPostingRepository;
     private JobPostingSummaryRepository summaryRepository;
     private JobSummarizer jobSummarizer;
+    private ResumesRepository resumesRepository;
+    private PrivateMatchScoreRepository privateMatchScoreRepository;
 
     private static final String VALID_SUMMARY_JSON = """
             {"techStack":["Java","Spring Boot"],"responsibilities":["백엔드 API 개발"],"qualifications":["Java 3년 이상"],"preferredQualifications":["MSA 경험"]}""";
@@ -41,10 +45,13 @@ class PrivateJobControllerTest {
         jobPostingRepository = Mockito.mock(PrivateJobPostingRepository.class);
         summaryRepository = Mockito.mock(JobPostingSummaryRepository.class);
         jobSummarizer = Mockito.mock(JobSummarizer.class);
+        resumesRepository = Mockito.mock(ResumesRepository.class);
+        privateMatchScoreRepository = Mockito.mock(PrivateMatchScoreRepository.class);
 
         ObjectMapper objectMapper = new ObjectMapper();
         JobSummaryService service = new JobSummaryService(
-                jobPostingRepository, summaryRepository, jobSummarizer, objectMapper);
+                jobPostingRepository, summaryRepository, jobSummarizer, objectMapper,
+                resumesRepository, privateMatchScoreRepository);
         PrivateJobController controller = new PrivateJobController(service);
 
         mockMvc = MockMvcBuilders

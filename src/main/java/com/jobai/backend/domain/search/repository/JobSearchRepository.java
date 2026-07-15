@@ -77,7 +77,7 @@ public class JobSearchRepository {
                 (List<com.jobai.backend.domain.crawler.entity.PrivateJobPosting>) query.getResultList();
 
         return results.stream()
-                .map(p -> new JobSummary(
+                .map(p -> JobSummary.of(
                         p.getId(),
                         "PRIVATE",
                         p.getTitle(),
@@ -157,7 +157,7 @@ public class JobSearchRepository {
                 (List<com.jobai.backend.domain.publicInstitution.entity.PublicJobPosting>) query.getResultList();
 
         return results.stream()
-                .map(p -> new JobSummary(
+                .map(p -> JobSummary.of(
                         p.getId(),
                         "PUBLIC",
                         p.getTitle(),

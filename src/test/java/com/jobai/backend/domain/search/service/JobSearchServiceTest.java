@@ -1,5 +1,8 @@
 package com.jobai.backend.domain.search.service;
 
+import com.jobai.backend.domain.home.repository.PrivateMatchScoreRepository;
+import com.jobai.backend.domain.home.repository.PublicMatchScoreRepository;
+import com.jobai.backend.domain.member.repository.ResumesRepository;
 import com.jobai.backend.domain.search.dto.JobSearchResponse;
 import com.jobai.backend.domain.search.dto.JobSearchResponse.JobSummary;
 import com.jobai.backend.domain.search.repository.JobSearchRepository;
@@ -25,6 +28,9 @@ class JobSearchServiceTest {
     private JobSearchRepository jobSearchRepository;
     private EmbeddingService embeddingService;
     private VectorSearchRepository vectorSearchRepository;
+    private ResumesRepository resumesRepository;
+    private PrivateMatchScoreRepository privateMatchScoreRepository;
+    private PublicMatchScoreRepository publicMatchScoreRepository;
     private JobSearchService jobSearchService;
 
     @BeforeEach
@@ -33,10 +39,14 @@ class JobSearchServiceTest {
         jobSearchRepository = Mockito.mock(JobSearchRepository.class);
         embeddingService = Mockito.mock(EmbeddingService.class);
         vectorSearchRepository = Mockito.mock(VectorSearchRepository.class);
+        resumesRepository = Mockito.mock(ResumesRepository.class);
+        privateMatchScoreRepository = Mockito.mock(PrivateMatchScoreRepository.class);
+        publicMatchScoreRepository = Mockito.mock(PublicMatchScoreRepository.class);
 
         jobSearchService = new JobSearchService(
                 keywordMatcher, jobSearchRepository,
-                embeddingService, vectorSearchRepository);
+                embeddingService, vectorSearchRepository,
+                resumesRepository, privateMatchScoreRepository, publicMatchScoreRepository);
 
         var field = JobSearchService.class.getDeclaredField("embeddingEnabled");
         field.setAccessible(true);
@@ -56,7 +66,7 @@ class JobSearchServiceTest {
         when(jobSearchRepository.countPrivate(any())).thenReturn(0L);
         when(jobSearchRepository.countPublic(any())).thenReturn(0L);
 
-        JobSearchResponse response = jobSearchService.search("서울 백엔드", 0, 20);
+        JobSearchResponse response = jobSearchService.search("서울 백엔드", 0, 20, null);
 
         assertThat(response.searchInfo().method()).isEqualTo("KEYWORD");
         verifyNoInteractions(embeddingService);
@@ -83,7 +93,7 @@ class JobSearchServiceTest {
         when(vectorSearchRepository.countPrivateByVector(any(), anyDouble(), any())).thenReturn(1L);
         when(vectorSearchRepository.countPublicByVector(any(), anyDouble(), any())).thenReturn(0L);
 
-        JobSearchResponse response = jobSearchService.search("서울에서 혼자 일하기 쉬운 백엔드", 0, 20);
+        JobSearchResponse response = jobSearchService.search("서울에서 혼자 일하기 쉬운 백엔드", 0, 20, null);
 
         assertThat(response.searchInfo().method()).isEqualTo("VECTOR");
         assertThat(response.jobs()).hasSize(1);
@@ -104,7 +114,7 @@ class JobSearchServiceTest {
         when(vectorSearchRepository.countPrivateByVector(any(), anyDouble(), any())).thenReturn(0L);
         when(vectorSearchRepository.countPublicByVector(any(), anyDouble(), any())).thenReturn(0L);
 
-        jobSearchService.search("판교에서 혼자 일하기 좋은 경력직 백엔드", 0, 20);
+        jobSearchService.search("판교에서 혼자 일하기 좋은 경력직 백엔드", 0, 20, null);
 
         Mockito.verify(vectorSearchRepository).searchPrivateByVector(
                 any(), anyDouble(),
@@ -130,7 +140,7 @@ class JobSearchServiceTest {
         when(vectorSearchRepository.countPrivateByVector(any(), anyDouble(), any())).thenReturn(0L);
         when(vectorSearchRepository.countPublicByVector(any(), anyDouble(), any())).thenReturn(0L);
 
-        JobSearchResponse response = jobSearchService.search("혼자 일하기 편한 직무", 0, 20);
+        JobSearchResponse response = jobSearchService.search("혼자 일하기 편한 직무", 0, 20, null);
 
         assertThat(response.searchInfo().method()).isEqualTo("VECTOR");
         assertThat(response.jobs()).isEmpty();
@@ -154,7 +164,7 @@ class JobSearchServiceTest {
         when(jobSearchRepository.countPrivate(any())).thenReturn(0L);
         when(jobSearchRepository.countPublic(any())).thenReturn(0L);
 
-        JobSearchResponse response = jobSearchService.search("혼자 일하기 좋은 백엔드", 0, 20);
+        JobSearchResponse response = jobSearchService.search("혼자 일하기 좋은 백엔드", 0, 20, null);
 
         assertThat(response.searchInfo().method()).isEqualTo("KEYWORD");
         verifyNoInteractions(vectorSearchRepository);
@@ -187,7 +197,7 @@ class JobSearchServiceTest {
         when(vectorSearchRepository.countPrivateByVector(any(), anyDouble(), any())).thenReturn(2L);
         when(vectorSearchRepository.countPublicByVector(any(), anyDouble(), any())).thenReturn(1L);
 
-        JobSearchResponse response = jobSearchService.search("혼자 일하기 편한", 0, 3);
+        JobSearchResponse response = jobSearchService.search("혼자 일하기 편한", 0, 3, null);
 
         // distance 오름차순: 공기업A(0.10) → 사기업A(0.20) → 사기업B(0.35)
         assertThat(response.jobs().stream().map(JobSummary::title).toList())
@@ -211,7 +221,7 @@ class JobSearchServiceTest {
         when(jobSearchRepository.countPrivate(any())).thenReturn(0L);
         when(jobSearchRepository.countPublic(any())).thenReturn(0L);
 
-        JobSearchResponse response = jobSearchService.search("혼자 일하기 편한 직무", 0, 20);
+        JobSearchResponse response = jobSearchService.search("혼자 일하기 편한 직무", 0, 20, null);
 
         assertThat(response.searchInfo().method()).isEqualTo("KEYWORD");
         verifyNoInteractions(embeddingService);
@@ -222,7 +232,7 @@ class JobSearchServiceTest {
 
     private static JobSummary createJobSummary(Long id, String source, String title,
                                                 LocalDateTime createdAt) {
-        return new JobSummary(id, source, title, "회사", "서울", "백엔드",
+        return JobSummary.of(id, source, title, "회사", "서울", "백엔드",
                 "정규직", "신입", "https://apply.example.com", null, createdAt, "EXACT");
     }
 }

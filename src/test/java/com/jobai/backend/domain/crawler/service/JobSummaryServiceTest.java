@@ -8,6 +8,8 @@ import com.jobai.backend.domain.crawler.entity.PrivateJobPosting;
 import com.jobai.backend.domain.crawler.repository.JobPostingSummaryRepository;
 import com.jobai.backend.domain.crawler.repository.PrivateJobPostingRepository;
 import com.jobai.backend.domain.crawler.summary.JobSummarizer;
+import com.jobai.backend.domain.home.repository.PrivateMatchScoreRepository;
+import com.jobai.backend.domain.member.repository.ResumesRepository;
 import com.jobai.backend.global.apiPayload.exception.GeneralException;
 import com.jobai.backend.global.llm.LlmException;
 import org.junit.jupiter.api.BeforeEach;
@@ -46,7 +48,8 @@ class JobSummaryServiceTest {
         summaryRepository = Mockito.mock(JobPostingSummaryRepository.class);
         jobSummarizer = Mockito.mock(JobSummarizer.class);
         service = new JobSummaryService(
-                jobPostingRepository, summaryRepository, jobSummarizer, new ObjectMapper());
+                jobPostingRepository, summaryRepository, jobSummarizer, new ObjectMapper(),
+                Mockito.mock(ResumesRepository.class), Mockito.mock(PrivateMatchScoreRepository.class));
     }
 
     private PrivateJobPosting createPosting(Long id, String description, LocalDateTime updatedAt) {
@@ -72,7 +75,7 @@ class JobSummaryServiceTest {
         when(jobPostingRepository.findById(1L)).thenReturn(Optional.of(posting));
         when(summaryRepository.findByJobPostingId(1L)).thenReturn(Optional.empty());
 
-        PrivateJobDetailResponse result = service.getDetail(1L);
+        PrivateJobDetailResponse result = service.getDetail(1L, null);
 
         assertThat(result.getId()).isEqualTo(1L);
         assertThat(result.getTitle()).isEqualTo("백엔드 개발자");
@@ -94,7 +97,7 @@ class JobSummaryServiceTest {
         when(jobPostingRepository.findById(1L)).thenReturn(Optional.of(posting));
         when(summaryRepository.findByJobPostingId(1L)).thenReturn(Optional.of(cached));
 
-        PrivateJobDetailResponse result = service.getDetail(1L);
+        PrivateJobDetailResponse result = service.getDetail(1L, null);
 
         assertThat(result.getId()).isEqualTo(1L);
         assertThat(result.getSummary()).isNotNull();
@@ -106,7 +109,7 @@ class JobSummaryServiceTest {
     void getDetailThrowsNotFound() {
         when(jobPostingRepository.findById(999L)).thenReturn(Optional.empty());
 
-        assertThatThrownBy(() -> service.getDetail(999L))
+        assertThatThrownBy(() -> service.getDetail(999L, null))
                 .isInstanceOf(GeneralException.class)
                 .satisfies(e -> assertThat(((GeneralException) e).getErrorCode().getCode())
                         .isEqualTo("COMMON_404_001"));

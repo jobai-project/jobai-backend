@@ -3,6 +3,7 @@ package com.jobai.backend.domain.techcard.controller;
 import com.jobai.backend.domain.techcard.dto.TechCardResponse;
 import com.jobai.backend.global.apiPayload.ApiResponse;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.ExampleObject;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -78,5 +79,5 @@ public interface TechCardControllerDocs {
                     )
             )
     })
-    ApiResponse<TechCardResponse> getTechCards();
+    ApiResponse<TechCardResponse> getTechCards(@Parameter(hidden = true) String email);
 }

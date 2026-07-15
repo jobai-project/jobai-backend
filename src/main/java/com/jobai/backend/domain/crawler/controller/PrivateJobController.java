@@ -6,6 +6,7 @@ import com.jobai.backend.domain.crawler.service.JobSummaryService;
 import com.jobai.backend.global.apiPayload.ApiResponse;
 import com.jobai.backend.global.apiPayload.code.GeneralSuccessCode;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -21,8 +22,10 @@ public class PrivateJobController implements PrivateJobControllerDocs {
 
     @Override
     @GetMapping("/{id}")
-    public ApiResponse<PrivateJobDetailResponse> getJobDetail(@PathVariable Long id) {
-        PrivateJobDetailResponse response = jobSummaryService.getDetail(id);
+    public ApiResponse<PrivateJobDetailResponse> getJobDetail(
+            @PathVariable Long id,
+            @AuthenticationPrincipal String email) {
+        PrivateJobDetailResponse response = jobSummaryService.getDetail(id, email);
         return ApiResponse.onSuccess(GeneralSuccessCode.OK, response);
     }
 
