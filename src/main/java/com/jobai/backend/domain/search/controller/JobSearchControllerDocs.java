@@ -115,5 +115,5 @@ public interface JobSearchControllerDocs {
                     )
             )
     })
-    ApiResponse<JobSearchResponse> searchJobs(com.jobai.backend.domain.search.dto.JobSearchRequest request, String email);
+    ApiResponse<JobSearchResponse> searchJobs(com.jobai.backend.domain.search.dto.JobSearchRequest request, @Parameter(hidden = true) String email);
 }

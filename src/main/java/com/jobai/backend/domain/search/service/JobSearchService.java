@@ -107,7 +107,7 @@ public class JobSearchService {
 
     /** 검색 결과에 매칭 점수를 부착한다. */
     private List<JobSummary> attachMatchScores(List<JobSummary> jobs, String email) {
-        if (email == null || jobs.isEmpty()) {
+        if (email == null || "anonymousUser".equals(email) || jobs.isEmpty()) {
             return jobs;
         }
 
@@ -134,7 +134,8 @@ public class JobSearchService {
                     .stream()
                     .collect(Collectors.toMap(
                             s -> s.getPrivateJobPosting().getId(),
-                            PrivateMatchScore::getScore));
+                            PrivateMatchScore::getScore,
+                                    (existing, replacement) -> existing));
         }
         if (!publicIds.isEmpty()) {
             publicScores = publicMatchScoreRepository
@@ -142,7 +143,8 @@ public class JobSearchService {
                     .stream()
                     .collect(Collectors.toMap(
                             s -> s.getPublicJobPosting().getId(),
-                            PublicMatchScore::getScore));
+                            PublicMatchScore::getScore,
+                                    (existing, replacement) -> existing));
         }
 
         Map<Long, Integer> finalPrivateScores = privateScores;

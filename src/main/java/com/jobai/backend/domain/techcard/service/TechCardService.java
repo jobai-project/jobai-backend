@@ -106,7 +106,7 @@ public class TechCardService {
         Map<Long, Integer> privateScores = Map.of();
         Map<Long, Integer> publicScores = Map.of();
 
-        if (email != null) {
+        if (email != null && !"anonymousUser".equals(email)) {
             Resumes activeResume = resumesRepository.findByMemberEmailAndIsActiveTrue(email).orElse(null);
             if (activeResume != null) {
                 List<Long> privateIds = jobResults.stream()
@@ -124,7 +124,8 @@ public class TechCardService {
                             .stream()
                             .collect(Collectors.toMap(
                                     s -> s.getPrivateJobPosting().getId(),
-                                    PrivateMatchScore::getScore));
+                                    PrivateMatchScore::getScore,
+                                    (existing, replacement) -> existing));
                 }
                 if (!publicIds.isEmpty()) {
                     publicScores = publicMatchScoreRepository
@@ -132,7 +133,8 @@ public class TechCardService {
                             .stream()
                             .collect(Collectors.toMap(
                                     s -> s.getPublicJobPosting().getId(),
-                                    PublicMatchScore::getScore));
+                                    PublicMatchScore::getScore,
+                                    (existing, replacement) -> existing));
                 }
             }
         }
@@ -147,9 +149,7 @@ public class TechCardService {
                     Integer score = "PRIVATE".equals(source)
                             ? finalPrivateScores.get(id)
                             : finalPublicScores.get(id);
-                    LocalDate deadline = row.get("deadline") != null
-                            ? ((java.sql.Date) row.get("deadline")).toLocalDate()
-                            : null;
+                    LocalDate deadline = row.get("deadline", LocalDate.class);
                     return new RelatedJob(
                             id,
                             source,

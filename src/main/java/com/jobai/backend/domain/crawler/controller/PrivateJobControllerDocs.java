@@ -65,7 +65,7 @@ public interface  PrivateJobControllerDocs {
                     )
             )
     })
-    ApiResponse<PrivateJobDetailResponse> getJobDetail(Long id, String email);
+    ApiResponse<PrivateJobDetailResponse> getJobDetail(Long id, @Parameter(hidden = true) String email);
 
     @Operation(
             summary = "공고 LLM 요약 조회",

@@ -78,7 +78,7 @@ public class JobSummaryService {
         }
 
         // 매칭 점수 로딩
-        if (email != null) {
+        if (email != null && !"anonymousUser".equals(email)) {
             resumesRepository.findByMemberEmailAndIsActiveTrue(email).ifPresent(activeResume -> {
                 List<PrivateMatchScore> scores = privateMatchScoreRepository
                         .findByResumeIdAndPrivateJobPostingIdIn(activeResume.getId(), List.of(id));
