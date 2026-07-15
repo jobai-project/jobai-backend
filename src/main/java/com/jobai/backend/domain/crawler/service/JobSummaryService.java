@@ -9,6 +9,10 @@ import com.jobai.backend.domain.crawler.entity.PrivateJobPosting;
 import com.jobai.backend.domain.crawler.repository.JobPostingSummaryRepository;
 import com.jobai.backend.domain.crawler.repository.PrivateJobPostingRepository;
 import com.jobai.backend.domain.crawler.summary.JobSummarizer;
+import com.jobai.backend.domain.home.entity.PrivateMatchScore;
+import com.jobai.backend.domain.home.repository.PrivateMatchScoreRepository;
+import com.jobai.backend.domain.member.entity.Resumes;
+import com.jobai.backend.domain.member.repository.ResumesRepository;
 import com.jobai.backend.global.apiPayload.code.GeneralErrorCode;
 import com.jobai.backend.global.apiPayload.exception.GeneralException;
 import com.jobai.backend.global.llm.LlmException;
@@ -40,29 +44,53 @@ public class JobSummaryService {
     private final JobPostingSummaryRepository summaryRepository;
     private final JobSummarizer jobSummarizer;
     private final ObjectMapper objectMapper;
+    private final ResumesRepository resumesRepository;
+    private final PrivateMatchScoreRepository privateMatchScoreRepository;
 
     private static final int MIN_DESCRIPTION_LENGTH = 30;
 
     /**
      * 공고 상세 정보를 조회한다. 캐시된 요약이 있으면 함께 포함한다.
+     * 로그인 사용자이고 활성 이력서가 있으면 매칭 점수와 점수 근거도 포함한다.
      *
-     * @param id 공고 ID
-     * @return 공고 상세 응답 (요약 포함 가능)
+     * @param id    공고 ID
+     * @param email 인증된 사용자 이메일 (비로그인 시 null)
+     * @return 공고 상세 응답 (요약, 매칭 점수 포함 가능)
      * @throws GeneralException 공고가 없으면 NOT_FOUND
      */
     @Transactional(readOnly = true)
-    public PrivateJobDetailResponse getDetail(Long id) {
+    public PrivateJobDetailResponse getDetail(Long id, String email) {
         PrivateJobPosting posting = jobPostingRepository.findById(id)
                 .orElseThrow(() -> new GeneralException(GeneralErrorCode.NOT_FOUND));
+
+        PrivateJobDetailResponse response;
 
         Optional<JobPostingSummary> cached = summaryRepository.findByJobPostingId(id);
         if (cached.isPresent()) {
             JobSummaryResponse.SummaryDetail detail = parseSummaryDetail(cached.get().getSummaryJson());
             if (detail != null) {
-                return PrivateJobDetailResponse.from(posting, detail);
+                response = PrivateJobDetailResponse.from(posting, detail);
+            } else {
+                response = PrivateJobDetailResponse.from(posting);
             }
+        } else {
+            response = PrivateJobDetailResponse.from(posting);
         }
-        return PrivateJobDetailResponse.from(posting);
+
+        // 매칭 점수 로딩
+        if (email != null) {
+            resumesRepository.findByMemberEmailAndIsActiveTrue(email).ifPresent(activeResume -> {
+                List<PrivateMatchScore> scores = privateMatchScoreRepository
+                        .findByResumeIdAndPrivateJobPostingIdIn(activeResume.getId(), List.of(id));
+                if (!scores.isEmpty()) {
+                    PrivateMatchScore score = scores.get(0);
+                    response.setMatchScore(score.getScore());
+                    response.setScoreReason(score.getScoreReason());
+                }
+            });
+        }
+
+        return response;
     }
 
     /**

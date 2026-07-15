@@ -2,6 +2,7 @@ package com.jobai.backend.domain.techcard.dto;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -41,6 +42,12 @@ public record TechCardResponse(
             @Schema(description = "회사명", example = "카카오")
             String companyName,
             @Schema(description = "공고 제목", example = "백엔드 개발자")
-            String title
+            String title,
+            @Schema(description = "AI 매칭 점수 (비로그인/이력서 미업로드 시 null)", example = "85", nullable = true)
+            Integer matchScore,
+            @Schema(description = "마감일", example = "2026-08-01", nullable = true)
+            LocalDate deadline,
+            @Schema(description = "고용형태", example = "정규직", nullable = true)
+            String employmentType
     ) {}
 }

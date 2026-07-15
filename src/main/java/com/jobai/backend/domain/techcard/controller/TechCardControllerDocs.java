@@ -78,5 +78,5 @@ public interface TechCardControllerDocs {
                     )
             )
     })
-    ApiResponse<TechCardResponse> getTechCards();
+    ApiResponse<TechCardResponse> getTechCards(String email);
 }

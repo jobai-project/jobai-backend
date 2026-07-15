@@ -39,8 +39,25 @@ public record JobSearchResponse(
             @Schema(description = "공고 등록/수집 일시")
             LocalDateTime createdAt,
             @Schema(description = "매칭 유형. EXACT=모든 필터 충족, SIMILAR=일부 필터 미충족(null 포함)", example = "EXACT")
-            String matchType
-    ) {}
+            String matchType,
+            @Schema(description = "AI 매칭 점수 (비로그인/이력서 미업로드 시 null)", example = "92", nullable = true)
+            Integer matchScore
+    ) {
+        /** matchScore 없이 생성하는 팩토리 메서드 (레포지토리에서 사용). */
+        public static JobSummary of(Long id, String source, String title, String company,
+                                     String location, String jobCategory, String employmentType,
+                                     String experienceLevel, String applyUrl, LocalDate deadline,
+                                     LocalDateTime createdAt, String matchType) {
+            return new JobSummary(id, source, title, company, location, jobCategory,
+                    employmentType, experienceLevel, applyUrl, deadline, createdAt, matchType, null);
+        }
+
+        /** matchScore를 채워서 새 인스턴스를 반환한다. */
+        public JobSummary withMatchScore(Integer matchScore) {
+            return new JobSummary(id, source, title, company, location, jobCategory,
+                    employmentType, experienceLevel, applyUrl, deadline, createdAt, matchType, matchScore);
+        }
+    }
 
     public record SearchInfo(
             @Schema(description = "검색 방식. 값: KEYWORD(구조화 검색), VECTOR(의미 기반 벡터 검색)", example = "KEYWORD")

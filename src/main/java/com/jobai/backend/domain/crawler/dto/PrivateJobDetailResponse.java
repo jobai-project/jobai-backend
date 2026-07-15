@@ -6,6 +6,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import lombok.Setter;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -30,6 +31,16 @@ public class PrivateJobDetailResponse {
     private String applyUrl;
     private LocalDate deadline;
     private LocalDateTime createdAt;
+
+    /** AI 매칭 점수 (비로그인/이력서 미업로드 시 null). */
+    @Setter
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    private Integer matchScore;
+
+    /** 매칭 점수 산출 근거 (비로그인/이력서 미업로드 시 null). */
+    @Setter
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    private String scoreReason;
 
     /** 캐시된 요약이 있으면 포함, 없으면 null (JSON 응답에서 제외). */
     @JsonInclude(JsonInclude.Include.NON_NULL)

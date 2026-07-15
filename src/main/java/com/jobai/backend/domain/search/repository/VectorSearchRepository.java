@@ -88,7 +88,7 @@ public class VectorSearchRepository {
 
         return results.stream()
                 .map(row -> new ScoredJob(
-                        new JobSummary(
+                        JobSummary.of(
                                 ((Number) row[0]).longValue(),
                                 "PRIVATE",
                                 (String) row[1],
@@ -147,7 +147,7 @@ public class VectorSearchRepository {
 
         return results.stream()
                 .map(row -> new ScoredJob(
-                        new JobSummary(
+                        JobSummary.of(
                                 ((Number) row[0]).longValue(),
                                 "PUBLIC",
                                 (String) row[1],
