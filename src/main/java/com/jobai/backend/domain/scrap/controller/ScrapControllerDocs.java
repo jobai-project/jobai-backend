@@ -229,4 +229,24 @@ public interface ScrapControllerDocs {
             )
     })
     ApiResponse<ScrapResponseDTO.ScrapListDTO> getMyScraps(String email);
+
+    @Operation(
+            summary = "Upcoming deadline scraps",
+            description = """
+                    Returns up to 3 active scraped job postings ordered by nearest deadline.
+                    If multiple postings have the same deadline, recently scrapped postings are shown first.
+                    Expired postings and postings without a deadline are excluded.
+                    """
+    )
+    @ApiResponses(value = {
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "200",
+                    description = "Success",
+                    content = @Content(
+                            mediaType = "application/json",
+                            schema = @Schema(implementation = ScrapResponseDTO.ScrapListDTO.class)
+                    )
+            )
+    })
+    ApiResponse<ScrapResponseDTO.ScrapListDTO> getUpcomingDeadlineScraps(String email);
 }

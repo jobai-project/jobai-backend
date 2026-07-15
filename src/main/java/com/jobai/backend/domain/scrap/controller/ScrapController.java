@@ -43,4 +43,12 @@ public class ScrapController implements ScrapControllerDocs {
         ScrapResponseDTO.ScrapListDTO response = scrapService.getMyScraps(email);
         return ApiResponse.onSuccess(GeneralSuccessCode.OK, response);
     }
+
+    @GetMapping("/upcoming-deadlines")
+    public ApiResponse<ScrapResponseDTO.ScrapListDTO> getUpcomingDeadlineScraps(
+            @AuthenticationPrincipal String email
+    ) {
+        ScrapResponseDTO.ScrapListDTO response = scrapService.getUpcomingDeadlineScraps(email);
+        return ApiResponse.onSuccess(GeneralSuccessCode.OK, response);
+    }
 }

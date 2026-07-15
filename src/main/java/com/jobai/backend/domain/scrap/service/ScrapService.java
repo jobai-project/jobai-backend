@@ -99,6 +99,20 @@ public class ScrapService {
         return ScrapResponseDTO.ScrapListDTO.builder().scraps(items).build();
     }
 
+    public ScrapResponseDTO.ScrapListDTO getUpcomingDeadlineScraps(String email) {
+        LocalDate today = LocalDate.now();
+        List<ScrapItemDTO> items = getMyScraps(email).getScraps().stream()
+                .filter(item -> item.getDeadline() != null && !item.getDeadline().isBefore(today))
+                .sorted(Comparator
+                        .comparing(ScrapItemDTO::getDeadline)
+                        .thenComparing(ScrapItemDTO::getScrappedAt, Comparator.nullsLast(Comparator.reverseOrder()))
+                        .thenComparing(ScrapItemDTO::getSourceId, Comparator.nullsLast(Comparator.reverseOrder())))
+                .limit(3)
+                .toList();
+
+        return ScrapResponseDTO.ScrapListDTO.builder().scraps(items).build();
+    }
+
     private ScrapItemDTO toScrapItem(MemberScrapHistory history, JobCandidate candidate) {
         if (candidate == null) {
             return null;
@@ -114,6 +128,7 @@ public class ScrapService {
                 .title(candidate.title())
                 .location(candidate.location())
                 .employmentType(candidate.employmentType())
+                .deadline(candidate.deadline())
                 .dDay(dDay)
                 .scrappedAt(history.getScrappedAt())
                 .build();

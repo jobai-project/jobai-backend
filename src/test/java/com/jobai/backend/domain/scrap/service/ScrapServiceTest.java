@@ -16,6 +16,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -180,5 +181,44 @@ class ScrapServiceTest {
         ScrapResponseDTO.ScrapListDTO result = service.getMyScraps(EMAIL);
 
         assertThat(result.getScraps()).isEmpty();
+    }
+    @Test
+    @DisplayName("Upcoming deadline scraps are limited to three and sorted deterministically")
+    void getUpcomingDeadlineScraps() {
+        Member member = Member.builder().id(1L).email(EMAIL).build();
+        MemberScrapHistory nearest = MemberScrapHistory.builder().id(1L).member(member).source("PUBLIC").sourceId(1L)
+                .scrappedAt(LocalDateTime.of(2026, 7, 1, 9, 0)).build();
+        MemberScrapHistory sameDeadlineNewer = MemberScrapHistory.builder().id(2L).member(member).source("PUBLIC").sourceId(2L)
+                .scrappedAt(LocalDateTime.of(2026, 7, 3, 9, 0)).build();
+        MemberScrapHistory sameDeadlineOlder = MemberScrapHistory.builder().id(3L).member(member).source("PUBLIC").sourceId(3L)
+                .scrappedAt(LocalDateTime.of(2026, 7, 2, 9, 0)).build();
+        MemberScrapHistory later = MemberScrapHistory.builder().id(4L).member(member).source("PUBLIC").sourceId(4L)
+                .scrappedAt(LocalDateTime.of(2026, 7, 4, 9, 0)).build();
+        MemberScrapHistory expired = MemberScrapHistory.builder().id(5L).member(member).source("PUBLIC").sourceId(5L)
+                .scrappedAt(LocalDateTime.of(2026, 7, 5, 9, 0)).build();
+
+        when(scrapHistoryRepository.findByMemberEmailOrderByScrappedAtDesc(EMAIL))
+                .thenReturn(List.of(expired, later, sameDeadlineOlder, sameDeadlineNewer, nearest));
+
+        LocalDate today = LocalDate.now();
+        when(candidateRepository.findPublicCandidatesByIds(List.of(5L, 4L, 3L, 2L, 1L)))
+                .thenReturn(List.of(
+                        candidate(1L, today.plusDays(1)),
+                        candidate(2L, today.plusDays(2)),
+                        candidate(3L, today.plusDays(2)),
+                        candidate(4L, today.plusDays(3)),
+                        candidate(5L, today.minusDays(1))
+                ));
+        when(candidateRepository.findPrivateCandidatesByIds(List.of())).thenReturn(List.of());
+
+        ScrapResponseDTO.ScrapListDTO result = service.getUpcomingDeadlineScraps(EMAIL);
+
+        assertThat(result.getScraps()).extracting(ScrapResponseDTO.ScrapItemDTO::getSourceId)
+                .containsExactly(1L, 2L, 3L);
+    }
+
+    private JobCandidate candidate(Long id, LocalDate deadline) {
+        return new JobCandidate(id, "PUBLIC", "company" + id, "title" + id,
+                "Seoul", "full-time", "backend", deadline, LocalDateTime.now());
     }
 }

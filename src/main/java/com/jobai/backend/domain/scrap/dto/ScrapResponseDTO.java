@@ -6,6 +6,7 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -45,6 +46,9 @@ public class ScrapResponseDTO {
 
         @Schema(description = "고용형태 원본 문자열", example = "정규직")
         private String employmentType;
+
+        @Schema(description = "Job posting deadline", example = "2026-05-20", nullable = true)
+        private LocalDate deadline;
 
         @Schema(description = "마감까지 남은 일수 (디데이). 마감일이 없거나 이미 지난 경우 등은 null/음수일 수 있음", example = "5", nullable = true)
         private Integer dDay;
