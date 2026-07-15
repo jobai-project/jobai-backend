@@ -183,33 +183,19 @@ class ScrapServiceTest {
         assertThat(result.getScraps()).isEmpty();
     }
     @Test
-    @DisplayName("Upcoming deadline scraps are limited to three and sorted deterministically")
-    void getUpcomingDeadlineScraps() {
-        Member member = Member.builder().id(1L).email(EMAIL).build();
-        MemberScrapHistory nearest = MemberScrapHistory.builder().id(1L).member(member).source("PUBLIC").sourceId(1L)
-                .scrappedAt(LocalDateTime.of(2026, 7, 1, 9, 0)).build();
-        MemberScrapHistory sameDeadlineNewer = MemberScrapHistory.builder().id(2L).member(member).source("PUBLIC").sourceId(2L)
-                .scrappedAt(LocalDateTime.of(2026, 7, 3, 9, 0)).build();
-        MemberScrapHistory sameDeadlineOlder = MemberScrapHistory.builder().id(3L).member(member).source("PUBLIC").sourceId(3L)
-                .scrappedAt(LocalDateTime.of(2026, 7, 2, 9, 0)).build();
-        MemberScrapHistory later = MemberScrapHistory.builder().id(4L).member(member).source("PUBLIC").sourceId(4L)
-                .scrappedAt(LocalDateTime.of(2026, 7, 4, 9, 0)).build();
-        MemberScrapHistory expired = MemberScrapHistory.builder().id(5L).member(member).source("PUBLIC").sourceId(5L)
-                .scrappedAt(LocalDateTime.of(2026, 7, 5, 9, 0)).build();
-
-        when(scrapHistoryRepository.findByMemberEmailOrderByScrappedAtDesc(EMAIL))
-                .thenReturn(List.of(expired, later, sameDeadlineOlder, sameDeadlineNewer, nearest));
-
+    @DisplayName("마감 임박 스크랩 공고는 최대 3개를 고정된 기준으로 정렬해 조회한다")
+    void 마감_임박_스크랩_조회() {
         LocalDate today = LocalDate.now();
-        when(candidateRepository.findPublicCandidatesByIds(List.of(5L, 4L, 3L, 2L, 1L)))
-                .thenReturn(List.of(
-                        candidate(1L, today.plusDays(1)),
-                        candidate(2L, today.plusDays(2)),
-                        candidate(3L, today.plusDays(2)),
-                        candidate(4L, today.plusDays(3)),
-                        candidate(5L, today.minusDays(1))
+        when(scrapHistoryRepository.findUpcomingPublicDeadlineScraps(any(), any(), any()))
+                .thenReturn(List.<Object[]>of(
+                        upcomingRow(1L, "PUBLIC", 1L, today.plusDays(1), LocalDateTime.of(2026, 7, 1, 9, 0)),
+                        upcomingRow(2L, "PUBLIC", 2L, today.plusDays(2), LocalDateTime.of(2026, 7, 3, 9, 0)),
+                        upcomingRow(3L, "PUBLIC", 3L, today.plusDays(2), LocalDateTime.of(2026, 7, 2, 9, 0))
                 ));
-        when(candidateRepository.findPrivateCandidatesByIds(List.of())).thenReturn(List.of());
+        when(scrapHistoryRepository.findUpcomingPrivateDeadlineScraps(any(), any(), any()))
+                .thenReturn(List.<Object[]>of(
+                        upcomingRow(4L, "PRIVATE", 4L, today.plusDays(3), LocalDateTime.of(2026, 7, 4, 9, 0))
+                ));
 
         ScrapResponseDTO.ScrapListDTO result = service.getUpcomingDeadlineScraps(EMAIL);
 
@@ -220,5 +206,19 @@ class ScrapServiceTest {
     private JobCandidate candidate(Long id, LocalDate deadline) {
         return new JobCandidate(id, "PUBLIC", "company" + id, "title" + id,
                 "Seoul", "full-time", "backend", deadline, LocalDateTime.now());
+    }
+
+    private Object[] upcomingRow(Long scrapId, String source, Long sourceId, LocalDate deadline, LocalDateTime scrappedAt) {
+        return new Object[]{
+                scrapId,
+                source,
+                sourceId,
+                "company" + sourceId,
+                "title" + sourceId,
+                "Seoul",
+                "full-time",
+                deadline,
+                scrappedAt
+        };
     }
 }

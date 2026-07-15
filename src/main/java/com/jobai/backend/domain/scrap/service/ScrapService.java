@@ -14,10 +14,12 @@ import com.jobai.backend.domain.scrap.repository.MemberScrapHistoryRepository;
 import com.jobai.backend.global.apiPayload.code.GeneralErrorCode;
 import com.jobai.backend.global.apiPayload.exception.GeneralException;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.Comparator;
 import java.util.List;
@@ -100,9 +102,15 @@ public class ScrapService {
     }
 
     public ScrapResponseDTO.ScrapListDTO getUpcomingDeadlineScraps(String email) {
+        getMember(email);
+
         LocalDate today = LocalDate.now();
-        List<ScrapItemDTO> items = getMyScraps(email).getScraps().stream()
-                .filter(item -> item.getDeadline() != null && !item.getDeadline().isBefore(today))
+        PageRequest limit = PageRequest.of(0, 3);
+        List<ScrapItemDTO> items = java.util.stream.Stream.concat(
+                        scrapHistoryRepository.findUpcomingPublicDeadlineScraps(email, today, limit).stream(),
+                        scrapHistoryRepository.findUpcomingPrivateDeadlineScraps(email, today, limit).stream()
+                )
+                .map(this::toUpcomingScrapItem)
                 .sorted(Comparator
                         .comparing(ScrapItemDTO::getDeadline)
                         .thenComparing(ScrapItemDTO::getScrappedAt, Comparator.nullsLast(Comparator.reverseOrder()))
@@ -111,6 +119,23 @@ public class ScrapService {
                 .toList();
 
         return ScrapResponseDTO.ScrapListDTO.builder().scraps(items).build();
+    }
+
+    private ScrapItemDTO toUpcomingScrapItem(Object[] row) {
+        LocalDate deadline = (LocalDate) row[7];
+        Integer dDay = (int) ChronoUnit.DAYS.between(LocalDate.now(), deadline);
+        return ScrapItemDTO.builder()
+                .scrapId((Long) row[0])
+                .source((String) row[1])
+                .sourceId((Long) row[2])
+                .companyName((String) row[3])
+                .title((String) row[4])
+                .location((String) row[5])
+                .employmentType((String) row[6])
+                .deadline(deadline)
+                .dDay(dDay)
+                .scrappedAt((LocalDateTime) row[8])
+                .build();
     }
 
     private ScrapItemDTO toScrapItem(MemberScrapHistory history, JobCandidate candidate) {
