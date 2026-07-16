@@ -1,5 +1,7 @@
 package com.jobai.backend.domain.scrap.dto;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
+
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -47,10 +49,15 @@ public class ScrapResponseDTO {
         @Schema(description = "고용형태 원본 문자열", example = "정규직")
         private String employmentType;
 
+        @Schema(description = "활성 이력서 기준 실제 AI 매칭점수. 활성 이력서가 없거나 점수 계산 전이면 null",
+                example = "88", nullable = true)
+        private Integer matchScore;
+
         @Schema(description = "공고 마감일", example = "2026-05-20", nullable = true)
         private LocalDate deadline;
 
-        @Schema(description = "마감까지 남은 일수 (디데이). 마감일이 없거나 이미 지난 경우 등은 null/음수일 수 있음", example = "5", nullable = true)
+        @JsonProperty("dday")
+        @Schema(name = "dday", description = "마감까지 남은 일수 (디데이). 마감일이 없거나 이미 지난 경우 등은 null/음수일 수 있음", example = "5", nullable = true)
         private Integer dDay;
 
         @Schema(description = "스크랩한 시각")

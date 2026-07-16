@@ -2,9 +2,15 @@ package com.jobai.backend.domain.scrap.service;
 
 import com.jobai.backend.domain.crawler.repository.PrivateJobPostingRepository;
 import com.jobai.backend.domain.home.dto.JobCandidate;
+import com.jobai.backend.domain.home.entity.PrivateMatchScore;
+import com.jobai.backend.domain.home.entity.PublicMatchScore;
 import com.jobai.backend.domain.home.repository.HomeJobCandidateRepository;
+import com.jobai.backend.domain.home.repository.PrivateMatchScoreRepository;
+import com.jobai.backend.domain.home.repository.PublicMatchScoreRepository;
 import com.jobai.backend.domain.member.entity.Member;
+import com.jobai.backend.domain.member.entity.Resumes;
 import com.jobai.backend.domain.member.repository.MemberRepository;
+import com.jobai.backend.domain.member.repository.ResumesRepository;
 import com.jobai.backend.domain.publicInstitution.repository.JobPostingRepository;
 import com.jobai.backend.domain.scrap.dto.ScrapResponseDTO;
 import com.jobai.backend.domain.scrap.dto.ScrapResponseDTO.AddResultDTO;
@@ -39,6 +45,9 @@ public class ScrapService {
     private final JobPostingRepository jobPostingRepository;
     private final PrivateJobPostingRepository privateJobPostingRepository;
     private final HomeJobCandidateRepository candidateRepository;
+    private final ResumesRepository resumesRepository;
+    private final PrivateMatchScoreRepository privateMatchScoreRepository;
+    private final PublicMatchScoreRepository publicMatchScoreRepository;
 
     @Transactional
     public AddResultDTO addScrap(String email, String source, Long sourceId) {
@@ -91,9 +100,16 @@ public class ScrapService {
                 .collect(Collectors.toMap(JobCandidate::id, c -> c));
         Map<Long, JobCandidate> privateById = candidateRepository.findPrivateCandidatesByIds(privateIds).stream()
                 .collect(Collectors.toMap(JobCandidate::id, c -> c));
+        MatchScores matchScores = loadMatchScores(email, publicIds, privateIds);
 
         List<ScrapItemDTO> items = histories.stream()
-                .map(h -> toScrapItem(h, SOURCE_PUBLIC.equals(h.getSource()) ? publicById.get(h.getSourceId()) : privateById.get(h.getSourceId())))
+                .map(h -> toScrapItem(
+                        h,
+                        SOURCE_PUBLIC.equals(h.getSource())
+                                ? publicById.get(h.getSourceId())
+                                : privateById.get(h.getSourceId()),
+                        matchScores.get(h.getSource(), h.getSourceId())
+                ))
                 .filter(java.util.Objects::nonNull) // 원본 공고가 삭제된 경우 등은 제외
                 .sorted(Comparator.comparing(ScrapItemDTO::getScrappedAt).reversed())
                 .toList();
@@ -138,7 +154,7 @@ public class ScrapService {
                 .build();
     }
 
-    private ScrapItemDTO toScrapItem(MemberScrapHistory history, JobCandidate candidate) {
+    private ScrapItemDTO toScrapItem(MemberScrapHistory history, JobCandidate candidate, Integer matchScore) {
         if (candidate == null) {
             return null;
         }
@@ -153,10 +169,48 @@ public class ScrapService {
                 .title(candidate.title())
                 .location(candidate.location())
                 .employmentType(candidate.employmentType())
+                .matchScore(matchScore)
                 .deadline(candidate.deadline())
                 .dDay(dDay)
                 .scrappedAt(history.getScrappedAt())
                 .build();
+    }
+
+    private MatchScores loadMatchScores(String email, List<Long> publicIds, List<Long> privateIds) {
+        Resumes activeResume = resumesRepository.findByMemberEmailAndIsActiveTrue(email).orElse(null);
+        if (activeResume == null) {
+            return MatchScores.empty();
+        }
+
+        Map<Long, Integer> publicScores = publicIds.isEmpty()
+                ? Map.of()
+                : publicMatchScoreRepository
+                        .findByResumeIdAndPublicJobPostingIdIn(activeResume.getId(), publicIds)
+                        .stream()
+                        .collect(Collectors.toMap(
+                                score -> score.getPublicJobPosting().getId(),
+                                PublicMatchScore::getScore
+                        ));
+        Map<Long, Integer> privateScores = privateIds.isEmpty()
+                ? Map.of()
+                : privateMatchScoreRepository
+                        .findByResumeIdAndPrivateJobPostingIdIn(activeResume.getId(), privateIds)
+                        .stream()
+                        .collect(Collectors.toMap(
+                                score -> score.getPrivateJobPosting().getId(),
+                                PrivateMatchScore::getScore
+                        ));
+        return new MatchScores(publicScores, privateScores);
+    }
+
+    private record MatchScores(Map<Long, Integer> publicScores, Map<Long, Integer> privateScores) {
+        private static MatchScores empty() {
+            return new MatchScores(Map.of(), Map.of());
+        }
+
+        private Integer get(String source, Long sourceId) {
+            return SOURCE_PUBLIC.equals(source) ? publicScores.get(sourceId) : privateScores.get(sourceId);
+        }
     }
 
     private Member getMember(String email) {
