@@ -39,8 +39,9 @@ public class MemberResponseDTO {
     @Getter
     @Builder
     public static class JobPreferenceInfo {
-        @Schema(description = "경력 구분. 값: 신입, 경력 (온보딩 전이면 null)", example = "신입", nullable = true)
-        private String careerType;
+        @Schema(description = "희망 채용 형태 목록. 값: 인턴, 신입, 경력직, 계약직",
+                example = "[\"신입\", \"계약직\"]")
+        private List<String> careerType;
 
         @Schema(description = "희망 직무 카테고리 목록", example = "[\"백엔드\", \"프론트엔드\"]")
         private List<String> jobCategories;

@@ -66,7 +66,7 @@ class PrivateMatchingServiceTest {
     private Member createMember(String careerType) {
         return Member.builder()
                 .email("test@example.com")
-                .careerType(careerType)
+                .careerTypes(careerType == null ? List.of() : List.of(careerType))
                 .build();
     }
 
@@ -177,7 +177,7 @@ class PrivateMatchingServiceTest {
     @Test
     @DisplayName("정상적으로 매칭 점수를 계산하고 저장한다")
     void calculateScores_정상계산() {
-        Member member = createMember("경력");
+        Member member = createMember("경력직");
         Resumes resume = createResume(member, dummyEmbedding(), "[\"Java\",\"Spring\"]");
         when(resumesRepository.findById(1L)).thenReturn(Optional.of(resume));
 
@@ -295,9 +295,9 @@ class PrivateMatchingServiceTest {
     }
 
     @Test
-    @DisplayName("경력 회원은 experienceYears가 3으로 설정된다")
+    @DisplayName("경력직 회원은 experienceYears가 3으로 설정된다")
     void calculateScores_경력회원_연수3() {
-        Member member = createMember("경력");
+        Member member = createMember("경력직");
         Resumes resume = createResume(member, dummyEmbedding(), "[\"Java\"]");
         when(resumesRepository.findById(1L)).thenReturn(Optional.of(resume));
 

@@ -52,7 +52,7 @@ public interface MemberControllerDocs {
                                           "profileImageUrl": "https://lh3.googleusercontent.com/..."
                                         },
                                         "jobPreference": {
-                                          "careerType": "신입",
+                                          "careerType": ["신입", "계약직"],
                                           "jobCategories": ["백엔드 개발", "풀스택 개발"],
                                           "locations": ["서울", "경기"]
                                         },
@@ -112,7 +112,7 @@ public interface MemberControllerDocs {
 
                     **동작 방식**: 기존 설정을 **전체 교체**합니다. 유지하고 싶은 값도 다시 포함해서 보내야 합니다.
 
-                    **careerType 허용 값**: `"신입"`, `"경력"` (자유 텍스트이므로 서버에서 별도 검증 없음)
+                    **careerType 허용 값**: 배열 원소는 `"인턴"`, `"신입"`, `"경력직"`, `"계약직"` 중 하나여야 합니다.
 
                     **jobCategories / locations**: 빈 배열(`[]`) 전송 시 기존 설정이 모두 삭제됩니다.
                     """
@@ -126,7 +126,7 @@ public interface MemberControllerDocs {
                             name = "희망 조건 설정 예시",
                             value = """
                                     {
-                                      "careerType": "신입",
+                                      "careerType": ["신입", "계약직"],
                                       "jobCategories": ["백엔드 개발", "풀스택 개발"],
                                       "locations": ["서울", "경기", "인천"]
                                     }
@@ -286,7 +286,7 @@ public interface MemberControllerDocs {
                     **동작 방식**: 이 API가 다루는 두 필드(`careerType`, `locations`)만 교체합니다.
                     희망 직무(`jobCategories`)는 건드리지 않으므로, 온보딩 2단계 API와 독립적으로 호출해도 안전합니다.
 
-                    **careerType 예시 값**: `"인턴"`, `"신입"`, `"경력직"`, `"계약직"` (자유 텍스트이므로 서버에서 별도 검증 없음)
+                    **careerType 허용 값**: 1개 이상 4개 이하의 배열이며, 각 원소는 `"인턴"`, `"신입"`, `"경력직"`, `"계약직"` 중 하나여야 합니다.
 
                     **locations**: 두 필드 모두 필수입니다. 지역을 모두 삭제하려면 빈 배열(`[]`)을 명시적으로 보내주세요.
                     필드 자체를 누락하면 400으로 거부되며, 기존 데이터는 삭제되지 않습니다.
@@ -301,7 +301,7 @@ public interface MemberControllerDocs {
                             name = "온보딩 기본정보 예시",
                             value = """
                                     {
-                                      "careerType": "신입",
+                                      "careerType": ["신입", "계약직"],
                                       "locations": ["서울", "경기"]
                                     }
                                     """
@@ -326,7 +326,7 @@ public interface MemberControllerDocs {
             ),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(
                     responseCode = "400",
-                    description = "입력값 검증 실패 (careerType 또는 locations 필드 누락)",
+                    description = "입력값 검증 실패 (careerType 누락·빈 배열·허용되지 않은 값 또는 locations 누락)",
                     content = @Content(
                             mediaType = "application/json",
                             examples = @ExampleObject(value = """

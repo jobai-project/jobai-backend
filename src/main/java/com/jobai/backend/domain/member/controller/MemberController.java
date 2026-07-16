@@ -23,7 +23,7 @@ public class MemberController implements MemberControllerDocs {
     @PutMapping("/me/job-preferences")
     public ApiResponse<String> updateJobPreferences(
             @AuthenticationPrincipal String email, // 💡 시큐리티 필터가 저장한 email(String)을 그대로 받습니다.
-            @RequestBody MemberRequestDTO.UpdateJobPreferenceDTO request
+            @Valid @RequestBody MemberRequestDTO.UpdateJobPreferenceDTO request
     ) {
         // 식별자로 id 대신 email을 서비스 레이어로 넘겨줍니다.
         memberService.updateMyJobPreferences(email, request);

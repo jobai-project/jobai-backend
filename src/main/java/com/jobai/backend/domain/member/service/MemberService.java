@@ -75,7 +75,7 @@ public class MemberService {
 
         // 3. 선호 조건 정보 조립
         MemberResponseDTO.JobPreferenceInfo jobPreference = MemberResponseDTO.JobPreferenceInfo.builder()
-                .careerType(member.getCareerType()) // TODO: 온보딩에서 신입/경력(CareerType) 넣어줘야함
+                .careerType(List.copyOf(member.getCareerTypes()))
                 .jobCategories(member.getPrefJobs().stream()
                         .map(PreferredJob::getJobCategory)
                         .collect(Collectors.toList()))

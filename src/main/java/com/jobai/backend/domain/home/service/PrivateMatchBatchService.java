@@ -283,12 +283,7 @@ public class PrivateMatchBatchService {
 
     /** 온보딩 careerType을 경력 연수 정수로 변환한다. 연수 입력 필드 추가 시 교체 예정. */
     private int resolveExperienceYears(Member member) {
-        if (member.getCareerType() == null) return 0;
-        return switch (member.getCareerType()) {
-            case "신입" -> 0;
-            case "경력" -> 3;
-            default -> 0;
-        };
+        return member.getCareerTypes().contains("경력직") ? 3 : 0;
     }
 
     private List<String> parseSkills(String skillsJson) {
