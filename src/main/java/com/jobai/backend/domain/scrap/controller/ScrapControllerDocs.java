@@ -166,8 +166,11 @@ public interface ScrapControllerDocs {
 
                     **인증 필요**: 로그인 후 발급된 accessToken 쿠키가 있어야 합니다.
 
+                    **matchScore**: 활성 이력서 기준으로 저장된 실제 AI 매칭점수를 반환합니다.
+                    활성 이력서가 없거나 해당 공고의 점수가 아직 계산되지 않았으면 `null`입니다.
+
                     **참고**: 원본 공고가 삭제된 경우(드묾) 목록에서 자동으로 제외됩니다.
-                    마감된 공고는 제외되지 않고 그대로 포함되며, `dDay`가 음수로 나타날 수 있습니다.
+                    마감된 공고는 제외되지 않고 그대로 포함되며, `dday`가 음수로 나타날 수 있습니다.
                     """
     )
     @ApiResponses(value = {
@@ -192,7 +195,9 @@ public interface ScrapControllerDocs {
                                             "title": "백엔드 개발자",
                                             "location": "판교",
                                             "employmentType": "경력",
-                                            "dDay": null,
+                                            "matchScore": 88,
+                                            "deadline": null,
+                                            "dday": null,
                                             "scrappedAt": "2026-07-05T10:00:00"
                                           },
                                           {
@@ -203,7 +208,9 @@ public interface ScrapControllerDocs {
                                             "title": "2026년도 하반기 대졸수준 채용공고",
                                             "location": "서울",
                                             "employmentType": "정규직",
-                                            "dDay": 12,
+                                            "matchScore": 92,
+                                            "deadline": "2026-07-16",
+                                            "dday": 12,
                                             "scrappedAt": "2026-07-04T09:00:00"
                                           }
                                         ]

@@ -1,6 +1,5 @@
 package com.jobai.backend.domain.member.entity;
 
-import com.jobai.backend.global.apiPayload.code.BaseCode;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
@@ -37,8 +36,12 @@ public class Member {
     @Column(length = 20)
     private String provider;
 
-    @Column(name = "career_type", length = 20) // 네이밍 컨벤션 수정
-    private String careerType;
+    @Builder.Default
+    @ElementCollection
+    @CollectionTable(name = "member_career_types", joinColumns = @JoinColumn(name = "member_id"))
+    @OrderColumn(name = "display_order")
+    @Column(name = "career_type", nullable = false, length = 20)
+    private List<String> careerTypes = new ArrayList<>();
 
     @Builder.Default
     @Column(nullable = false, columnDefinition = "boolean default false")
@@ -69,14 +72,17 @@ public class Member {
     private List<Resumes> resumes = new ArrayList<>();
 
     // --- 비즈니스 로직 (통 업데이트 편의 메서드) ---
-    public void updateJobPreferences(String careerType, List<String> jobCategories, List<String> locations) {
-        updateBasicInfo(careerType, locations);
+    public void updateJobPreferences(List<String> careerTypes, List<String> jobCategories, List<String> locations) {
+        updateBasicInfo(careerTypes, locations);
         updateJobCategories(jobCategories);
     }
 
     // 온보딩 1단계: 희망 근무 지역 + 희망 채용 형태 (다른 필드는 건드리지 않음)
-    public void updateBasicInfo(String careerType, List<String> locations) {
-        this.careerType = careerType;
+    public void updateBasicInfo(List<String> careerTypes, List<String> locations) {
+        this.careerTypes.clear();
+        if (careerTypes != null) {
+            this.careerTypes.addAll(careerTypes.stream().distinct().toList());
+        }
 
         // 기존 지역 리스트 비우고 새 리스트로 교체 (JPA orphanRemoval 작동)
         this.prefLocations.clear();

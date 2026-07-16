@@ -1,10 +1,18 @@
 package com.jobai.backend.domain.scrap.service;
 
+import com.jobai.backend.domain.crawler.entity.PrivateJobPosting;
 import com.jobai.backend.domain.crawler.repository.PrivateJobPostingRepository;
 import com.jobai.backend.domain.home.dto.JobCandidate;
+import com.jobai.backend.domain.home.entity.PrivateMatchScore;
+import com.jobai.backend.domain.home.entity.PublicMatchScore;
 import com.jobai.backend.domain.home.repository.HomeJobCandidateRepository;
+import com.jobai.backend.domain.home.repository.PrivateMatchScoreRepository;
+import com.jobai.backend.domain.home.repository.PublicMatchScoreRepository;
 import com.jobai.backend.domain.member.entity.Member;
+import com.jobai.backend.domain.member.entity.Resumes;
 import com.jobai.backend.domain.member.repository.MemberRepository;
+import com.jobai.backend.domain.member.repository.ResumesRepository;
+import com.jobai.backend.domain.publicInstitution.entity.PublicJobPosting;
 import com.jobai.backend.domain.publicInstitution.repository.JobPostingRepository;
 import com.jobai.backend.domain.scrap.dto.ScrapResponseDTO;
 import com.jobai.backend.domain.scrap.dto.ScrapResponseDTO.AddResultDTO;
@@ -27,6 +35,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 class ScrapServiceTest {
@@ -38,6 +47,9 @@ class ScrapServiceTest {
     private JobPostingRepository jobPostingRepository;
     private PrivateJobPostingRepository privateJobPostingRepository;
     private HomeJobCandidateRepository candidateRepository;
+    private ResumesRepository resumesRepository;
+    private PrivateMatchScoreRepository privateMatchScoreRepository;
+    private PublicMatchScoreRepository publicMatchScoreRepository;
     private ScrapService service;
 
     @BeforeEach
@@ -47,11 +59,16 @@ class ScrapServiceTest {
         jobPostingRepository = Mockito.mock(JobPostingRepository.class);
         privateJobPostingRepository = Mockito.mock(PrivateJobPostingRepository.class);
         candidateRepository = Mockito.mock(HomeJobCandidateRepository.class);
+        resumesRepository = Mockito.mock(ResumesRepository.class);
+        privateMatchScoreRepository = Mockito.mock(PrivateMatchScoreRepository.class);
+        publicMatchScoreRepository = Mockito.mock(PublicMatchScoreRepository.class);
         service = new ScrapService(memberRepository, scrapHistoryRepository, jobPostingRepository,
-                privateJobPostingRepository, candidateRepository);
+                privateJobPostingRepository, candidateRepository, resumesRepository,
+                privateMatchScoreRepository, publicMatchScoreRepository);
 
         when(memberRepository.findByEmail(EMAIL))
                 .thenReturn(Optional.of(Member.builder().id(1L).email(EMAIL).build()));
+        when(resumesRepository.findByMemberEmailAndIsActiveTrue(EMAIL)).thenReturn(Optional.empty());
     }
 
     @Test
@@ -159,13 +176,55 @@ class ScrapServiceTest {
         when(candidateRepository.findPublicCandidatesByIds(List.of(823L))).thenReturn(List.of(publicCandidate));
         when(candidateRepository.findPrivateCandidatesByIds(List.of(55L))).thenReturn(List.of(privateCandidate));
 
+        Resumes activeResume = Resumes.builder().id(10L).member(member).isActive(true).build();
+        when(resumesRepository.findByMemberEmailAndIsActiveTrue(EMAIL)).thenReturn(Optional.of(activeResume));
+        when(publicMatchScoreRepository.findByResumeIdAndPublicJobPostingIdIn(10L, List.of(823L)))
+                .thenReturn(List.of(PublicMatchScore.builder()
+                        .member(member)
+                        .resume(activeResume)
+                        .publicJobPosting(PublicJobPosting.builder().id(823L).build())
+                        .score(92)
+                        .build()));
+        when(privateMatchScoreRepository.findByResumeIdAndPrivateJobPostingIdIn(10L, List.of(55L)))
+                .thenReturn(List.of(PrivateMatchScore.builder()
+                        .member(member)
+                        .resume(activeResume)
+                        .privateJobPosting(PrivateJobPosting.builder().id(55L).build())
+                        .score(88)
+                        .build()));
+
         ScrapResponseDTO.ScrapListDTO result = service.getMyScraps(EMAIL);
 
         assertThat(result.getScraps()).hasSize(2);
         assertThat(result.getScraps().get(0).getSourceId()).isEqualTo(55L); // 최근 스크랩(newer)이 먼저
         assertThat(result.getScraps().get(0).getCompanyName()).isEqualTo("카카오");
+        assertThat(result.getScraps().get(0).getMatchScore()).isEqualTo(88);
         assertThat(result.getScraps().get(1).getSourceId()).isEqualTo(823L);
         assertThat(result.getScraps().get(1).getCompanyName()).isEqualTo("한국전력공사");
+        assertThat(result.getScraps().get(1).getMatchScore()).isEqualTo(92);
+    }
+
+    @Test
+    @DisplayName("활성 이력서가 없으면 스크랩 매칭점수는 null이다")
+    void 활성_이력서가_없으면_매칭점수는_null() {
+        Member member = Member.builder().id(1L).email(EMAIL).build();
+        MemberScrapHistory history = MemberScrapHistory.builder()
+                .id(1L)
+                .member(member)
+                .source("PUBLIC")
+                .sourceId(823L)
+                .scrappedAt(LocalDateTime.now())
+                .build();
+        when(scrapHistoryRepository.findByMemberEmailOrderByScrappedAtDesc(EMAIL)).thenReturn(List.of(history));
+        when(candidateRepository.findPublicCandidatesByIds(List.of(823L)))
+                .thenReturn(List.of(candidate(823L, null)));
+
+        ScrapResponseDTO.ScrapListDTO result = service.getMyScraps(EMAIL);
+
+        assertThat(result.getScraps()).singleElement()
+                .extracting(ScrapResponseDTO.ScrapItemDTO::getMatchScore)
+                .isNull();
+        verifyNoInteractions(privateMatchScoreRepository, publicMatchScoreRepository);
     }
 
     @Test

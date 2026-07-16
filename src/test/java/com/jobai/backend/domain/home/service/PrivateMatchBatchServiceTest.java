@@ -89,7 +89,7 @@ class PrivateMatchBatchServiceTest {
     private Member createMember(String careerType) {
         return Member.builder()
                 .email("test@example.com")
-                .careerType(careerType)
+                .careerTypes(careerType == null ? List.of() : List.of(careerType))
                 .build();
     }
 
@@ -187,7 +187,7 @@ class PrivateMatchBatchServiceTest {
     @Test
     @DisplayName("신규 공고(점수 없음)에 대해 AI 점수를 산출하고 저장한다")
     void scoreNewAndUpdatedPostings_신규공고_점수산출() {
-        Member member = createMember("경력");
+        Member member = createMember("경력직");
         Resumes resume = createResume(1L, member, dummyEmbedding(), "[\"Java\",\"Spring\"]");
         when(resumesRepository.findAllActiveWithEmbedding()).thenReturn(List.of(resume));
 
@@ -325,7 +325,7 @@ class PrivateMatchBatchServiceTest {
     @DisplayName("한 이력서 처리 실패 시에도 나머지 이력서는 계속 처리된다")
     void scoreNewAndUpdatedPostings_부분실패_이력서() {
         Member member1 = createMember("신입");
-        Member member2 = createMember("경력");
+        Member member2 = createMember("경력직");
         Resumes resume1 = createResume(1L, member1, dummyEmbedding(), "[\"Java\"]");
         Resumes resume2 = createResume(2L, member2, dummyEmbedding(), "[\"Python\"]");
         when(resumesRepository.findAllActiveWithEmbedding()).thenReturn(List.of(resume1, resume2));

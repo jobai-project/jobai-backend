@@ -4,6 +4,7 @@ import com.jobai.backend.domain.member.dto.MemberRequestDTO;
 import com.jobai.backend.domain.member.dto.MemberResponseDTO;
 import com.jobai.backend.domain.member.service.MemberService;
 import com.jobai.backend.domain.notification.dto.NotificationRequestDTO;
+import com.jobai.backend.domain.notification.dto.NotificationResponseDTO;
 import com.jobai.backend.domain.notification.service.NotificationSettingsService;
 import com.jobai.backend.global.apiPayload.ApiResponse;
 import com.jobai.backend.global.apiPayload.code.GeneralSuccessCode;
@@ -23,7 +24,7 @@ public class MemberController implements MemberControllerDocs {
     @PutMapping("/me/job-preferences")
     public ApiResponse<String> updateJobPreferences(
             @AuthenticationPrincipal String email, // 💡 시큐리티 필터가 저장한 email(String)을 그대로 받습니다.
-            @RequestBody MemberRequestDTO.UpdateJobPreferenceDTO request
+            @Valid @RequestBody MemberRequestDTO.UpdateJobPreferenceDTO request
     ) {
         // 식별자로 id 대신 email을 서비스 레이어로 넘겨줍니다.
         memberService.updateMyJobPreferences(email, request);
@@ -68,6 +69,16 @@ public class MemberController implements MemberControllerDocs {
         memberService.updateOnboardingJobCategory(email, request);
 
         return ApiResponse.onSuccess(GeneralSuccessCode.OK, "희망 직무가 저장되었습니다.");
+    }
+
+    @GetMapping("/me/notification-settings")
+    public ApiResponse<NotificationResponseDTO.SettingsDTO> getNotificationSettings(
+            @AuthenticationPrincipal String email
+    ) {
+        return ApiResponse.onSuccess(
+                GeneralSuccessCode.OK,
+                notificationSettingsService.getNotificationSettings(email)
+        );
     }
 
     @PatchMapping("/me/onboarding/notification-settings")
