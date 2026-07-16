@@ -3,6 +3,7 @@ package com.jobai.backend.domain.member.controller;
 import com.jobai.backend.domain.member.dto.MemberRequestDTO;
 import com.jobai.backend.domain.member.dto.MemberResponseDTO;
 import com.jobai.backend.domain.notification.dto.NotificationRequestDTO;
+import com.jobai.backend.domain.notification.dto.NotificationResponseDTO;
 import com.jobai.backend.global.apiPayload.ApiResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -466,6 +467,50 @@ public interface MemberControllerDocs {
             )
     })
     ApiResponse<String> updateOnboardingJobCategory(String email, MemberRequestDTO.UpdateJobCategoryDTO request);
+
+    @Operation(
+            summary = "알림 설정 조회",
+            description = """
+                    로그인한 사용자의 이메일·Slack·Discord 알림 활성화 여부와 최소 매칭점수를 조회합니다.
+
+                    저장된 설정이 없으면 기본값(`emailEnabled=true`, `slackEnabled=false`,
+                    `discordEnabled=false`, `matchScoreThreshold=70`)을 반환합니다.
+                    """
+    )
+    @ApiResponses(value = {
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "200",
+                    description = "알림 설정 조회 성공",
+                    content = @Content(
+                            mediaType = "application/json",
+                            schema = @Schema(implementation = NotificationResponseDTO.SettingsDTO.class),
+                            examples = @ExampleObject(value = """
+                                    {
+                                      "isSuccess": true,
+                                      "code": "COMMON_200_001",
+                                      "message": "요청이 성공적으로 처리되었습니다.",
+                                      "result": {
+                                        "emailEnabled": true,
+                                        "slackEnabled": false,
+                                        "discordEnabled": false,
+                                        "matchScoreThreshold": 70,
+                                        "slackWebhookUrl": null,
+                                        "discordWebhookUrl": null
+                                      }
+                                    }
+                                    """)
+                    )
+            ),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "401",
+                    description = "인증되지 않은 사용자"
+            ),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "404",
+                    description = "존재하지 않는 회원"
+            )
+    })
+    ApiResponse<NotificationResponseDTO.SettingsDTO> getNotificationSettings(String email);
 
     @Operation(
             summary = "[온보딩 4단계] 알림 설정 저장 (온보딩 완료)",

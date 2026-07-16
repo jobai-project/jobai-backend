@@ -4,6 +4,7 @@ import com.jobai.backend.domain.member.dto.MemberRequestDTO;
 import com.jobai.backend.domain.member.dto.MemberResponseDTO;
 import com.jobai.backend.domain.member.service.MemberService;
 import com.jobai.backend.domain.notification.dto.NotificationRequestDTO;
+import com.jobai.backend.domain.notification.dto.NotificationResponseDTO;
 import com.jobai.backend.domain.notification.service.NotificationSettingsService;
 import com.jobai.backend.global.apiPayload.ApiResponse;
 import com.jobai.backend.global.apiPayload.code.GeneralSuccessCode;
@@ -68,6 +69,16 @@ public class MemberController implements MemberControllerDocs {
         memberService.updateOnboardingJobCategory(email, request);
 
         return ApiResponse.onSuccess(GeneralSuccessCode.OK, "희망 직무가 저장되었습니다.");
+    }
+
+    @GetMapping("/me/notification-settings")
+    public ApiResponse<NotificationResponseDTO.SettingsDTO> getNotificationSettings(
+            @AuthenticationPrincipal String email
+    ) {
+        return ApiResponse.onSuccess(
+                GeneralSuccessCode.OK,
+                notificationSettingsService.getNotificationSettings(email)
+        );
     }
 
     @PatchMapping("/me/onboarding/notification-settings")
