@@ -193,43 +193,49 @@ public class PrivateJobPostingService {
     // @Transactional 없음 — LLM 호출이 DB 트랜잭션을 잡지 않게
     public int classifyUnclassified(int batchPageSize) {
         int total = 0;
+        long lastId = 0L;
+        int consecutiveFailures = 0;
         Pageable pageable = PageRequest.of(0, batchPageSize, Sort.by("id").ascending());
 
         while (true) {
             Page<PrivateJobPosting> page =
-                    repository.findNeedsClassification(VALID_LABELS, pageable);
+                    repository.findNeedsClassification(VALID_LABELS, lastId, pageable);
             List<PrivateJobPosting> batch = page.getContent();
-            if (batch.isEmpty()) {
-                break;
-            }
+            if (batch.isEmpty()) break;
+
+            lastId = batch.get(batch.size() - 1).getId();
 
             List<String> titles = batch.stream()
                     .map(PrivateJobPosting::getTitle)
                     .toList();
-            List<ClassificationResult> results = jobClassifier.classify(titles);   // 트랜잭션 밖
+            List<ClassificationResult> results = jobClassifier.classify(titles);
 
             int classifiedThisRound = 0;
             for (int i = 0; i < batch.size(); i++) {
                 ClassificationResult result = results.get(i);
-                if (result == null) {
-                    continue;   // 호출 실패분 → 건너뜀(다음 실행에 재분류)
-                }
+                if (result == null) continue;
+
                 PrivateJobPosting posting = batch.get(i);
                 posting.classifyAs(result.category());
 
-                // 크롤러 데이터 우선: 이미 정규화된 employmentType이면 LLM 결과 무시
                 if (!isNormalizedEmploymentType(posting.getEmploymentType())) {
                     posting.setNormalizedEmploymentType(result.employmentType());
                 }
                 posting.setExperienceLevel(result.experienceLevel());
                 classifiedThisRound++;
             }
-            repository.saveAll(batch);   // Spring Data 자체 트랜잭션으로 저장
+            repository.saveAll(batch);
             total += classifiedThisRound;
 
             if (classifiedThisRound == 0) {
-                log.warn("[분류] 이번 배치 전부 실패 — 중단(키/네트워크 확인 후 재실행). 누적 {}", total);
-                break;
+                consecutiveFailures++;
+                log.warn("[분류] 이번 배치 전부 실패 — 건너뜀 ({}/3). 누적 {}", consecutiveFailures, total);
+                if (consecutiveFailures >= 3) {
+                    log.error("[분류] 연속 3회 실패 — 중단. 누적 {}", total);
+                    break;
+                }
+            } else {
+                consecutiveFailures = 0;
             }
             log.info("[분류] {}건 처리 (누적 {})", classifiedThisRound, total);
         }
@@ -258,13 +264,17 @@ public class PrivateJobPostingService {
     // @Transactional 없음 — LLM 호출이 DB 트랜잭션을 잡지 않게
     public int classifyMissingEmploymentTypes(int batchPageSize) {
         int total = 0;
+        long lastId = 0L;
+        int consecutiveFailures = 0;
         Pageable pageable = PageRequest.of(0, batchPageSize, Sort.by("id").ascending());
 
         while (true) {
             Page<PrivateJobPosting> page =
-                    repository.findNeedsEmploymentTypeClassification(VALID_LABELS, pageable);
+                    repository.findNeedsEmploymentTypeClassification(VALID_LABELS, lastId, pageable);
             List<PrivateJobPosting> batch = page.getContent();
             if (batch.isEmpty()) break;
+
+            lastId = batch.get(batch.size() - 1).getId();
 
             List<String> titles = batch.stream()
                     .map(PrivateJobPosting::getTitle)
@@ -286,7 +296,16 @@ public class PrivateJobPostingService {
             repository.saveAll(batch);
             total += classified;
 
-            if (classified == 0) break;
+            if (classified == 0) {
+                consecutiveFailures++;
+                log.warn("[고용형태/경력 분류] 이번 배치 전부 실패 — 건너뜀 ({}/3). 누적 {}", consecutiveFailures, total);
+                if (consecutiveFailures >= 3) {
+                    log.error("[고용형태/경력 분류] 연속 3회 실패 — 중단. 누적 {}", total);
+                    break;
+                }
+            } else {
+                consecutiveFailures = 0;
+            }
             log.info("[고용형태/경력 분류] {}건 처리 (누적 {})", classified, total);
         }
         return total;
@@ -304,12 +323,16 @@ public class PrivateJobPostingService {
      */
     public int classifyMissingRegions(int batchPageSize) {
         int total = 0;
+        long lastId = 0L;
+        int consecutiveFailures = 0;
         Pageable pageable = PageRequest.of(0, batchPageSize, Sort.by("id").ascending());
 
         while (true) {
-            Page<PrivateJobPosting> page = repository.findNeedsRegionClassification(VALID_REGION_LABELS, pageable);
+            Page<PrivateJobPosting> page = repository.findNeedsRegionClassification(VALID_REGION_LABELS, lastId, pageable);
             List<PrivateJobPosting> batch = page.getContent();
             if (batch.isEmpty()) break;
+
+            lastId = batch.get(batch.size() - 1).getId();
 
             List<String> locations = batch.stream()
                     .map(PrivateJobPosting::getLocation)
@@ -328,8 +351,14 @@ public class PrivateJobPostingService {
             total += classified;
 
             if (classified == 0) {
-                log.warn("[지역 분류] 이번 배치 전부 실패 — 중단. 누적 {}", total);
-                break;
+                consecutiveFailures++;
+                log.warn("[지역 분류] 이번 배치 전부 실패 — 건너뜀 ({}/3). 누적 {}", consecutiveFailures, total);
+                if (consecutiveFailures >= 3) {
+                    log.error("[지역 분류] 연속 3회 실패 — 중단. 누적 {}", total);
+                    break;
+                }
+            } else {
+                consecutiveFailures = 0;
             }
             log.info("[지역 분류] {}건 처리 (누적 {})", classified, total);
         }
