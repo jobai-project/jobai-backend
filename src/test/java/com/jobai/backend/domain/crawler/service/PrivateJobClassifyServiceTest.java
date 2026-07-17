@@ -38,9 +38,12 @@ class PrivateJobClassifyServiceTest {
     @InjectMocks
     private PrivateJobPostingService service;
 
+    private long nextId = 1L;
+
     private PrivateJobPosting posting(String title) {
         LocalDateTime now = LocalDateTime.now();
         return PrivateJobPosting.builder()
+                .id(nextId++)
                 .company("testco")
                 .sourceJobId(title)
                 .title(title)
