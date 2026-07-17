@@ -65,6 +65,10 @@ public class JobSearchService {
 
     private static final double VECTOR_THRESHOLD = 0.4;
 
+    /** matchType 우선순위: EXACT(0) > SIMILAR(1). */
+    private static final Map<String, Integer> MATCH_TYPE_ORDER = Map.of(
+            "EXACT", 0, "SIMILAR", 1);
+
     /**
      * 쿼리를 분석하여 파이프라인을 실행한다.
      *
@@ -148,7 +152,7 @@ public class JobSearchService {
         List<JobSummary> keywordPrivate = jobSearchRepository.searchPrivate(condition, 0, HYBRID_CANDIDATE_DEPTH);
         List<JobSummary> keywordPublic = jobSearchRepository.searchPublic(condition, 0, HYBRID_CANDIDATE_DEPTH);
         List<JobSummary> keywordResults = Stream.concat(keywordPrivate.stream(), keywordPublic.stream())
-                .sorted(Comparator.comparing(JobSummary::matchType)
+                .sorted(Comparator.comparingInt((JobSummary j) -> MATCH_TYPE_ORDER.getOrDefault(j.matchType(), 3))
                         .thenComparing(JobSummary::createdAt, Comparator.nullsLast(Comparator.reverseOrder())))
                 .toList();
 
@@ -192,7 +196,7 @@ public class JobSearchService {
                 queryVector, VECTOR_THRESHOLD, condition, 0, HYBRID_CANDIDATE_DEPTH);
 
         List<JobSummary> allResults = Stream.concat(privateResults.stream(), publicResults.stream())
-                .sorted(Comparator.comparing((ScoredJob s) -> s.job().matchType())
+                .sorted(Comparator.comparingInt((ScoredJob s) -> MATCH_TYPE_ORDER.getOrDefault(s.job().matchType(), 3))
                         .thenComparingDouble(ScoredJob::distance))
                 .map(ScoredJob::job)
                 .toList();
@@ -210,7 +214,7 @@ public class JobSearchService {
         List<JobSummary> publicResults = jobSearchRepository.searchPublic(condition, 0, HYBRID_CANDIDATE_DEPTH);
 
         List<JobSummary> allResults = Stream.concat(privateResults.stream(), publicResults.stream())
-                .sorted(Comparator.comparing(JobSummary::matchType)
+                .sorted(Comparator.comparingInt((JobSummary j) -> MATCH_TYPE_ORDER.getOrDefault(j.matchType(), 3))
                         .thenComparing(JobSummary::createdAt, Comparator.nullsLast(Comparator.reverseOrder())))
                 .toList();
 

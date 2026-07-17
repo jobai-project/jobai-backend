@@ -131,7 +131,7 @@ class JobSearchServiceTest {
 
         Mockito.verify(vectorSearchRepository).searchPrivateByVector(
                 any(), anyDouble(),
-                argThat(cond -> cond.categories().contains("백엔드")
+                argThat((SearchCondition cond) -> cond.categories().contains("백엔드")
                         && "판교".equals(cond.location())
                         && "경력".equals(cond.experience())),
                 anyInt(), anyInt());
@@ -306,7 +306,7 @@ class JobSearchServiceTest {
         assertThat(response.searchInfo().method()).isEqualTo("HYBRID");
         // 벡터 결과는 빈 리스트로 merge에 전달됨
         Mockito.verify(hybridSearchMerger).merge(
-                argThat(kw -> !kw.isEmpty()),
+                argThat((List<JobSummary> kw) -> !kw.isEmpty()),
                 eq(List.of()));
     }
 
