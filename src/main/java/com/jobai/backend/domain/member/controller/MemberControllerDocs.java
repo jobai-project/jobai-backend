@@ -539,9 +539,11 @@ public interface MemberControllerDocs {
                             value = """
                                     {
                                       "emailEnabled": true,
-                                      "slackEnabled": false,
+                                      "slackEnabled": true,
                                       "discordEnabled": false,
-                                      "matchScoreThreshold": 70
+                                      "matchScoreThreshold": 70,
+                                      "slackWebhookUrl": "https://hooks.slack.com/services/XXX/YYY/ZZZ",
+                                      "discordWebhookUrl": null
                                     }
                                     """
                     )
