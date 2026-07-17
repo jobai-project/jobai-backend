@@ -1,6 +1,7 @@
 package com.jobai.backend.domain.crawler.scheduler;
 
 import com.jobai.backend.domain.crawler.service.PrivateJobBatchCollectService;
+import com.jobai.backend.domain.crawler.service.PrivateJobPostingService;
 import com.jobai.backend.domain.home.service.PrivateMatchBatchService;
 import com.jobai.backend.domain.home.service.PublicMatchBatchService;
 import com.jobai.backend.domain.publicInstitution.service.JobDataSyncService;
@@ -15,10 +16,12 @@ import org.springframework.stereotype.Component;
  * 새벽 2시(KST) 전체 파이프라인을 순차 실행하는 스케줄러.
  *
  * <pre>
- * Step 1: 사기업 공고 수집 + 카테고리 분류
+ * Step 1: 사기업 공고 수집
  * Step 2: 공기업 공고 수집
- * Step 3: 임베딩 생성
- * Step 4: 신규/변경 공고 매칭 점수 산출
+ * Step 3: 직무/고용형태/경력 분류
+ * Step 4: 지역 분류
+ * Step 5: 임베딩 생성
+ * Step 6: 신규/변경 공고 매칭 점수 산출
  * </pre>
  *
  * <p>{@code scheduler.daily.enabled=false}로 비활성화할 수 있다.</p>
@@ -30,6 +33,7 @@ import org.springframework.stereotype.Component;
 public class DailyJobScheduler {
 
     private final PrivateJobBatchCollectService privateJobBatchCollectService;
+    private final PrivateJobPostingService privateJobPostingService;
     private final JobDataSyncService jobDataSyncService;
     private final EmbeddingBatchService embeddingBatchService;
     private final PrivateMatchBatchService privateMatchBatchService;
@@ -52,48 +56,67 @@ public class DailyJobScheduler {
         log.info("[DailyPipeline] ===== 새벽 파이프라인 시작 =====");
         long start = System.currentTimeMillis();
 
-        // Step 1: 사기업 수집 + 분류
+        // Step 1: 사기업 수집
         try {
-            log.info("[DailyPipeline] Step 1/4 — 사기업 공고 수집 시작");
+            log.info("[DailyPipeline] Step 1/6 — 사기업 공고 수집 시작");
             privateJobBatchCollectService.collectAll();
-            log.info("[DailyPipeline] Step 1/4 — 사기업 공고 수집 완료");
+            log.info("[DailyPipeline] Step 1/6 — 사기업 공고 수집 완료");
         } catch (Exception e) {
-            log.error("[DailyPipeline] Step 1/4 — 사기업 공고 수집 실패: {}", e.getMessage(), e);
+            log.error("[DailyPipeline] Step 1/6 — 사기업 공고 수집 실패: {}", e.getMessage(), e);
         }
 
         // Step 2: 공기업 수집
         try {
-            log.info("[DailyPipeline] Step 2/4 — 공기업 공고 수집 시작");
+            log.info("[DailyPipeline] Step 2/6 — 공기업 공고 수집 시작");
             jobDataSyncService.syncPublicJobOpenings();
-            log.info("[DailyPipeline] Step 2/4 — 공기업 공고 수집 완료");
+            log.info("[DailyPipeline] Step 2/6 — 공기업 공고 수집 완료");
         } catch (Exception e) {
-            log.error("[DailyPipeline] Step 2/4 — 공기업 공고 수집 실패: {}", e.getMessage(), e);
+            log.error("[DailyPipeline] Step 2/6 — 공기업 공고 수집 실패: {}", e.getMessage(), e);
         }
 
-        // Step 3: 임베딩 생성
+        // Step 3: 직무/고용형태/경력 분류
         try {
-            log.info("[DailyPipeline] Step 3/4 — 임베딩 생성 시작");
+            log.info("[DailyPipeline] Step 3/6 — 직무/고용형태/경력 분류 시작");
+            int classified = privateJobPostingService.classifyUnclassified(100);
+            int empClassified = privateJobPostingService.classifyMissingEmploymentTypes(100);
+            log.info("[DailyPipeline] Step 3/6 — 직무/고용형태/경력 분류 완료 (직무 {}건, 고용형태/경력 {}건)", classified, empClassified);
+        } catch (Exception e) {
+            log.error("[DailyPipeline] Step 3/6 — 직무/고용형태/경력 분류 실패: {}", e.getMessage(), e);
+        }
+
+        // Step 4: 지역 분류
+        try {
+            log.info("[DailyPipeline] Step 4/6 — 지역 분류 시작");
+            int regionClassified = privateJobPostingService.classifyMissingRegions(100);
+            log.info("[DailyPipeline] Step 4/6 — 지역 분류 완료 ({}건)", regionClassified);
+        } catch (Exception e) {
+            log.error("[DailyPipeline] Step 4/6 — 지역 분류 실패: {}", e.getMessage(), e);
+        }
+
+        // Step 5: 임베딩 생성
+        try {
+            log.info("[DailyPipeline] Step 5/6 — 임베딩 생성 시작");
             embeddingBatchService.generateMissingEmbeddings();
-            log.info("[DailyPipeline] Step 3/4 — 임베딩 생성 완료");
+            log.info("[DailyPipeline] Step 5/6 — 임베딩 생성 완료");
         } catch (Exception e) {
-            log.error("[DailyPipeline] Step 3/4 — 임베딩 생성 실패: {}", e.getMessage(), e);
+            log.error("[DailyPipeline] Step 5/6 — 임베딩 생성 실패: {}", e.getMessage(), e);
         }
 
-        // Step 4: 매칭 점수 산출 (신규/변경 공고만, 사기업/공기업 각각 독립 실행)
+        // Step 6: 매칭 점수 산출 (신규/변경 공고만, 사기업/공기업 각각 독립 실행)
         try {
-            log.info("[DailyPipeline] Step 4/4 — 사기업 매칭 점수 산출 시작");
+            log.info("[DailyPipeline] Step 6/6 — 사기업 매칭 점수 산출 시작");
             privateMatchBatchService.scoreNewAndUpdatedPostings();
-            log.info("[DailyPipeline] Step 4/4 — 사기업 매칭 점수 산출 완료");
+            log.info("[DailyPipeline] Step 6/6 — 사기업 매칭 점수 산출 완료");
         } catch (Exception e) {
-            log.error("[DailyPipeline] Step 4/4 — 사기업 매칭 점수 산출 실패: {}", e.getMessage(), e);
+            log.error("[DailyPipeline] Step 6/6 — 사기업 매칭 점수 산출 실패: {}", e.getMessage(), e);
         }
 
         try {
-            log.info("[DailyPipeline] Step 4/4 — 공기업 매칭 점수 산출 시작");
+            log.info("[DailyPipeline] Step 6/6 — 공기업 매칭 점수 산출 시작");
             publicMatchBatchService.scoreNewAndUpdatedPostings();
-            log.info("[DailyPipeline] Step 4/4 — 공기업 매칭 점수 산출 완료");
+            log.info("[DailyPipeline] Step 6/6 — 공기업 매칭 점수 산출 완료");
         } catch (Exception e) {
-            log.error("[DailyPipeline] Step 4/4 — 공기업 매칭 점수 산출 실패: {}", e.getMessage(), e);
+            log.error("[DailyPipeline] Step 6/6 — 공기업 매칭 점수 산출 실패: {}", e.getMessage(), e);
         }
 
         long elapsed = System.currentTimeMillis() - start;

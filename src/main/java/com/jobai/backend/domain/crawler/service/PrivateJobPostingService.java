@@ -5,6 +5,7 @@ import com.jobai.backend.domain.crawler.classify.ExperienceLevel;
 import com.jobai.backend.domain.crawler.classify.JobCategory;
 import com.jobai.backend.domain.crawler.classify.JobClassifier;
 import com.jobai.backend.domain.crawler.classify.JobClassifier.ClassificationResult;
+import com.jobai.backend.domain.crawler.classify.Region;
 import com.jobai.backend.domain.crawler.entity.PrivateJobPosting;
 import com.jobai.backend.domain.crawler.model.JobRecord;
 import com.jobai.backend.domain.crawler.repository.PrivateJobPostingRepository;
@@ -287,6 +288,50 @@ public class PrivateJobPostingService {
 
             if (classified == 0) break;
             log.info("[고용형태/경력 분류] {}건 처리 (누적 {})", classified, total);
+        }
+        return total;
+    }
+
+    private static final List<String> VALID_REGION_LABELS = Arrays.stream(Region.values())
+            .map(Region::getLabel)
+            .toList();
+
+    /**
+     * location이 아직 정규화되지 않은 공고를 LLM으로 일괄 지역 분류하여 location에 덮어쓴다.
+     *
+     * @param batchPageSize 한 번에 읽어 분류할 공고 수
+     * @return 분류한 총 공고 수
+     */
+    public int classifyMissingRegions(int batchPageSize) {
+        int total = 0;
+        Pageable pageable = PageRequest.of(0, batchPageSize, Sort.by("id").ascending());
+
+        while (true) {
+            Page<PrivateJobPosting> page = repository.findNeedsRegionClassification(VALID_REGION_LABELS, pageable);
+            List<PrivateJobPosting> batch = page.getContent();
+            if (batch.isEmpty()) break;
+
+            List<String> locations = batch.stream()
+                    .map(PrivateJobPosting::getLocation)
+                    .toList();
+            List<Region> results = jobClassifier.classifyRegions(locations);
+
+            int classified = 0;
+            for (int i = 0; i < batch.size(); i++) {
+                Region region = results.get(i);
+                if (region == null) continue;
+
+                batch.get(i).setNormalizedLocation(region);
+                classified++;
+            }
+            repository.saveAll(batch);
+            total += classified;
+
+            if (classified == 0) {
+                log.warn("[지역 분류] 이번 배치 전부 실패 — 중단. 누적 {}", total);
+                break;
+            }
+            log.info("[지역 분류] {}건 처리 (누적 {})", classified, total);
         }
         return total;
     }

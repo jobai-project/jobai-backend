@@ -69,6 +69,13 @@ public class DailyJobSchedulerController implements DailyJobSchedulerControllerD
     }
 
     @Override
+    @PostMapping("/classify-region")
+    public ResponseEntity<String> classifyMissingRegions() {
+        int total = privateJobPostingService.classifyMissingRegions(100);
+        return ResponseEntity.ok("지역 미분류 공고 " + total + "건 분류 완료");
+    }
+
+    @Override
     @PostMapping("/embedding")
     public ResponseEntity<String> generateEmbeddings() {
         embeddingBatchService.generateMissingEmbeddings();

@@ -43,6 +43,17 @@ public interface PrivateJobPostingRepository extends JpaRepository<PrivateJobPos
     Page<PrivateJobPosting> findNeedsEmploymentTypeClassification(
             @Param("validLabels") List<String> validLabels, Pageable pageable);
 
+    // location이 있지만 아직 정규화된 지역 라벨이 아닌 공고
+    @Query("""
+        SELECT p FROM PrivateJobPosting p
+        WHERE p.isClosed = false
+          AND p.location IS NOT NULL
+          AND p.location <> ''
+          AND p.location NOT IN :validRegionLabels
+        """)
+    Page<PrivateJobPosting> findNeedsRegionClassification(
+            @Param("validRegionLabels") List<String> validRegionLabels, Pageable pageable);
+
     /** 배치 점수 산출: 활성 공고 중 유효 카테고리만 조회 */
     @Query("SELECT p FROM PrivateJobPosting p WHERE p.isClosed = false AND p.jobCategory IN :validCategories")
     List<PrivateJobPosting> findActiveByValidCategories(@Param("validCategories") List<String> validCategories);

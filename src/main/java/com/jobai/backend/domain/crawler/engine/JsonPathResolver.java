@@ -58,11 +58,41 @@ public final class JsonPathResolver {
             for (Object one : (List<Object>) p) {
                 Object v = resolve(raw, String.valueOf(one));
                 if (v != null && !"".equals(v)) {
-                    parts.add(String.valueOf(v).strip());
+                    String text = flatten(v).strip();
+                    if (!text.isEmpty()) {
+                        parts.add(text);
+                    }
                 }
             }
             return parts.isEmpty() ? null : String.join("\n\n", parts);
         }
         return resolve(raw, String.valueOf(p));
+    }
+
+    /**
+     * 중첩 리스트/맵을 재귀적으로 풀어 텍스트로 합친다.
+     * 예: [[text1, text2], [text3]] → "text1\ntext2\ntext3"
+     */
+    @SuppressWarnings("unchecked")
+    private static String flatten(Object obj) {
+        if (obj == null) return "";
+        if (obj instanceof List) {
+            List<String> parts = new ArrayList<>();
+            for (Object item : (List<Object>) obj) {
+                String s = flatten(item);
+                if (!s.isEmpty()) parts.add(s);
+            }
+            return String.join("\n", parts);
+        }
+        if (obj instanceof Map) {
+            // Map 은 값만 추출 (key 는 메타정보이므로 제외)
+            List<String> parts = new ArrayList<>();
+            for (Object val : ((Map<String, Object>) obj).values()) {
+                String s = flatten(val);
+                if (!s.isEmpty()) parts.add(s);
+            }
+            return String.join("\n", parts);
+        }
+        return String.valueOf(obj).strip();
     }
 }
