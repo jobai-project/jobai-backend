@@ -60,11 +60,11 @@ public record JobSearchResponse(
     }
 
     public record SearchInfo(
-            @Schema(description = "검색 방식. 값: KEYWORD(구조화 검색), VECTOR(의미 기반 벡터 검색)", example = "KEYWORD")
+            @Schema(description = "검색 방식. KEYWORD(구조화), VECTOR(벡터), HYBRID(키워드+벡터 RRF 융합)", example = "KEYWORD")
             String method,
             @Schema(description = "쿼리에서 인식된 직무 카테고리 목록", example = "[\"백엔드\"]")
             List<String> matchedCategories,
-            @Schema(description = "벡터 검색 시 확장된 키워드 목록 (현재 항상 빈 배열)")
+            @Schema(description = "쿼리 확장 시 추가된 키워드 목록 (확장 미사용 시 빈 배열)", example = "[\"원격근무\", \"리모트워크\"]")
             List<String> expandedKeywords
     ) {}
 }

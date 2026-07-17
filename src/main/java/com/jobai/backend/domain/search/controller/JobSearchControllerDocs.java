@@ -22,13 +22,14 @@ public interface JobSearchControllerDocs {
 
                     **인증 필요**: 로그인 후 발급된 accessToken 쿠키가 있어야 합니다.
 
-                    **동작 방식**:
-                    쿼리에서 직무 카테고리/지역/경력 키워드를 자동으로 추출합니다.
-                    모든 토큰이 인식되면 구조화 검색(`method: "KEYWORD"`)을 쓰고,
-                    "혼자 일하기 좋은" 처럼 인식 안 되는 표현이 섞이면 의미 기반 벡터 검색(`method: "VECTOR"`)으로 전환됩니다.
-                    두 방식 모두 프론트 입장에서는 같은 요청/응답 형식을 씁니다.
+                    **동작 방식 (3단계 파이프라인)**:
+                    1. **Query Expansion** — 쿼리에서 인식되지 않는 자연어 표현을 LLM으로 분석하여 관련 키워드를 확장합니다.
+                    2. **검색 라우팅** — 모든 토큰이 인식되면 구조화 검색(`KEYWORD`), 하이브리드 모드가 활성화되면 키워드+벡터 검색을 RRF로 병합(`HYBRID`), 그 외 미인식 표현이 있으면 벡터 검색(`VECTOR`)을 수행합니다.
+                    3. **Rerank** — Cross-Encoder 모델로 상위 후보를 쿼리 의도에 맞게 재정렬합니다.
 
-                    **예시 쿼리**: `"서울 신입 백엔드"`, `"판교에서 혼자 일하기 좋은 경력직 백엔드"`
+                    각 단계는 서버 설정으로 독립 on/off 가능하며, 프론트 입장에서는 동일한 요청/응답 형식을 사용합니다.
+
+                    **예시 쿼리**: `"서울 신입 백엔드"`, `"재택근무 가능한 백엔드"`, `"Java 경험이 있는 백엔드 개발자"`
                     """
     )
     @Parameter(name = "query", description = "검색어(자연어 문장 또는 키워드 조합)", required = true, example = "서울 신입 백엔드")
@@ -47,37 +48,43 @@ public interface JobSearchControllerDocs {
                                       "code": "COMMON_200_001",
                                       "message": "요청이 성공적으로 처리되었습니다.",
                                       "result": {
-                                        "totalCount": 2,
+                                        "totalCount": 42,
                                         "jobs": [
                                           {
-                                            "id": 55,
+                                            "id": 32,
                                             "source": "PRIVATE",
-                                            "title": "백엔드 개발자",
+                                            "title": "백엔드 개발자 (Java 필수)",
                                             "company": "카카오",
                                             "location": "판교",
                                             "jobCategory": "백엔드",
-                                            "employmentType": "경력",
+                                            "employmentType": "정규직",
+                                            "experienceLevel": "경력",
                                             "applyUrl": "https://careers.kakao.com/jobs/P-14472",
                                             "deadline": null,
-                                            "createdAt": "2026-06-17T15:23:06.828455"
+                                            "createdAt": "2026-06-17T15:23:06.828455",
+                                            "matchType": "EXACT",
+                                            "matchScore": 92
                                           },
                                           {
                                             "id": 101,
                                             "source": "PUBLIC",
-                                            "title": "2026년 신입사원 채용",
+                                            "title": "2026년 IT 직군 채용",
                                             "company": "한국전력공사",
                                             "location": "서울",
                                             "jobCategory": null,
                                             "employmentType": "정규직",
+                                            "experienceLevel": "신입",
                                             "applyUrl": "https://recruit.kepco.co.kr",
                                             "deadline": "2026-07-16",
-                                            "createdAt": "2026-07-02T10:00:00"
+                                            "createdAt": "2026-07-02T10:00:00",
+                                            "matchType": "SIMILAR",
+                                            "matchScore": null
                                           }
                                         ],
                                         "searchInfo": {
-                                          "method": "KEYWORD",
+                                          "method": "HYBRID",
                                           "matchedCategories": ["백엔드"],
-                                          "expandedKeywords": []
+                                          "expandedKeywords": ["원격근무", "리모트워크", "WFH"]
                                         }
                                       }
                                     }
