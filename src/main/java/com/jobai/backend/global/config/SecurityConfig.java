@@ -62,6 +62,7 @@ public class SecurityConfig {
                                 "/login/oauth2/**", // OAuth2 인증 엔드포인트 허용
                                 "/api/v1/auth/login/**", // 로그인 URL 조회는 인증 없이 접근 가능
                                 "/api/v1/home/latest-jobs", // 비로그인 사용자용 최신순 공고 공개 API
+                                "/api/v1/home/scrap-rankings", // 실시간 스크랩 순위 공개 API
                                 "/api/v1/home/tech-cards",  // IT 인사이트 카드 공개 API
                                 "/api/v1/scheduler/**",    // 스케줄러 API
                                 "/api/v1/private-jobs/**",  // private-jobs API

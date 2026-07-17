@@ -51,4 +51,26 @@ public interface MemberScrapHistoryRepository extends JpaRepository<MemberScrapH
             @Param("today") LocalDate today,
             Pageable pageable
     );
+
+    @Query("""
+            SELECT h.source, h.sourceId, p.title, p.companyName, COUNT(h.id), MAX(h.scrappedAt)
+            FROM MemberScrapHistory h
+            JOIN PublicJobPosting p ON p.id = h.sourceId
+            WHERE h.source = 'PUBLIC'
+              AND (p.isClosed IS NULL OR p.isClosed = false)
+            GROUP BY h.source, h.sourceId, p.title, p.companyName
+            ORDER BY COUNT(h.id) DESC, MAX(h.scrappedAt) DESC, h.sourceId DESC
+            """)
+    List<Object[]> findPopularPublicScraps(Pageable pageable);
+
+    @Query("""
+            SELECT h.source, h.sourceId, p.title, p.company, COUNT(h.id), MAX(h.scrappedAt)
+            FROM MemberScrapHistory h
+            JOIN PrivateJobPosting p ON p.id = h.sourceId
+            WHERE h.source = 'PRIVATE'
+              AND p.isClosed = false
+            GROUP BY h.source, h.sourceId, p.title, p.company
+            ORDER BY COUNT(h.id) DESC, MAX(h.scrappedAt) DESC, h.sourceId DESC
+            """)
+    List<Object[]> findPopularPrivateScraps(Pageable pageable);
 }
