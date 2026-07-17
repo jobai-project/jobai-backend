@@ -2,7 +2,6 @@ package com.jobai.backend.global.auth;
 
 import com.jobai.backend.domain.member.entity.Member;
 import com.jobai.backend.domain.member.repository.MemberRepository;
-import org.springframework.context.annotation.Profile;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
@@ -46,7 +45,7 @@ public class CustomOAuth2UserService implements OAuth2UserService<OAuth2UserRequ
         String providerId = (String) attributes.get(userNameAttributeName);
 
         // DB 저장 혹은 업데이트 로직
-        Member member = saveOrUpdate(email, name, registrationId, providerId);
+        saveIfNew(email, name, registrationId, providerId);
 
         return new DefaultOAuth2User(
                 Collections.singleton(new SimpleGrantedAuthority("ROLE_USER")),
@@ -55,10 +54,8 @@ public class CustomOAuth2UserService implements OAuth2UserService<OAuth2UserRequ
         );
     }
 
-    private Member saveOrUpdate(String email, String name, String provider, String providerId) {
+    Member saveIfNew(String email, String name, String provider, String providerId) {
         return memberRepository.findByEmail(email)
-                .map(existingMember -> memberRepository.save(existingMember.update(name)))
-
                 .orElseGet(() -> memberRepository.save(
                         Member.builder()
                                 .email(email)
