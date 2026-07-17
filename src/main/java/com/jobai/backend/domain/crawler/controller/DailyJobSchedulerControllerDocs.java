@@ -13,7 +13,7 @@ public interface DailyJobSchedulerControllerDocs {
     @Operation(
             summary = "새벽 파이프라인 수동 실행",
             description = """
-                    사기업 수집 → 공기업 수집 → 임베딩 생성 → 매칭 점수 산출 파이프라인을 즉시 실행한다.
+                    사기업 수집 → 공기업 수집 → 직무/고용형태/경력 분류 → 지역 분류 → 임베딩 생성 → 매칭 점수 산출 파이프라인을 즉시 실행한다.
                     """
     )
     @ApiResponses(value = {
@@ -65,6 +65,25 @@ public interface DailyJobSchedulerControllerDocs {
             )
     })
     ResponseEntity<String> classifyMissingEmploymentTypes();
+
+    @Operation(
+            summary = "지역 미분류 공고 일괄 분류",
+            description = """
+                    location은 있지만 region이 null인 공고를 LLM으로 대분류 지역으로 정규화한다.
+                    최대 100건씩 처리한다.
+                    """
+    )
+    @ApiResponses(value = {
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "200",
+                    description = "분류 완료",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = @ExampleObject(value = "\"지역 미분류 공고 12건 분류 완료\"")
+                    )
+            )
+    })
+    ResponseEntity<String> classifyMissingRegions();
 
     @Operation(
             summary = "임베딩 생성",

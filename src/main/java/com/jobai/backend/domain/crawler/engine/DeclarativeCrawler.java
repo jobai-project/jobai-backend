@@ -135,6 +135,7 @@ public class DeclarativeCrawler {
             rec.put("extra", extra);
         }
         applyMetadataExtraction(rec, raw, spec);
+        applyNullValues(rec, spec);
         applyUrl(rec, spec);
         return rec;
     }
@@ -362,6 +363,18 @@ public class DeclarativeCrawler {
         org.jsoup.nodes.Element el = doc.selectFirst(d.getBodySelector());
         if (el != null) {
             rec.put("description", el.text());
+        }
+    }
+
+    // ---------- null_values: 특정 값을 null 로 치환 (예: deadline "2999" → 상시채용) ----------
+    private void applyNullValues(JobRecord rec, CrawlSpec spec) {
+        Map<String, String> nv = spec.getNullValues();
+        if (nv == null || nv.isEmpty()) return;
+        for (Map.Entry<String, String> e : nv.entrySet()) {
+            Object val = rec.get(e.getKey());
+            if (val != null && String.valueOf(val).contains(e.getValue())) {
+                rec.put(e.getKey(), null);
+            }
         }
     }
 

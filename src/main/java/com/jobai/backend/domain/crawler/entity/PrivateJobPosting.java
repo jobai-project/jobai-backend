@@ -3,6 +3,7 @@ package com.jobai.backend.domain.crawler.entity;
 import com.jobai.backend.domain.crawler.classify.EmploymentType;
 import com.jobai.backend.domain.crawler.classify.ExperienceLevel;
 import com.jobai.backend.domain.crawler.classify.JobCategory;
+import com.jobai.backend.domain.crawler.classify.Region;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
@@ -144,5 +145,12 @@ public class PrivateJobPosting {
      */
     public void setExperienceLevel(ExperienceLevel level) {
         this.experienceLevel = Objects.requireNonNull(level, "experienceLevel").getLabel();
+    }
+
+    /**
+     * LLM 지역 분류 결과를 location에 덮어쓴다.
+     */
+    public void setNormalizedLocation(Region region) {
+        this.location = Objects.requireNonNull(region, "region").getLabel();
     }
 }

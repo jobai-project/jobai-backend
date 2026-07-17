@@ -44,6 +44,9 @@ public class CrawlSpec {
     /** apply_url 조립용. template(레코드 필드로 포맷) 또는 base+field. */
     private Map<String, Object> applyUrl;
 
+    /** 필드별 null 로 치환할 값 (예: deadline → "2999" 이면 상시채용으로 간주해 null). */
+    private Map<String, String> nullValues;
+
     /** metadata 배열에서 name 매칭 → value 추출 (토스). */
     private MetadataExtractionSpec metadataExtraction;
 }

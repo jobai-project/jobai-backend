@@ -1,6 +1,7 @@
 package com.jobai.backend.domain.crawler.scheduler;
 
 import com.jobai.backend.domain.crawler.service.PrivateJobBatchCollectService;
+import com.jobai.backend.domain.crawler.service.PrivateJobPostingService;
 import com.jobai.backend.domain.home.service.PrivateMatchBatchService;
 import com.jobai.backend.domain.home.service.PublicMatchBatchService;
 import com.jobai.backend.domain.publicInstitution.service.JobDataSyncService;
@@ -16,6 +17,7 @@ import static org.mockito.Mockito.*;
 class DailyJobSchedulerTest {
 
     private PrivateJobBatchCollectService privateJobBatchCollectService;
+    private PrivateJobPostingService privateJobPostingService;
     private JobDataSyncService jobDataSyncService;
     private EmbeddingBatchService embeddingBatchService;
     private PrivateMatchBatchService privateMatchBatchService;
@@ -26,6 +28,7 @@ class DailyJobSchedulerTest {
     @BeforeEach
     void setUp() {
         privateJobBatchCollectService = Mockito.mock(PrivateJobBatchCollectService.class);
+        privateJobPostingService = Mockito.mock(PrivateJobPostingService.class);
         jobDataSyncService = Mockito.mock(JobDataSyncService.class);
         embeddingBatchService = Mockito.mock(EmbeddingBatchService.class);
         privateMatchBatchService = Mockito.mock(PrivateMatchBatchService.class);
@@ -33,6 +36,7 @@ class DailyJobSchedulerTest {
 
         scheduler = new DailyJobScheduler(
                 privateJobBatchCollectService,
+                privateJobPostingService,
                 jobDataSyncService,
                 embeddingBatchService,
                 privateMatchBatchService,
@@ -41,15 +45,18 @@ class DailyJobSchedulerTest {
     }
 
     @Test
-    @DisplayName("정상 실행 시 4개 단계가 순서대로 호출된다 (매칭 점수 산출은 사기업 → 공기업 순)")
+    @DisplayName("정상 실행 시 6개 단계가 순서대로 호출된다")
     void runDailyPipeline_정상실행_순서검증() {
         scheduler.runDailyPipeline();
 
         InOrder inOrder = inOrder(
-                privateJobBatchCollectService, jobDataSyncService,
+                privateJobBatchCollectService, privateJobPostingService, jobDataSyncService,
                 embeddingBatchService, privateMatchBatchService, publicMatchBatchService);
         inOrder.verify(privateJobBatchCollectService).collectAll();
         inOrder.verify(jobDataSyncService).syncPublicJobOpenings();
+        inOrder.verify(privateJobPostingService).classifyUnclassified(100);
+        inOrder.verify(privateJobPostingService).classifyMissingEmploymentTypes(100);
+        inOrder.verify(privateJobPostingService).classifyMissingRegions(100);
         inOrder.verify(embeddingBatchService).generateMissingEmbeddings();
         inOrder.verify(privateMatchBatchService).scoreNewAndUpdatedPostings();
         inOrder.verify(publicMatchBatchService).scoreNewAndUpdatedPostings();

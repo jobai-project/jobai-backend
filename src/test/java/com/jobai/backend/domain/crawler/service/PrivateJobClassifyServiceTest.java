@@ -38,9 +38,12 @@ class PrivateJobClassifyServiceTest {
     @InjectMocks
     private PrivateJobPostingService service;
 
+    private long nextId = 1L;
+
     private PrivateJobPosting posting(String title) {
         LocalDateTime now = LocalDateTime.now();
         return PrivateJobPosting.builder()
+                .id(nextId++)
                 .company("testco")
                 .sourceJobId(title)
                 .title(title)
@@ -58,7 +61,7 @@ class PrivateJobClassifyServiceTest {
         PrivateJobPosting p2 = posting("영업 매니저");
 
         // 첫 조회는 2건, 둘째 조회는 0건(루프 종료)
-        when(repository.findNeedsClassification(anyList(), any(Pageable.class)))
+        when(repository.findNeedsClassification(anyList(), any(Long.class), any(Pageable.class)))
                 .thenReturn(new PageImpl<>(List.of(p1, p2)))
                 .thenReturn(new PageImpl<>(List.of()));
         when(jobClassifier.classify(anyList()))
@@ -81,7 +84,7 @@ class PrivateJobClassifyServiceTest {
         PrivateJobPosting p1 = posting("백엔드 개발자");
         PrivateJobPosting p2 = posting("프론트 개발자");
 
-        when(repository.findNeedsEmploymentTypeClassification(anyList(), any(Pageable.class)))
+        when(repository.findNeedsEmploymentTypeClassification(anyList(), any(Long.class), any(Pageable.class)))
                 .thenReturn(new PageImpl<>(List.of(p1, p2)))
                 .thenReturn(new PageImpl<>(List.of()));
         when(jobClassifier.classify(anyList()))
@@ -101,7 +104,7 @@ class PrivateJobClassifyServiceTest {
     @Test
     @DisplayName("분류할 공고가 없으면 0건, 분류기를 호출하지 않는다")
     void noUnclassified() {
-        when(repository.findNeedsClassification(anyList(), any(Pageable.class)))
+        when(repository.findNeedsClassification(anyList(), any(Long.class), any(Pageable.class)))
                 .thenReturn(new PageImpl<>(List.of()));
 
         int total = service.classifyUnclassified(100);
