@@ -6,6 +6,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import java.util.List;
 
@@ -19,13 +20,11 @@ class QueryExpanderTest {
     private QueryExpander queryExpander;
 
     @BeforeEach
-    void setUp() throws Exception {
+    void setUp() {
         anthropicClient = Mockito.mock(AnthropicClient.class);
         queryExpander = new QueryExpander(anthropicClient);
 
-        var field = QueryExpander.class.getDeclaredField("enabled");
-        field.setAccessible(true);
-        field.setBoolean(queryExpander, true);
+        ReflectionTestUtils.setField(queryExpander, "enabled", true);
     }
 
     @Test
@@ -55,10 +54,8 @@ class QueryExpanderTest {
 
     @Test
     @DisplayName("disabled 상태면 확장하지 않음")
-    void disabled면_스킵() throws Exception {
-        var field = QueryExpander.class.getDeclaredField("enabled");
-        field.setAccessible(true);
-        field.setBoolean(queryExpander, false);
+    void disabled면_스킵() {
+        ReflectionTestUtils.setField(queryExpander, "enabled", false);
 
         QueryExpansionResult result = queryExpander.expand(
                 "재택근무 백엔드", List.of("재택근무"));
@@ -90,5 +87,41 @@ class QueryExpanderTest {
                 "재택근무 백엔드", List.of("재택근무"));
 
         assertThat(result.wasExpanded()).isFalse();
+    }
+
+    @Test
+    @DisplayName("중복 키워드는 제거된다")
+    void 중복키워드_제거() {
+        when(anthropicClient.complete(anyString(), anyString(), anyInt()))
+                .thenReturn("원격근무, 재택, 원격근무, 재택");
+
+        QueryExpansionResult result = queryExpander.expand(
+                "재택근무 백엔드", List.of("재택근무"));
+
+        assertThat(result.expandedKeywords()).containsExactly("원격근무", "재택");
+    }
+
+    @Test
+    @DisplayName("20자 초과 키워드는 무시된다")
+    void 긴키워드_무시() {
+        when(anthropicClient.complete(anyString(), anyString(), anyInt()))
+                .thenReturn("원격근무, 이것은스무자를초과하는매우긴키워드입니다절대안됩니다");
+
+        QueryExpansionResult result = queryExpander.expand(
+                "재택근무 백엔드", List.of("재택근무"));
+
+        assertThat(result.expandedKeywords()).containsExactly("원격근무");
+    }
+
+    @Test
+    @DisplayName("최대 10개까지만 키워드를 반환한다")
+    void 최대개수_제한() {
+        when(anthropicClient.complete(anyString(), anyString(), anyInt()))
+                .thenReturn("a, b, c, d, e, f, g, h, i, j, k, l");
+
+        QueryExpansionResult result = queryExpander.expand(
+                "재택근무 백엔드", List.of("재택근무"));
+
+        assertThat(result.expandedKeywords()).hasSize(10);
     }
 }

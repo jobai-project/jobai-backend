@@ -23,10 +23,11 @@ class HybridSearchMergerTest {
         List<JobSummary> keyword = List.of(keywordOnly, both);    // keywordOnly=1등, both=2등
         List<JobSummary> vector = List.of(both, vectorOnly);      // both=1등, vectorOnly=2등
 
-        List<JobSummary> result = merger.merge(keyword, vector, 0, 10);
+        List<JobSummary> result = merger.merge(keyword, vector);
 
         // both는 양쪽 점수 합산 → 최상위
         assertThat(result.get(0).title()).isEqualTo("양쪽 등장");
+        assertThat(result).hasSize(3);
     }
 
     @Test
@@ -36,29 +37,13 @@ class HybridSearchMergerTest {
         JobSummary b = job(2L, "PRIVATE", "B");
         JobSummary c = job(3L, "PRIVATE", "C");
 
-        // 키워드: A(1등), B(2등), C(3등)
-        // 벡터: 빈 리스트
         List<JobSummary> keyword = List.of(a, b, c);
         List<JobSummary> vector = List.of();
 
-        List<JobSummary> result = merger.merge(keyword, vector, 0, 10);
+        List<JobSummary> result = merger.merge(keyword, vector);
 
         assertThat(result.stream().map(JobSummary::title).toList())
                 .containsExactly("A", "B", "C");
-    }
-
-    @Test
-    @DisplayName("offset/limit 적용")
-    void offset_limit() {
-        JobSummary a = job(1L, "PRIVATE", "A");
-        JobSummary b = job(2L, "PRIVATE", "B");
-        JobSummary c = job(3L, "PRIVATE", "C");
-
-        List<JobSummary> keyword = List.of(a, b, c);
-        List<JobSummary> result = merger.merge(keyword, List.of(), 1, 1);
-
-        assertThat(result).hasSize(1);
-        assertThat(result.get(0).title()).isEqualTo("B");
     }
 
     @Test
@@ -70,7 +55,7 @@ class HybridSearchMergerTest {
         List<JobSummary> keyword = List.of(prv);
         List<JobSummary> vector = List.of(pub);
 
-        List<JobSummary> result = merger.merge(keyword, vector, 0, 10);
+        List<JobSummary> result = merger.merge(keyword, vector);
 
         assertThat(result).hasSize(2);
     }
@@ -78,20 +63,8 @@ class HybridSearchMergerTest {
     @Test
     @DisplayName("양쪽 모두 비어있으면 빈 결과")
     void 양쪽_빈리스트() {
-        List<JobSummary> result = merger.merge(List.of(), List.of(), 0, 10);
+        List<JobSummary> result = merger.merge(List.of(), List.of());
         assertThat(result).isEmpty();
-    }
-
-    @Test
-    @DisplayName("countUnique — 중복 제거된 총 건수")
-    void countUnique_중복제거() {
-        JobSummary shared = job(1L, "PRIVATE", "공유");
-        JobSummary only1 = job(2L, "PRIVATE", "키워드만");
-        JobSummary only2 = job(3L, "PUBLIC", "벡터만");
-
-        long count = merger.countUnique(List.of(shared, only1), List.of(shared, only2));
-
-        assertThat(count).isEqualTo(3);
     }
 
     private static JobSummary job(Long id, String source, String title) {

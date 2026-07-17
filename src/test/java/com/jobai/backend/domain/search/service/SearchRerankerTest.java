@@ -8,6 +8,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
+import org.springframework.test.util.ReflectionTestUtils;
 import reactor.core.publisher.Mono;
 
 import java.time.LocalDateTime;
@@ -23,17 +24,12 @@ class SearchRerankerTest {
     private SearchReranker searchReranker;
 
     @BeforeEach
-    void setUp() throws Exception {
+    void setUp() {
         aiRerankClient = Mockito.mock(AiRerankClient.class);
         searchReranker = new SearchReranker(aiRerankClient);
 
-        var enabledField = SearchReranker.class.getDeclaredField("enabled");
-        enabledField.setAccessible(true);
-        enabledField.setBoolean(searchReranker, true);
-
-        var topNField = SearchReranker.class.getDeclaredField("topN");
-        topNField.setAccessible(true);
-        topNField.setInt(searchReranker, 50);
+        ReflectionTestUtils.setField(searchReranker, "enabled", true);
+        ReflectionTestUtils.setField(searchReranker, "topN", 50);
     }
 
     @Test
@@ -58,10 +54,8 @@ class SearchRerankerTest {
 
     @Test
     @DisplayName("disabled 상태면 원본 순서 유지")
-    void disabled면_원본유지() throws Exception {
-        var field = SearchReranker.class.getDeclaredField("enabled");
-        field.setAccessible(true);
-        field.setBoolean(searchReranker, false);
+    void disabled면_원본유지() {
+        ReflectionTestUtils.setField(searchReranker, "enabled", false);
 
         JobSummary a = job(1L, "PRIVATE", "A");
         JobSummary b = job(2L, "PRIVATE", "B");

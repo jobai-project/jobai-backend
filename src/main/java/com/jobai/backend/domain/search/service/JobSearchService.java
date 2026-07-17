@@ -60,6 +60,9 @@ public class JobSearchService {
     @Value("${search.hybrid.enabled:false}")
     private boolean hybridEnabled;
 
+    /** 하이브리드 검색 시 키워드·벡터 각각에서 가져올 고정 후보 수. */
+    private static final int HYBRID_CANDIDATE_DEPTH = 200;
+
     private static final double VECTOR_THRESHOLD = 0.4;
 
     /**
@@ -90,11 +93,11 @@ public class JobSearchService {
 
         if (hybridEnabled && embeddingEnabled) {
             log.info("하이브리드 검색 실행: query={}", query);
-            response = executeHybridSearch(query, expansion, match, page, size);
+            response = executeHybridSearch(query, expansion, match);
         } else if (!match.hasUnmatchedTokens()) {
             log.info("구조화 검색 실행: query={}", query);
             SearchCondition condition = buildCondition(match, SearchCondition.METHOD_KEYWORD);
-            response = executeTraditionalSearch(condition, page, size);
+            response = executeTraditionalSearch(condition);
         } else if (embeddingEnabled) {
             try {
                 String textForEmbedding = expansion.expandedText();
@@ -103,19 +106,26 @@ public class JobSearchService {
                         query, expansion.wasExpanded(), queryVector.length);
 
                 SearchCondition condition = buildCondition(match, SearchCondition.METHOD_VECTOR);
-                response = executeVectorSearch(queryVector, condition, page, size);
+                response = executeVectorSearch(queryVector, condition);
             } catch (Exception e) {
                 log.warn("벡터 검색 실패, 기존 검색으로 폴백: query={}", query, e);
                 SearchCondition fallback = buildCondition(match, SearchCondition.METHOD_KEYWORD);
-                response = executeTraditionalSearch(fallback, page, size);
+                response = executeTraditionalSearch(fallback);
             }
         } else {
             SearchCondition fallback = buildCondition(match, SearchCondition.METHOD_KEYWORD);
-            response = executeTraditionalSearch(fallback, page, size);
+            response = executeTraditionalSearch(fallback);
         }
 
-        // Stage 3: 리랭킹
+        // Stage 3: 리랭킹 (pagination 전에 수행)
         List<JobSummary> rerankedJobs = searchReranker.rerank(query, response.jobs());
+
+        // 리랭킹 후 pagination 적용
+        int offset = page * size;
+        List<JobSummary> pagedJobs = rerankedJobs.stream()
+                .skip(offset)
+                .limit(size)
+                .toList();
 
         // SearchInfo에 확장 키워드 반영
         SearchInfo finalInfo = new SearchInfo(
@@ -124,35 +134,34 @@ public class JobSearchService {
                 expansion.expandedKeywords());
 
         // 매칭 점수 로딩
-        List<JobSummary> scoredJobs = attachMatchScores(rerankedJobs, email);
+        List<JobSummary> scoredJobs = attachMatchScores(pagedJobs, email);
         return new JobSearchResponse(response.totalCount(), scoredJobs, finalInfo);
     }
 
     // ---------- Hybrid Search (Stage 2: RRF) ----------
 
     private JobSearchResponse executeHybridSearch(String query, QueryExpansionResult expansion,
-                                                   MatchResult match, int page, int size) {
+                                                   MatchResult match) {
         SearchCondition condition = buildCondition(match, SearchCondition.METHOD_HYBRID);
-        int fetchLimit = (page + 1) * size * 2;
 
-        // 키워드 검색
-        List<JobSummary> keywordPrivate = jobSearchRepository.searchPrivate(condition, 0, fetchLimit);
-        List<JobSummary> keywordPublic = jobSearchRepository.searchPublic(condition, 0, fetchLimit);
+        // 키워드 검색 (고정 후보 깊이)
+        List<JobSummary> keywordPrivate = jobSearchRepository.searchPrivate(condition, 0, HYBRID_CANDIDATE_DEPTH);
+        List<JobSummary> keywordPublic = jobSearchRepository.searchPublic(condition, 0, HYBRID_CANDIDATE_DEPTH);
         List<JobSummary> keywordResults = Stream.concat(keywordPrivate.stream(), keywordPublic.stream())
                 .sorted(Comparator.comparing(JobSummary::matchType)
                         .thenComparing(JobSummary::createdAt, Comparator.nullsLast(Comparator.reverseOrder())))
                 .toList();
 
-        // 벡터 검색
+        // 벡터 검색 (고정 후보 깊이)
         List<JobSummary> vectorResults;
         try {
             String textForEmbedding = expansion.expandedText();
             float[] queryVector = embeddingService.embedQuery(textForEmbedding);
 
             List<ScoredJob> vectorPrivate = vectorSearchRepository.searchPrivateByVector(
-                    queryVector, VECTOR_THRESHOLD, condition, 0, fetchLimit);
+                    queryVector, VECTOR_THRESHOLD, condition, 0, HYBRID_CANDIDATE_DEPTH);
             List<ScoredJob> vectorPublic = vectorSearchRepository.searchPublicByVector(
-                    queryVector, VECTOR_THRESHOLD, condition, 0, fetchLimit);
+                    queryVector, VECTOR_THRESHOLD, condition, 0, HYBRID_CANDIDATE_DEPTH);
             vectorResults = Stream.concat(vectorPrivate.stream(), vectorPublic.stream())
                     .sorted(Comparator.comparingDouble(ScoredJob::distance))
                     .map(ScoredJob::job)
@@ -162,10 +171,12 @@ public class JobSearchService {
             vectorResults = List.of();
         }
 
-        // RRF 병합
-        int offset = page * size;
-        List<JobSummary> merged = hybridSearchMerger.merge(keywordResults, vectorResults, offset, size);
-        long totalCount = hybridSearchMerger.countUnique(keywordResults, vectorResults);
+        // RRF 병합 (pagination 없이 전체 병합)
+        List<JobSummary> merged = hybridSearchMerger.merge(keywordResults, vectorResults);
+
+        // 정확한 totalCount: DB count 쿼리 사용
+        long totalCount = jobSearchRepository.countPrivate(condition)
+                + jobSearchRepository.countPublic(condition);
 
         SearchInfo searchInfo = new SearchInfo(
                 SearchCondition.METHOD_HYBRID, condition.categories(), List.of());
@@ -174,21 +185,15 @@ public class JobSearchService {
 
     // ---------- 기존 검색 경로 ----------
 
-    private JobSearchResponse executeVectorSearch(float[] queryVector, SearchCondition condition,
-                                                   int page, int size) {
-        int offset = page * size;
-        int fetchLimit = offset + size;
-
+    private JobSearchResponse executeVectorSearch(float[] queryVector, SearchCondition condition) {
         List<ScoredJob> privateResults = vectorSearchRepository.searchPrivateByVector(
-                queryVector, VECTOR_THRESHOLD, condition, 0, fetchLimit);
+                queryVector, VECTOR_THRESHOLD, condition, 0, HYBRID_CANDIDATE_DEPTH);
         List<ScoredJob> publicResults = vectorSearchRepository.searchPublicByVector(
-                queryVector, VECTOR_THRESHOLD, condition, 0, fetchLimit);
+                queryVector, VECTOR_THRESHOLD, condition, 0, HYBRID_CANDIDATE_DEPTH);
 
         List<JobSummary> allResults = Stream.concat(privateResults.stream(), publicResults.stream())
                 .sorted(Comparator.comparing((ScoredJob s) -> s.job().matchType())
                         .thenComparingDouble(ScoredJob::distance))
-                .skip(offset)
-                .limit(size)
                 .map(ScoredJob::job)
                 .toList();
 
@@ -200,18 +205,13 @@ public class JobSearchService {
         return new JobSearchResponse(totalCount, allResults, searchInfo);
     }
 
-    private JobSearchResponse executeTraditionalSearch(SearchCondition condition, int page, int size) {
-        int offset = page * size;
-        int fetchLimit = offset + size;
-
-        List<JobSummary> privateResults = jobSearchRepository.searchPrivate(condition, 0, fetchLimit);
-        List<JobSummary> publicResults = jobSearchRepository.searchPublic(condition, 0, fetchLimit);
+    private JobSearchResponse executeTraditionalSearch(SearchCondition condition) {
+        List<JobSummary> privateResults = jobSearchRepository.searchPrivate(condition, 0, HYBRID_CANDIDATE_DEPTH);
+        List<JobSummary> publicResults = jobSearchRepository.searchPublic(condition, 0, HYBRID_CANDIDATE_DEPTH);
 
         List<JobSummary> allResults = Stream.concat(privateResults.stream(), publicResults.stream())
                 .sorted(Comparator.comparing(JobSummary::matchType)
                         .thenComparing(JobSummary::createdAt, Comparator.nullsLast(Comparator.reverseOrder())))
-                .skip(offset)
-                .limit(size)
                 .toList();
 
         long totalCount = jobSearchRepository.countPrivate(condition)

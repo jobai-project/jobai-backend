@@ -26,17 +26,14 @@ public class HybridSearchMerger {
     private static final int RRF_K = 60;
 
     /**
-     * 두 검색 결과를 RRF로 병합하고 offset/limit을 적용한다.
+     * 두 검색 결과를 RRF로 병합한다. 페이지네이션은 적용하지 않는다.
      *
      * @param keywordResults 키워드 검색 결과 (이미 정렬된 상태)
      * @param vectorResults  벡터 검색 결과 (이미 정렬된 상태)
-     * @param offset         건너뛸 결과 수
-     * @param limit          반환할 최대 결과 수
-     * @return RRF 점수 내림차순 정렬된 병합 결과
+     * @return RRF 점수 내림차순 정렬된 전체 병합 결과
      */
     public List<JobSummary> merge(List<JobSummary> keywordResults,
-                                   List<JobSummary> vectorResults,
-                                   int offset, int limit) {
+                                   List<JobSummary> vectorResults) {
         Map<String, Double> rrfScores = new LinkedHashMap<>();
         Map<String, JobSummary> jobMap = new HashMap<>();
 
@@ -48,8 +45,6 @@ public class HybridSearchMerger {
 
         List<JobSummary> merged = rrfScores.entrySet().stream()
                 .sorted(Map.Entry.<String, Double>comparingByValue().reversed())
-                .skip(offset)
-                .limit(limit)
                 .map(e -> {
                     JobSummary job = jobMap.get(e.getKey());
                     log.debug("[RRF] {} | {} | score={}", e.getKey(), job.title(),
@@ -59,7 +54,6 @@ public class HybridSearchMerger {
                 .toList();
 
         if (!merged.isEmpty()) {
-            // 상위 5개만 INFO로 출력
             merged.stream().limit(5).forEach(job -> {
                 String key = compositeKey(job);
                 log.info("[RRF] rank: {} | {} | score={}", key, job.title(),
@@ -68,16 +62,6 @@ public class HybridSearchMerger {
         }
 
         return merged;
-    }
-
-    /**
-     * 병합 대상 총 건수를 반환한다 (중복 제거된 union 크기).
-     */
-    public long countUnique(List<JobSummary> keywordResults, List<JobSummary> vectorResults) {
-        Map<String, Boolean> seen = new HashMap<>();
-        keywordResults.forEach(j -> seen.put(compositeKey(j), true));
-        vectorResults.forEach(j -> seen.put(compositeKey(j), true));
-        return seen.size();
     }
 
     private void addScores(Map<String, Double> rrfScores,

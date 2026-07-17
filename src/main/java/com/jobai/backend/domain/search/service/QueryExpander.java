@@ -81,13 +81,24 @@ public class QueryExpander {
                 """.formatted(originalQuery, String.join(", ", unmatchedTokens));
     }
 
+    private static final int MAX_KEYWORD_COUNT = 10;
+    private static final int MAX_KEYWORD_LENGTH = 20;
+
     private List<String> parseResponse(String response) {
         if (response == null || response.isBlank()) {
             return List.of();
         }
-        return Arrays.stream(response.split(","))
+        List<String> keywords = Arrays.stream(response.split(","))
                 .map(String::trim)
-                .filter(s -> !s.isEmpty())
+                .filter(s -> !s.isEmpty() && s.length() <= MAX_KEYWORD_LENGTH)
+                .distinct()
+                .limit(MAX_KEYWORD_COUNT)
                 .toList();
+
+        // 키워드가 하나도 남지 않으면 형식 불량으로 간주
+        if (keywords.isEmpty()) {
+            log.warn("[쿼리확장] LLM 응답 형식 불량, 확장 건너뜀: response={}", response);
+        }
+        return keywords;
     }
 }

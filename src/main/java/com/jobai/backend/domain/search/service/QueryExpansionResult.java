@@ -17,6 +17,7 @@ public record QueryExpansionResult(
         return new QueryExpansionResult(originalQuery, List.of());
     }
 
+    /** 쿼리가 확장되었는지 여부를 반환한다. */
     public boolean wasExpanded() {
         return expandedKeywords != null && !expandedKeywords.isEmpty();
     }
