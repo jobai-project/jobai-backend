@@ -14,4 +14,5 @@ public record SearchCondition(
 ) {
     public static final String METHOD_KEYWORD = "KEYWORD";
     public static final String METHOD_VECTOR = "VECTOR";
+    public static final String METHOD_HYBRID = "HYBRID";
 }
