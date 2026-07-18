@@ -169,7 +169,7 @@ JobA!는 사용자가 채용공고를 직접 찾는 대신,
 프로젝트의 전체 API 명세는 Swagger를 통해 확인할 수 있습니다.
 
 ### 🔗 Documentation
-* Swagger UI : `[https://api.jobai.site/swagger-ui/index.html#/)`
+* Swagger UI : [https://api.jobai.site/swagger-ui/index.html](https://api.jobai.site/swagger-ui/index.html)
 
 ## 📂 Directory Structure
 ```text
