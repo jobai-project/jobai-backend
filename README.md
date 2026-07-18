@@ -159,7 +159,7 @@ JobA!는 사용자가 채용공고를 직접 찾는 대신,
 ---
 
 ## 🗄 ERD
-<!-- 📷 여기에 ERD 이미지 삽입 -->
+<img width="2701" height="1812" alt="image" src="https://github.com/user-attachments/assets/c6cfeb1e-6067-40ac-b540-0c9a5a18c2d3" />
 
 ---
 
