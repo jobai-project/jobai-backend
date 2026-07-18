@@ -84,20 +84,6 @@ JobA!는 사용자가 채용공고를 직접 찾는 대신,
 
 ---
 
-## 📱 Screen Preview
-
-<!-- 📷 여기에 온보딩 화면 이미지 삽입 (기본정보 · 직무설정 · 이력서 · 알림설정) -->
-
-<!-- 📷 여기에 홈 / AI 적합도 추천 화면 이미지 삽입 -->
-
-<!-- 📷 여기에 자연어 검색(Smart Search) 화면 이미지 삽입 -->
-
-<!-- 📷 여기에 공고 상세(Job Details) 화면 이미지 삽입 -->
-
-<!-- 📷 여기에 지원 현황 트래커(Application Tracker) 화면 이미지 삽입 -->
-
----
-
 ## 🛠 Tech Stack
 
 ### 🛠 Backend & Framework
@@ -154,7 +140,7 @@ JobA!는 사용자가 채용공고를 직접 찾는 대신,
 ---
 
 ## 🏗 Architecture
-<!-- 📷 여기에 JobA! AWS Architecture 이미지 삽입 -->
+<img width="1640" height="804" alt="image 49" src="https://github.com/user-attachments/assets/64689a0f-8852-4dcf-a6bf-317ded21281b" />
 
 ---
 
