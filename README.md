@@ -175,34 +175,33 @@ JobA!는 사용자가 채용공고를 직접 찾는 대신,
 ## 📂 Directory Structure
 ```text
 📦 src/main/java/com/jobai/backend
- ├── 📁 domain                    # 핵심 비즈니스 로직
- │   ├── 📁 ai                    # AI 서비스 연동 (client / dto / exception)
- │   ├── 📁 application           # 지원서 관리
- │   ├── 📁 auth                  # 인증 (OAuth2)
- │   ├── 📁 bloom                 # Bloom Filter 기반 공고 중복 제거
- │   ├── 📁 crawler               # 채용공고 크롤링 파이프라인
- │   │   ├── 📁 classify              # 공고 분류
- │   │   ├── 📁 engine                # 크롤링 엔진
- │   │   ├── 📁 runner                # 수집 실행
- │   │   ├── 📁 scheduler             # 수집 스케줄러 (DailyJobScheduler)
- │   │   ├── 📁 spec                  # 기업별 크롤링 스펙 로직
- │   │   ├── 📁 summary               # AI 공고 요약
- │   │   └── 📁 export                # 수집 결과 내보내기
- │   ├── 📁 home                  # 홈 화면
- │   ├── 📁 member                # 회원 관리 / 온보딩
- │   ├── 📁 notification          # 알림 (Slack·Email·Discord)
- │   ├── 📁 publicInstitution     # 공기업 채용공고 수집
- │   ├── 📁 scrap                 # 공고 스크랩
- │   ├── 📁 search                # 채용공고 검색 (자연어)
- │   └── 📁 techcard              # 테크 뉴스 카드 (collector / scheduler)
+ ├── 📁 domain                    # 핵심 비즈니스 로직 (도메인별 controller/dto/entity/repository/service)
+ │   ├── 📁 application               # 지원서 관리
+ │   ├── 📁 auth                      # 로그인 진입점 컨트롤러 (OAuth2 로직 자체는 global/auth)
+ │   ├── 📁 bloom                     # Bloom Filter 기반 공고 중복 제거
+ │   ├── 📁 crawler                   # 스펙 기반 크롤링 엔진
+ │   │   ├── 📁 service                   # DeclarativeCrawler 등 크롤링 엔진 본체
+ │   │   └── 📁 spec                      # 기업별 크롤링 스펙 파싱 (CrawlSpec 등)
+ │   ├── 📁 home                      # 홈 화면 추천 / 매칭 오케스트레이션
+ │   ├── 📁 jobposting                # 사기업 채용공고 수집·분류·저장 (PrivateJobPosting)
+ │   ├── 📁 member                    # 회원 관리 / 온보딩 / 이력서
+ │   ├── 📁 notification              # 알림 설정 (Slack·Email·Discord 채널)
+ │   ├── 📁 publicInstitution         # 공기업 채용공고 수집
+ │   ├── 📁 scrap                     # 공고 스크랩
+ │   ├── 📁 search                    # 채용공고 검색 (자연어 · 하이브리드 · 리랭킹)
+ │   ├── 📁 summary                   # AI 공고 요약
+ │   └── 📁 techcard                  # 테크 뉴스 카드 (collector / scheduler)
  │
  └── 📁 global                    # 공통 모듈
-     ├── 📁 apiPayload            # 공통 응답 / 에러 / 예외 처리 (code / exception / handler)
-     ├── 📁 auth                  # 인증·인가 공통 로직
-     ├── 📁 config                # 공통 설정 정의
-     ├── 📁 llm                   # LLM 연동 공통 모듈
-     ├── 📁 storage               # 파일·스토리지(S3) 연동
-     └── 📁 util                  # 공통 유틸리티
+     ├── 📁 ai                        # AI 서버 연동 공통 클라이언트 (embed / rerank / score)
+     ├── 📁 apiPayload                # 공통 응답 / 에러 / 예외 처리 (code / exception / handler)
+     ├── 📁 auth                      # 인증·인가 공통 로직 (JWT, OAuth2 필터/프로바이더)
+     ├── 📁 config                    # 공통 설정 정의
+     ├── 📁 enums                     # 도메인 공통 enum (JobSource, EmploymentType 등)
+     ├── 📁 llm                       # LLM 연동 공통 모듈
+     ├── 📁 scheduler                 # 전역 스케줄러 (DailyJobScheduler)
+     ├── 📁 storage                   # 파일·스토리지(S3) 연동
+     └── 📁 util                      # 공통 유틸리티
 
 📦 src/main/resources
  ├── 📄 application.yaml          # 기본 설정
@@ -210,13 +209,14 @@ JobA!는 사용자가 채용공고를 직접 찾는 대신,
  ├── 📄 application-collect.yml   # 공고 수집 프로필
  ├── 📄 application-export.yml    # 내보내기 프로필
  ├── 📁 db/migration              # Flyway 마이그레이션 (V1~V9)
- └── 📁 specs                     # 크롤러 기업별 스펙 (17개 기업)
+ └── 📁 specs                     # 크롤러 기업별 스펙 (16개, 테스트용 testco 포함)
 
 📦 infra                         # 인프라 구성
  ├── 📁 nginx                     # Nginx 설정
  ├── 📁 postgres                  # DB 초기화 스크립트
  └── 📁 terraform                 # AWS IaC (EC2 / ECR / IAM / S3)
 
+📄 ai-server                      # AI 서버 (FastAPI, git submodule)
 📄 .github                        # GitHub Actions CI/CD
 📄 docker-compose.yml             # 로컬 개발용
 📄 docker-compose.prod.yml        # 운영 배포용
