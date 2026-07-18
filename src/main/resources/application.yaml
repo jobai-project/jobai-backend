@@ -174,7 +174,19 @@ server:
 
 ai-server:
   base-url: ${AI_SERVER_BASE_URL}
-
+search:
+  embedding:
+    enabled: ${SEARCH_EMBEDDING_ENABLED:true}
+    max-text-length: 8000
+    batch-size: 50
+    batch-interval-ms: 60000
+  query-expand:
+    enabled: ${SEARCH_QUERY_EXPAND_ENABLED:true}
+  hybrid:
+    enabled: ${SEARCH_HYBRID_ENABLED:true}
+  rerank:
+    enabled: ${SEARCH_RERANK_ENABLED:true}
+    top-n: 50
 redis:
   host: ${REDIS_HOST:redis}
   port: ${REDIS_PORT:6379}
