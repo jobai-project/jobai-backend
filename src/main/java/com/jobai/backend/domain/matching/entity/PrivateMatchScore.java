@@ -1,4 +1,4 @@
-package com.jobai.backend.domain.home.entity;
+package com.jobai.backend.domain.matching.entity;
 
 import com.jobai.backend.domain.jobposting.entity.PrivateJobPosting;
 import com.jobai.backend.domain.member.entity.Member;

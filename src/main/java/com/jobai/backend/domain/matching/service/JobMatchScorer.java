@@ -1,4 +1,4 @@
-package com.jobai.backend.domain.home.service;
+package com.jobai.backend.domain.matching.service;
 
 import org.springframework.stereotype.Component;
 

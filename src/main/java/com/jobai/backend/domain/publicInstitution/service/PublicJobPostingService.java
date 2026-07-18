@@ -1,7 +1,7 @@
 package com.jobai.backend.domain.publicInstitution.service;
 
-import com.jobai.backend.domain.home.entity.PublicMatchScore;
-import com.jobai.backend.domain.home.repository.PublicMatchScoreRepository;
+import com.jobai.backend.domain.matching.entity.PublicMatchScore;
+import com.jobai.backend.domain.matching.repository.PublicMatchScoreRepository;
 import com.jobai.backend.domain.member.entity.Resumes;
 import com.jobai.backend.domain.member.repository.ResumesRepository;
 import com.jobai.backend.domain.publicInstitution.dto.PublicJobPostingDetailResponse;

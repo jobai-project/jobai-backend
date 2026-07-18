@@ -7,7 +7,7 @@ import com.jobai.backend.domain.summary.repository.JobPostingSummaryRepository;
 import com.jobai.backend.domain.jobposting.repository.PrivateJobPostingRepository;
 import com.jobai.backend.domain.summary.service.JobSummaryService;
 import com.jobai.backend.domain.summary.service.JobSummarizer;
-import com.jobai.backend.domain.home.repository.PrivateMatchScoreRepository;
+import com.jobai.backend.domain.matching.repository.PrivateMatchScoreRepository;
 import com.jobai.backend.domain.member.repository.ResumesRepository;
 import com.jobai.backend.domain.summary.controller.PrivateJobController;
 import com.jobai.backend.global.apiPayload.handler.GeneralExceptionAdvice;
