@@ -41,7 +41,7 @@ JobA!는 사용자가 채용공고를 직접 찾는 대신,
 - **일정 통합 관리** — 스크랩한 공고의 지원 현황·면접 일정을 한곳에서 관리해드려요
 ---
 
-## ✨ Key Features
+## 🧰 Key Features
 - 🔎 **자동 수집 & 실시간 알림** (사기업·공공기관 IT 공고 통합 수집 → 임계값 초과 시 이메일 알림)
 - 🤖 **AI 기반 적합도 매칭** (AI 서버의 자체 매칭 모델이 이력서–공고 적합도를 점수화 + 보유·부족 기술·추천 근거 제공)
 - 💬 **자연어 공고 검색** (Query Expansion → Hybrid Search → Rerank 3단계 파이프라인으로 의도에 맞는 공고 탐색)
@@ -97,7 +97,6 @@ JobA!는 사용자가 채용공고를 직접 찾는 대신,
 
 ### 🤖 AI
 <div>
-  <img src="https://img.shields.io/badge/Spring AI-6DB33F?style=flat-square&logo=spring&logoColor=white">
   <img src="https://img.shields.io/badge/Claude API (Anthropic)-D97757?style=flat-square&logo=anthropic&logoColor=white">
   <img src="https://img.shields.io/badge/KOMORAN-4B8BBE?style=flat-square&logoColor=white">
 </div>
