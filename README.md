@@ -2,7 +2,7 @@
 ### 나에게 맞는 채용공고, 이제 직접 찾지 마세요
 ### IT 채용공고 자동 수집 · AI 매칭 · 실시간 알림 서비스
 
-<!-- 📷 여기에 대표 이미지(로고/커버) 삽입 -->
+<img width="1920" height="1080" alt="표지" src="https://github.com/user-attachments/assets/fa4c9941-82ce-4194-bf24-f2a444191e19" />
 
 ---
 
