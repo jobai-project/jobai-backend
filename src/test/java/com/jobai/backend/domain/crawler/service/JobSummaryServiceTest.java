@@ -1,15 +1,16 @@
 package com.jobai.backend.domain.crawler.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.jobai.backend.domain.crawler.dto.JobSummaryResponse;
-import com.jobai.backend.domain.crawler.dto.PrivateJobDetailResponse;
-import com.jobai.backend.domain.crawler.entity.JobPostingSummary;
-import com.jobai.backend.domain.crawler.entity.PrivateJobPosting;
-import com.jobai.backend.domain.crawler.repository.JobPostingSummaryRepository;
-import com.jobai.backend.domain.crawler.repository.PrivateJobPostingRepository;
-import com.jobai.backend.domain.crawler.summary.JobSummarizer;
+import com.jobai.backend.domain.summary.dto.JobSummaryResponse;
+import com.jobai.backend.domain.summary.dto.PrivateJobDetailResponse;
+import com.jobai.backend.domain.summary.entity.JobPostingSummary;
+import com.jobai.backend.domain.jobposting.entity.PrivateJobPosting;
+import com.jobai.backend.domain.summary.repository.JobPostingSummaryRepository;
+import com.jobai.backend.domain.jobposting.repository.PrivateJobPostingRepository;
+import com.jobai.backend.domain.summary.service.JobSummarizer;
 import com.jobai.backend.domain.home.repository.PrivateMatchScoreRepository;
 import com.jobai.backend.domain.member.repository.ResumesRepository;
+import com.jobai.backend.domain.summary.service.JobSummaryService;
 import com.jobai.backend.global.apiPayload.exception.GeneralException;
 import com.jobai.backend.global.llm.LlmException;
 import org.junit.jupiter.api.BeforeEach;

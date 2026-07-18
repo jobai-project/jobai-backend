@@ -1,8 +1,9 @@
 package com.jobai.backend.domain.ai.client;
 
-import com.jobai.backend.domain.ai.dto.ScorePrivateRequest;
-import com.jobai.backend.domain.ai.dto.ScorePrivateResponse;
-import com.jobai.backend.domain.ai.exception.AiClientException;
+import com.jobai.backend.global.ai.client.AiScoringClient;
+import com.jobai.backend.global.ai.dto.ScorePrivateRequest;
+import com.jobai.backend.global.ai.dto.ScorePrivateResponse;
+import com.jobai.backend.global.ai.exception.AiClientException;
 import okhttp3.mockwebserver.MockResponse;
 import okhttp3.mockwebserver.MockWebServer;
 import okhttp3.mockwebserver.RecordedRequest;

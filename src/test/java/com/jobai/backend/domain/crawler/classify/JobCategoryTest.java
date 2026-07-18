@@ -1,5 +1,6 @@
 package com.jobai.backend.domain.crawler.classify;
 
+import com.jobai.backend.global.model.JobCategory;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 

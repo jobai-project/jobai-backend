@@ -1,11 +1,10 @@
 package com.jobai.backend.domain.crawler.service;
 
-import com.jobai.backend.domain.crawler.engine.DeclarativeCrawler;
-import com.jobai.backend.domain.crawler.entity.PrivateJobPosting;
-import com.jobai.backend.domain.crawler.model.JobRecord;
-import com.jobai.backend.domain.crawler.repository.PrivateJobPostingRepository;
+import com.jobai.backend.domain.jobposting.entity.PrivateJobPosting;
+import com.jobai.backend.domain.jobposting.repository.PrivateJobPostingRepository;
 import com.jobai.backend.domain.crawler.spec.CrawlSpec;
 import com.jobai.backend.domain.crawler.spec.SpecLoader;
+import com.jobai.backend.domain.jobposting.service.PrivateJobPostingService;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -21,7 +20,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class PrivateJobPostingServiceTest {
 
     @Autowired DeclarativeCrawler crawler;
-    @Autowired PrivateJobPostingService service;
+    @Autowired
+    PrivateJobPostingService service;
     @Autowired PrivateJobPostingRepository repository;
 
     @Test

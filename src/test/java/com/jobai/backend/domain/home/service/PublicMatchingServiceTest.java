@@ -1,9 +1,9 @@
 package com.jobai.backend.domain.home.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.jobai.backend.domain.ai.client.AiScoringClient;
-import com.jobai.backend.domain.ai.dto.ScorePublicRequest;
-import com.jobai.backend.domain.ai.dto.ScorePublicResponse;
+import com.jobai.backend.global.ai.client.AiScoringClient;
+import com.jobai.backend.global.ai.dto.ScorePublicRequest;
+import com.jobai.backend.global.ai.dto.ScorePublicResponse;
 import com.jobai.backend.domain.home.repository.PublicMatchScoreRepository;
 import com.jobai.backend.domain.member.entity.Member;
 import com.jobai.backend.domain.member.entity.Resumes;
@@ -11,7 +11,7 @@ import com.jobai.backend.domain.member.repository.ResumesRepository;
 import com.jobai.backend.domain.publicInstitution.entity.PublicJobPosting;
 import com.jobai.backend.domain.publicInstitution.repository.JobPostingRepository;
 import com.jobai.backend.domain.search.entity.JobEmbedding;
-import com.jobai.backend.domain.search.entity.JobSource;
+import com.jobai.backend.global.model.JobSource;
 import com.jobai.backend.domain.search.repository.JobEmbeddingRepository;
 import com.jobai.backend.domain.search.service.EmbeddingService;
 import org.junit.jupiter.api.BeforeEach;

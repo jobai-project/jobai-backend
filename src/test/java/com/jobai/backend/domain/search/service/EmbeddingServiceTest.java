@@ -1,12 +1,12 @@
 package com.jobai.backend.domain.search.service;
 
-import com.jobai.backend.domain.ai.client.AiEmbeddingClient;
-import com.jobai.backend.domain.ai.dto.EmbedRequest;
-import com.jobai.backend.domain.ai.dto.EmbedResponse;
-import com.jobai.backend.domain.crawler.entity.PrivateJobPosting;
+import com.jobai.backend.global.ai.client.AiEmbeddingClient;
+import com.jobai.backend.global.ai.dto.EmbedRequest;
+import com.jobai.backend.global.ai.dto.EmbedResponse;
+import com.jobai.backend.domain.jobposting.entity.PrivateJobPosting;
 import com.jobai.backend.domain.publicInstitution.entity.PublicJobPosting;
 import com.jobai.backend.domain.search.entity.JobEmbedding;
-import com.jobai.backend.domain.search.entity.JobSource;
+import com.jobai.backend.global.model.JobSource;
 import com.jobai.backend.domain.search.repository.JobEmbeddingRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;

@@ -1,7 +1,8 @@
 package com.jobai.backend.domain.crawler.engine;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.jobai.backend.domain.crawler.model.JobRecord;
+import com.jobai.backend.domain.crawler.service.JobRecord;
+import com.jobai.backend.domain.crawler.service.DeclarativeCrawler;
 import com.jobai.backend.domain.crawler.spec.CrawlSpec;
 import com.jobai.backend.domain.crawler.spec.ListSpec;
 import com.jobai.backend.domain.crawler.spec.SelectSpec;
@@ -12,7 +13,6 @@ import org.springframework.http.MediaType;
 import org.springframework.test.web.client.MockRestServiceServer;
 import org.springframework.web.client.RestClient;
 import java.nio.charset.StandardCharsets;
-import org.springframework.http.MediaType;
 
 import java.util.List;
 import java.util.Map;

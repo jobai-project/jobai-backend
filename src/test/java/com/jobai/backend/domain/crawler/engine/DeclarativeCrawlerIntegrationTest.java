@@ -1,7 +1,8 @@
 package com.jobai.backend.domain.crawler.engine;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.jobai.backend.domain.crawler.model.JobRecord;
+import com.jobai.backend.domain.crawler.service.JobRecord;
+import com.jobai.backend.domain.crawler.service.DeclarativeCrawler;
 import com.jobai.backend.domain.crawler.spec.CrawlSpec;
 import com.jobai.backend.domain.crawler.spec.SpecLoader;
 import org.junit.jupiter.api.Tag;

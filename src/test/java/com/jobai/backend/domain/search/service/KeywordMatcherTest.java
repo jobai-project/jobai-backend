@@ -1,5 +1,6 @@
 package com.jobai.backend.domain.search.service;
 
+import com.jobai.backend.domain.search.dto.SearchCondition;
 import com.jobai.backend.domain.search.service.KeywordMatcher.MatchResult;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;

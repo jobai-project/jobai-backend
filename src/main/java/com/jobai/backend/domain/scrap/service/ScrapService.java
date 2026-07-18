@@ -1,6 +1,6 @@
 package com.jobai.backend.domain.scrap.service;
 
-import com.jobai.backend.domain.crawler.repository.PrivateJobPostingRepository;
+import com.jobai.backend.domain.jobposting.repository.PrivateJobPostingRepository;
 import com.jobai.backend.domain.home.dto.JobCandidate;
 import com.jobai.backend.domain.home.entity.PrivateMatchScore;
 import com.jobai.backend.domain.home.entity.PublicMatchScore;

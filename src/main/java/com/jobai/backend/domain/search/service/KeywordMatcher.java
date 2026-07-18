@@ -1,6 +1,7 @@
 package com.jobai.backend.domain.search.service;
 
-import com.jobai.backend.domain.crawler.classify.JobCategory;
+import com.jobai.backend.global.model.JobCategory;
+import com.jobai.backend.domain.search.dto.SearchCondition;
 import kr.co.shineware.nlp.komoran.constant.DEFAULT_MODEL;
 import kr.co.shineware.nlp.komoran.core.Komoran;
 import kr.co.shineware.nlp.komoran.model.KomoranResult;

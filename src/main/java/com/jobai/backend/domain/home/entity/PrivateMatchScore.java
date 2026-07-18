@@ -1,6 +1,6 @@
 package com.jobai.backend.domain.home.entity;
 
-import com.jobai.backend.domain.crawler.entity.PrivateJobPosting;
+import com.jobai.backend.domain.jobposting.entity.PrivateJobPosting;
 import com.jobai.backend.domain.member.entity.Member;
 import com.jobai.backend.domain.member.entity.Resumes;
 import jakarta.persistence.*;

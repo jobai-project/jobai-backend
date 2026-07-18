@@ -9,6 +9,8 @@ import com.jobai.backend.domain.member.repository.ResumesRepository;
 import com.jobai.backend.domain.search.dto.JobSearchResponse;
 import com.jobai.backend.domain.search.dto.JobSearchResponse.JobSummary;
 import com.jobai.backend.domain.search.dto.JobSearchResponse.SearchInfo;
+import com.jobai.backend.domain.search.dto.QueryExpansionResult;
+import com.jobai.backend.domain.search.dto.SearchCondition;
 import com.jobai.backend.domain.search.repository.JobSearchRepository;
 import com.jobai.backend.domain.search.repository.VectorSearchRepository;
 import com.jobai.backend.domain.search.repository.VectorSearchRepository.ScoredJob;

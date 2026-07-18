@@ -1,6 +1,8 @@
 package com.jobai.backend.domain.crawler.summary;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.jobai.backend.domain.summary.service.JobSummarizer;
+import com.jobai.backend.domain.summary.service.JobSummaryParseException;
 import com.jobai.backend.global.llm.AnthropicClient;
 import com.jobai.backend.global.llm.LlmException;
 import org.junit.jupiter.api.BeforeEach;

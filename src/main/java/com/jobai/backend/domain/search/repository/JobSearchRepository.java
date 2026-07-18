@@ -1,7 +1,8 @@
 package com.jobai.backend.domain.search.repository;
 
+import com.jobai.backend.domain.jobposting.entity.PrivateJobPosting;
 import com.jobai.backend.domain.search.dto.JobSearchResponse.JobSummary;
-import com.jobai.backend.domain.search.service.SearchCondition;
+import com.jobai.backend.domain.search.dto.SearchCondition;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.TypedQuery;
 import lombok.RequiredArgsConstructor;
@@ -50,7 +51,7 @@ public class JobSearchRepository {
         jpql.append(" ORDER BY p.createdAt DESC");
 
         TypedQuery<?> query = em.createQuery(jpql.toString(),
-                com.jobai.backend.domain.crawler.entity.PrivateJobPosting.class);
+                PrivateJobPosting.class);
 
         query.setParameter("excludedCategories", EXCLUDED_CATEGORIES);
         if (hasCategory) {
@@ -73,8 +74,8 @@ public class JobSearchRepository {
         query.setMaxResults(limit);
 
         @SuppressWarnings("unchecked")
-        List<com.jobai.backend.domain.crawler.entity.PrivateJobPosting> results =
-                (List<com.jobai.backend.domain.crawler.entity.PrivateJobPosting>) query.getResultList();
+        List<PrivateJobPosting> results =
+                (List<PrivateJobPosting>) query.getResultList();
 
         return results.stream()
                 .map(p -> JobSummary.of(

@@ -1,7 +1,7 @@
 package com.jobai.backend.domain.search.repository;
 
 import com.jobai.backend.domain.search.dto.JobSearchResponse.JobSummary;
-import com.jobai.backend.domain.search.service.SearchCondition;
+import com.jobai.backend.domain.search.dto.SearchCondition;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.Query;
 import lombok.RequiredArgsConstructor;

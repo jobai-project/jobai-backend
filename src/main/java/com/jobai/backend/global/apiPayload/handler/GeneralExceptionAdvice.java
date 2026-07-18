@@ -1,6 +1,7 @@
 package com.jobai.backend.global.apiPayload.handler;
 
 
+import com.jobai.backend.global.ai.exception.AiClientException;
 import com.jobai.backend.global.apiPayload.ApiResponse;
 import com.jobai.backend.global.apiPayload.code.BaseErrorCode;
 import com.jobai.backend.global.apiPayload.code.GeneralErrorCode;
@@ -118,8 +119,8 @@ public class GeneralExceptionAdvice {
                 .body(ApiResponse.onFailure(ec, List.of(detail)));
     }
 
-    @ExceptionHandler(com.jobai.backend.domain.ai.exception.AiClientException.class)
-    public ResponseEntity<ApiResponse<?>> handleAiClientException(com.jobai.backend.domain.ai.exception.AiClientException ex) {
+    @ExceptionHandler(AiClientException.class)
+    public ResponseEntity<ApiResponse<?>> handleAiClientException(AiClientException ex) {
         BaseErrorCode ec = GeneralErrorCode.AI_SERVICE_ERROR;
 
         String body = ex.getResponseBody();

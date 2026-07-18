@@ -1,6 +1,7 @@
 package com.jobai.backend.domain.ai.client;
 
-import com.jobai.backend.domain.ai.dto.EmbedRequest;
+import com.jobai.backend.global.ai.client.AiEmbeddingClient;
+import com.jobai.backend.global.ai.dto.EmbedRequest;
 import com.jobai.backend.global.config.WebClientConfig;
 import okhttp3.mockwebserver.MockResponse;
 import okhttp3.mockwebserver.MockWebServer;

@@ -2,7 +2,7 @@ terraform {
   backend "s3" {
     bucket  = "jobai-terraform-state-minjoo-2376034"
     key     = "jobai/prod/terraform.tfstate"
-    region  = "ap-northeast-2"
+    location  = "ap-northeast-2"
     encrypt = true
   }
 }

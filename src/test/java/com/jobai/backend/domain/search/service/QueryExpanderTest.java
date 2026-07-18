@@ -1,5 +1,6 @@
 package com.jobai.backend.domain.search.service;
 
+import com.jobai.backend.domain.search.dto.QueryExpansionResult;
 import com.jobai.backend.global.llm.AnthropicClient;
 import com.jobai.backend.global.llm.LlmException;
 import org.junit.jupiter.api.BeforeEach;

@@ -1,5 +1,6 @@
 package com.jobai.backend.domain.search.entity;
 
+import com.jobai.backend.global.model.JobSource;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Builder;

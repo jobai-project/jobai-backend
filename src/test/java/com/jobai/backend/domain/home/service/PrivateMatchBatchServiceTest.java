@@ -1,10 +1,10 @@
 package com.jobai.backend.domain.home.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.jobai.backend.domain.ai.client.AiScoringClient;
-import com.jobai.backend.domain.ai.dto.ScorePrivateResponse;
-import com.jobai.backend.domain.crawler.entity.PrivateJobPosting;
-import com.jobai.backend.domain.crawler.repository.PrivateJobPostingRepository;
+import com.jobai.backend.global.ai.client.AiScoringClient;
+import com.jobai.backend.global.ai.dto.ScorePrivateResponse;
+import com.jobai.backend.domain.jobposting.entity.PrivateJobPosting;
+import com.jobai.backend.domain.jobposting.repository.PrivateJobPostingRepository;
 import com.jobai.backend.domain.home.entity.PrivateMatchScore;
 import com.jobai.backend.domain.home.repository.PrivateMatchScoreRepository;
 import com.jobai.backend.domain.member.entity.Member;
@@ -12,7 +12,7 @@ import com.jobai.backend.domain.member.entity.Resumes;
 import com.jobai.backend.domain.member.repository.ResumesRepository;
 import com.jobai.backend.domain.notification.repository.NotificationRepository;
 import com.jobai.backend.domain.search.entity.JobEmbedding;
-import com.jobai.backend.domain.search.entity.JobSource;
+import com.jobai.backend.global.model.JobSource;
 import com.jobai.backend.domain.search.repository.JobEmbeddingRepository;
 import com.jobai.backend.domain.search.service.EmbeddingService;
 import org.junit.jupiter.api.BeforeEach;

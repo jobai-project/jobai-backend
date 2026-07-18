@@ -1,16 +1,17 @@
 package com.jobai.backend.domain.home.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.jobai.backend.domain.ai.client.AiScoringClient;
-import com.jobai.backend.domain.ai.dto.ScorePrivateResponse;
-import com.jobai.backend.domain.crawler.entity.PrivateJobPosting;
-import com.jobai.backend.domain.crawler.repository.PrivateJobPostingRepository;
+import com.jobai.backend.global.ai.client.AiScoringClient;
+import com.jobai.backend.global.ai.dto.ScorePrivateRequest;
+import com.jobai.backend.global.ai.dto.ScorePrivateResponse;
+import com.jobai.backend.domain.jobposting.entity.PrivateJobPosting;
+import com.jobai.backend.domain.jobposting.repository.PrivateJobPostingRepository;
 import com.jobai.backend.domain.home.repository.PrivateMatchScoreRepository;
 import com.jobai.backend.domain.member.entity.Member;
 import com.jobai.backend.domain.member.entity.Resumes;
 import com.jobai.backend.domain.member.repository.ResumesRepository;
 import com.jobai.backend.domain.search.entity.JobEmbedding;
-import com.jobai.backend.domain.search.entity.JobSource;
+import com.jobai.backend.global.model.JobSource;
 import com.jobai.backend.domain.search.repository.JobEmbeddingRepository;
 import com.jobai.backend.domain.search.service.EmbeddingService;
 import org.junit.jupiter.api.BeforeEach;
@@ -314,8 +315,8 @@ class PrivateMatchingServiceTest {
 
         service.calculateScores(1L);
 
-        ArgumentCaptor<com.jobai.backend.domain.ai.dto.ScorePrivateRequest> captor =
-                ArgumentCaptor.forClass(com.jobai.backend.domain.ai.dto.ScorePrivateRequest.class);
+        ArgumentCaptor<ScorePrivateRequest> captor =
+                ArgumentCaptor.forClass(ScorePrivateRequest.class);
         verify(aiScoringClient).scorePrivate(captor.capture());
         assertThat(captor.getValue().experienceYears()).isEqualTo(3);
     }
@@ -340,8 +341,8 @@ class PrivateMatchingServiceTest {
 
         service.calculateScores(1L);
 
-        ArgumentCaptor<com.jobai.backend.domain.ai.dto.ScorePrivateRequest> captor =
-                ArgumentCaptor.forClass(com.jobai.backend.domain.ai.dto.ScorePrivateRequest.class);
+        ArgumentCaptor<ScorePrivateRequest> captor =
+                ArgumentCaptor.forClass(ScorePrivateRequest.class);
         verify(aiScoringClient).scorePrivate(captor.capture());
         assertThat(captor.getValue().experienceYears()).isEqualTo(0);
     }
@@ -366,8 +367,8 @@ class PrivateMatchingServiceTest {
 
         service.calculateScores(1L);
 
-        ArgumentCaptor<com.jobai.backend.domain.ai.dto.ScorePrivateRequest> captor =
-                ArgumentCaptor.forClass(com.jobai.backend.domain.ai.dto.ScorePrivateRequest.class);
+        ArgumentCaptor<ScorePrivateRequest> captor =
+                ArgumentCaptor.forClass(ScorePrivateRequest.class);
         verify(aiScoringClient).scorePrivate(captor.capture());
         assertThat(captor.getValue().resumeSkills()).isEmpty();
     }

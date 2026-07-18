@@ -1,8 +1,8 @@
 package com.jobai.backend.domain.search.service;
 
-import com.jobai.backend.domain.ai.client.AiRerankClient;
-import com.jobai.backend.domain.ai.dto.RerankResponse;
-import com.jobai.backend.domain.ai.dto.RerankResponse.RerankScore;
+import com.jobai.backend.global.ai.client.AiRerankClient;
+import com.jobai.backend.global.ai.dto.RerankResponse;
+import com.jobai.backend.global.ai.dto.RerankResponse.RerankScore;
 import com.jobai.backend.domain.search.dto.JobSearchResponse.JobSummary;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;

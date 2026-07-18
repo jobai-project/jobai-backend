@@ -1,7 +1,11 @@
 package com.jobai.backend.domain.crawler.classify;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.jobai.backend.domain.crawler.classify.JobClassifier.ClassificationResult;
+import com.jobai.backend.domain.jobposting.service.JobClassifier;
+import com.jobai.backend.domain.jobposting.service.JobClassifier.ClassificationResult;
+import com.jobai.backend.global.model.EmploymentType;
+import com.jobai.backend.global.model.ExperienceLevel;
+import com.jobai.backend.global.model.JobCategory;
 import com.jobai.backend.global.llm.AnthropicClient;
 import com.jobai.backend.global.llm.LlmException;
 import org.junit.jupiter.api.BeforeEach;

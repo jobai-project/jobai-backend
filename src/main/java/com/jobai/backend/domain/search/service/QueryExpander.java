@@ -1,5 +1,6 @@
 package com.jobai.backend.domain.search.service;
 
+import com.jobai.backend.domain.search.dto.QueryExpansionResult;
 import com.jobai.backend.global.llm.AnthropicClient;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

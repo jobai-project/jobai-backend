@@ -1,14 +1,15 @@
 package com.jobai.backend.domain.crawler.service;
 
-import com.jobai.backend.domain.crawler.classify.EmploymentType;
-import com.jobai.backend.domain.crawler.classify.ExperienceLevel;
-import com.jobai.backend.domain.crawler.classify.JobCategory;
-import com.jobai.backend.domain.crawler.classify.JobClassifier;
-import com.jobai.backend.domain.crawler.classify.JobClassifier.ClassificationResult;
-import com.jobai.backend.domain.crawler.engine.DeclarativeCrawler;
-import com.jobai.backend.domain.crawler.entity.PrivateJobPosting;
-import com.jobai.backend.domain.crawler.model.JobRecord;
+import com.jobai.backend.global.model.EmploymentType;
+import com.jobai.backend.global.model.ExperienceLevel;
+import com.jobai.backend.global.model.JobCategory;
+import com.jobai.backend.domain.jobposting.service.JobClassifier;
+import com.jobai.backend.domain.jobposting.service.JobClassifier.ClassificationResult;
+import com.jobai.backend.domain.jobposting.entity.PrivateJobPosting;
 import com.jobai.backend.domain.crawler.spec.CrawlSpec;
+import com.jobai.backend.domain.jobposting.service.PrivateJobCollectService;
+import com.jobai.backend.domain.jobposting.service.PrivateJobPostingService;
+import com.jobai.backend.domain.jobposting.service.SaveResult;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
