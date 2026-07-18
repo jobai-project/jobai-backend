@@ -228,12 +228,11 @@ JobA!는 사용자가 채용공고를 직접 찾는 대신,
 
 ## 👨‍👩‍👧‍👦 Developer
 
-| 이원준 | 김민주 | 이정헌 |
+## Devloper
+| 김민주 | 이원준 | 이정헌 | 
 |:------:|:------:|:------:|
-| <!-- 📷 프로필 이미지 --> | <!-- 📷 프로필 이미지 --> | <!-- 📷 프로필 이미지 --> |
-| PM / BE | BE | BE |
-| [GitHub](#) | [GitHub](#) | [GitHub](#) |
-
-> 전체 팀 · DE 권소윤 · 이예담 / FE 김민정 · 이지민 / AI 이연진 · 이예린
+| <img src="" alt="김민주" width="150"> | <img src="https://github.com/wonjun-lee-fcwj245.png" alt="이원준" width="150"> | <img src="" alt="이은채" width="150"> |
+| BE | BE | BE | 
+|  | [GitHub](https://github.com/wonjun-lee-fcwj245) | | 
 
 ---
