@@ -6,6 +6,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
+import org.springframework.web.util.HtmlUtils;
 import software.amazon.awssdk.services.sesv2.SesV2Client;
 import software.amazon.awssdk.services.sesv2.model.Body;
 import software.amazon.awssdk.services.sesv2.model.Content;
@@ -84,13 +85,13 @@ public class EmailNotificationService {
     private String buildHtmlBody(RealtimeNotificationPayload payload) {
         StringBuilder body = new StringBuilder()
                 .append("<p>")
-                .append(escapeHtml(payload.message()))
+                .append(escapeHtmlWithLineBreaks(payload.message()))
                 .append("</p>");
 
         String linkUrl = resolveLinkUrl(payload.linkUrl());
         if (StringUtils.hasText(linkUrl)) {
             body.append("<p><a href=\"")
-                    .append(escapeHtml(linkUrl))
+                    .append(htmlEscape(linkUrl))
                     .append("\">JobAI에서 확인하기</a></p>");
         }
 
@@ -118,16 +119,11 @@ public class EmailNotificationService {
         }
     }
 
-    private String escapeHtml(String value) {
-        if (value == null) {
-            return "";
-        }
+    private String escapeHtmlWithLineBreaks(String value) {
+        return htmlEscape(value).replace("\n", "<br>");
+    }
 
-        return value
-                .replace("&", "&amp;")
-                .replace("<", "&lt;")
-                .replace(">", "&gt;")
-                .replace("\"", "&quot;")
-                .replace("'", "&#39;");
+    private String htmlEscape(String value) {
+        return HtmlUtils.htmlEscape(value == null ? "" : value, "UTF-8");
     }
 }
