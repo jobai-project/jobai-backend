@@ -1,8 +1,8 @@
 package com.jobai.backend.domain.crawler.service;
 
-import com.jobai.backend.global.model.EmploymentType;
-import com.jobai.backend.global.model.ExperienceLevel;
-import com.jobai.backend.global.model.JobCategory;
+import com.jobai.backend.global.enums.EmploymentType;
+import com.jobai.backend.global.enums.ExperienceLevel;
+import com.jobai.backend.global.enums.JobCategory;
 import com.jobai.backend.domain.jobposting.service.JobClassifier;
 import com.jobai.backend.domain.jobposting.service.JobClassifier.ClassificationResult;
 import com.jobai.backend.domain.jobposting.entity.PrivateJobPosting;

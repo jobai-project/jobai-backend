@@ -2,10 +2,10 @@ package com.jobai.backend.domain.jobposting.service;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.jobai.backend.global.model.EmploymentType;
-import com.jobai.backend.global.model.ExperienceLevel;
-import com.jobai.backend.global.model.JobCategory;
-import com.jobai.backend.global.model.Location;
+import com.jobai.backend.global.enums.EmploymentType;
+import com.jobai.backend.global.enums.ExperienceLevel;
+import com.jobai.backend.global.enums.JobCategory;
+import com.jobai.backend.global.enums.Location;
 import com.jobai.backend.global.llm.AnthropicClient;
 import com.jobai.backend.global.llm.LlmException;
 import lombok.RequiredArgsConstructor;

@@ -16,7 +16,7 @@ import com.jobai.backend.domain.member.repository.ResumesRepository;
 import com.jobai.backend.domain.notification.entity.Notification;
 import com.jobai.backend.domain.notification.repository.NotificationRepository;
 import com.jobai.backend.domain.search.entity.JobEmbedding;
-import com.jobai.backend.global.model.JobSource;
+import com.jobai.backend.global.enums.JobSource;
 import com.jobai.backend.domain.search.repository.JobEmbeddingRepository;
 import com.jobai.backend.domain.search.service.EmbeddingService;
 import lombok.RequiredArgsConstructor;

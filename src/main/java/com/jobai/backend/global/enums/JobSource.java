@@ -1,4 +1,4 @@
-package com.jobai.backend.global.model;
+package com.jobai.backend.global.enums;
 
 /**
  * 공고 출처를 나타내는 열거형.

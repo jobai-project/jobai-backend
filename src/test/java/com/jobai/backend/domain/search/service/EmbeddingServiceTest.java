@@ -6,7 +6,7 @@ import com.jobai.backend.global.ai.dto.EmbedResponse;
 import com.jobai.backend.domain.jobposting.entity.PrivateJobPosting;
 import com.jobai.backend.domain.publicInstitution.entity.PublicJobPosting;
 import com.jobai.backend.domain.search.entity.JobEmbedding;
-import com.jobai.backend.global.model.JobSource;
+import com.jobai.backend.global.enums.JobSource;
 import com.jobai.backend.domain.search.repository.JobEmbeddingRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;

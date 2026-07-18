@@ -1,7 +1,7 @@
 package com.jobai.backend.domain.search.repository;
 
 import com.jobai.backend.domain.search.entity.JobEmbedding;
-import com.jobai.backend.global.model.JobSource;
+import com.jobai.backend.global.enums.JobSource;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;

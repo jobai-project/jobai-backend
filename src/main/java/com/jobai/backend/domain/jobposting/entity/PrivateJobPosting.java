@@ -1,9 +1,9 @@
 package com.jobai.backend.domain.jobposting.entity;
 
-import com.jobai.backend.global.model.EmploymentType;
-import com.jobai.backend.global.model.ExperienceLevel;
-import com.jobai.backend.global.model.JobCategory;
-import com.jobai.backend.global.model.Location;
+import com.jobai.backend.global.enums.EmploymentType;
+import com.jobai.backend.global.enums.ExperienceLevel;
+import com.jobai.backend.global.enums.JobCategory;
+import com.jobai.backend.global.enums.Location;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;

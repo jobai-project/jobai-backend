@@ -1,7 +1,7 @@
 package com.jobai.backend.domain.jobposting.scheduler;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.jobai.backend.global.model.JobCategory;
+import com.jobai.backend.global.enums.JobCategory;
 import com.jobai.backend.domain.jobposting.entity.PrivateJobPosting;
 import com.jobai.backend.domain.jobposting.repository.PrivateJobPostingRepository;
 import com.jobai.backend.domain.jobposting.service.JobDescriptionCleanser;

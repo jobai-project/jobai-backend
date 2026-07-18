@@ -11,7 +11,7 @@ import com.jobai.backend.domain.member.repository.ResumesRepository;
 import com.jobai.backend.domain.publicInstitution.entity.PublicJobPosting;
 import com.jobai.backend.domain.publicInstitution.repository.JobPostingRepository;
 import com.jobai.backend.domain.search.entity.JobEmbedding;
-import com.jobai.backend.global.model.JobSource;
+import com.jobai.backend.global.enums.JobSource;
 import com.jobai.backend.domain.search.repository.JobEmbeddingRepository;
 import com.jobai.backend.domain.search.service.EmbeddingService;
 import org.junit.jupiter.api.BeforeEach;

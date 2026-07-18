@@ -1,4 +1,4 @@
-package com.jobai.backend.global.model;
+package com.jobai.backend.global.enums;
 
 import java.util.Arrays;
 import java.util.Map;
