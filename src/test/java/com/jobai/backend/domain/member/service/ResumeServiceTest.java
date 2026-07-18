@@ -7,6 +7,8 @@ import com.jobai.backend.domain.member.repository.MemberRepository;
 import com.jobai.backend.domain.member.repository.ResumesRepository;
 import com.jobai.backend.global.apiPayload.code.GeneralErrorCode;
 import com.jobai.backend.global.apiPayload.exception.GeneralException;
+import com.jobai.backend.domain.home.repository.PrivateMatchScoreRepository;
+import com.jobai.backend.domain.home.repository.PublicMatchScoreRepository;
 import com.jobai.backend.domain.home.service.PrivateMatchingService;
 import com.jobai.backend.domain.home.service.PublicMatchingService;
 import com.jobai.backend.domain.search.service.EmbeddingService;
@@ -60,6 +62,12 @@ class ResumeServiceTest {
     @Mock
     private PublicMatchingService publicMatchingService;
 
+    @Mock
+    private PrivateMatchScoreRepository privateMatchScoreRepository;
+
+    @Mock
+    private PublicMatchScoreRepository publicMatchScoreRepository;
+
     private ResumeService resumeService;
 
     private static final String EMAIL = "test@jobai.com";
@@ -68,7 +76,8 @@ class ResumeServiceTest {
     void setUp() {
         resumeService = new ResumeService(
                 resumesRepository, memberRepository, fileStorageService,
-                resumeParsingService, embeddingService, privateMatchingService, publicMatchingService);
+                resumeParsingService, embeddingService, privateMatchingService, publicMatchingService,
+                privateMatchScoreRepository, publicMatchScoreRepository);
     }
 
     private Member member(Long id, String email) {
@@ -267,8 +276,8 @@ class ResumeServiceTest {
     // -------------------------------------------------------
 
     @Test
-    @DisplayName("삭제: DB 삭제 후 S3 삭제 순서로 처리한다")
-    void deleteResume_success_deletesDbBeforeS3() {
+    @DisplayName("삭제: 매칭 점수를 먼저 삭제한 후 DB 삭제, 그다음 S3 삭제 순서로 처리한다")
+    void deleteResume_success_deletesMatchScoresBeforeDbBeforeS3() {
         Member owner = member(1L, EMAIL);
         String fileUrl = "https://bucket.s3.ap-northeast-2.amazonaws.com/resumes/1/key.pdf";
         Resumes resume = Resumes.builder().id(5L).member(owner).storedFileUrl(fileUrl).build();
@@ -276,7 +285,10 @@ class ResumeServiceTest {
 
         resumeService.deleteResume(EMAIL, 5L);
 
-        InOrder inOrder = inOrder(resumesRepository, fileStorageService);
+        InOrder inOrder = inOrder(privateMatchScoreRepository, publicMatchScoreRepository,
+                resumesRepository, fileStorageService);
+        inOrder.verify(privateMatchScoreRepository).deleteByResumeId(5L);
+        inOrder.verify(publicMatchScoreRepository).deleteByResumeId(5L);
         inOrder.verify(resumesRepository).delete(resume);
         inOrder.verify(fileStorageService).delete(fileUrl);
     }
