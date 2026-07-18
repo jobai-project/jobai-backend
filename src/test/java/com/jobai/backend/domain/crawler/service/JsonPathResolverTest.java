@@ -1,4 +1,4 @@
-package com.jobai.backend.domain.crawler.engine;
+package com.jobai.backend.domain.crawler.service;
 
 import com.jobai.backend.domain.crawler.service.JsonPathResolver;
 import org.junit.jupiter.api.Test;

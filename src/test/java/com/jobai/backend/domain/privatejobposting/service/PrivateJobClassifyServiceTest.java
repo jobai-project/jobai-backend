@@ -1,4 +1,4 @@
-package com.jobai.backend.domain.crawler.service;
+package com.jobai.backend.domain.privatejobposting.service;
 
 import com.jobai.backend.global.enums.EmploymentType;
 import com.jobai.backend.global.enums.ExperienceLevel;

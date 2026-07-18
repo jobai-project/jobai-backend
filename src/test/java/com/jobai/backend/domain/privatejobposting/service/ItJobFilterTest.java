@@ -1,4 +1,4 @@
-package com.jobai.backend.domain.crawler.export;
+package com.jobai.backend.domain.privatejobposting.service;
 
 import com.jobai.backend.domain.privatejobposting.service.ItJobFilter;
 import org.junit.jupiter.api.DisplayName;

@@ -1,4 +1,4 @@
-package com.jobai.backend.domain.crawler.controller;
+package com.jobai.backend.domain.privatejob.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jobai.backend.domain.privatejob.entity.JobPostingSummary;

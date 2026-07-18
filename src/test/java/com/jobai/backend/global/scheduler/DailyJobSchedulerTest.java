@@ -1,4 +1,4 @@
-package com.jobai.backend.domain.crawler.scheduler;
+package com.jobai.backend.global.scheduler;
 
 import com.jobai.backend.domain.privatejobposting.service.PrivateJobBatchCollectService;
 import com.jobai.backend.domain.privatejobposting.service.PrivateJobPostingService;
