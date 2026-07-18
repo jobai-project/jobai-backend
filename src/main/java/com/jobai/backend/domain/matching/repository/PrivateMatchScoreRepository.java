@@ -1,6 +1,6 @@
-package com.jobai.backend.domain.home.repository;
+package com.jobai.backend.domain.matching.repository;
 
-import com.jobai.backend.domain.home.entity.PrivateMatchScore;
+import com.jobai.backend.domain.matching.entity.PrivateMatchScore;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.List;

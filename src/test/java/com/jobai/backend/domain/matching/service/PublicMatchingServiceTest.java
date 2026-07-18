@@ -1,15 +1,15 @@
-package com.jobai.backend.domain.home.service;
+package com.jobai.backend.domain.matching.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jobai.backend.global.ai.client.AiScoringClient;
-import com.jobai.backend.global.ai.dto.ScorePrivateRequest;
-import com.jobai.backend.global.ai.dto.ScorePrivateResponse;
-import com.jobai.backend.domain.privatejobposting.entity.PrivateJobPosting;
-import com.jobai.backend.domain.privatejobposting.repository.PrivateJobPostingRepository;
-import com.jobai.backend.domain.home.repository.PrivateMatchScoreRepository;
+import com.jobai.backend.global.ai.dto.ScorePublicRequest;
+import com.jobai.backend.global.ai.dto.ScorePublicResponse;
+import com.jobai.backend.domain.matching.repository.PublicMatchScoreRepository;
 import com.jobai.backend.domain.member.entity.Member;
 import com.jobai.backend.domain.member.entity.Resumes;
 import com.jobai.backend.domain.member.repository.ResumesRepository;
+import com.jobai.backend.domain.publicInstitution.entity.PublicJobPosting;
+import com.jobai.backend.domain.publicInstitution.repository.JobPostingRepository;
 import com.jobai.backend.domain.search.entity.JobEmbedding;
 import com.jobai.backend.global.enums.JobSource;
 import com.jobai.backend.domain.search.repository.JobEmbeddingRepository;
@@ -29,36 +29,36 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
-class PrivateMatchingServiceTest {
+class PublicMatchingServiceTest {
 
     private AiScoringClient aiScoringClient;
-    private PrivateJobPostingRepository privateJobPostingRepository;
+    private JobPostingRepository jobPostingRepository;
     private JobEmbeddingRepository jobEmbeddingRepository;
     private EmbeddingService embeddingService;
-    private PrivateMatchScoreRepository privateMatchScoreRepository;
+    private PublicMatchScoreRepository publicMatchScoreRepository;
     private ResumesRepository resumesRepository;
     private ObjectMapper objectMapper;
 
-    private PrivateMatchingService service;
+    private PublicMatchingService service;
 
-    private final AtomicLong postingIdCounter = new AtomicLong(100);
+    private final AtomicLong postingIdCounter = new AtomicLong(200);
 
     @BeforeEach
     void setUp() {
         aiScoringClient = Mockito.mock(AiScoringClient.class);
-        privateJobPostingRepository = Mockito.mock(PrivateJobPostingRepository.class);
+        jobPostingRepository = Mockito.mock(JobPostingRepository.class);
         jobEmbeddingRepository = Mockito.mock(JobEmbeddingRepository.class);
         embeddingService = Mockito.mock(EmbeddingService.class);
-        privateMatchScoreRepository = Mockito.mock(PrivateMatchScoreRepository.class);
+        publicMatchScoreRepository = Mockito.mock(PublicMatchScoreRepository.class);
         resumesRepository = Mockito.mock(ResumesRepository.class);
         objectMapper = new ObjectMapper();
 
-        service = new PrivateMatchingService(
+        service = new PublicMatchingService(
                 aiScoringClient,
-                privateJobPostingRepository,
+                jobPostingRepository,
                 jobEmbeddingRepository,
                 embeddingService,
-                privateMatchScoreRepository,
+                publicMatchScoreRepository,
                 resumesRepository,
                 objectMapper
         );
@@ -71,24 +71,27 @@ class PrivateMatchingServiceTest {
                 .build();
     }
 
-    private Resumes createResume(Member member, float[] embedding, String skills) {
+    private Resumes createResume(Member member, float[] ncsEmbedding, String skills) {
         return Resumes.builder()
                 .member(member)
                 .extractedText("이력서 텍스트")
-                .embedding(embedding)
+                .ncsEmbedding(ncsEmbedding)
                 .resumeSkills(skills)
                 .isActive(true)
                 .build();
     }
 
-    private PrivateJobPosting createPosting(String title, String category, boolean closed) {
-        return PrivateJobPosting.builder()
+    private PublicJobPosting createPosting(String title, boolean closed) {
+        return PublicJobPosting.builder()
                 .id(postingIdCounter.getAndIncrement())
-                .company("testcompany")
-                .sourceJobId("job-" + title)
                 .title(title)
-                .description("설명")
-                .jobCategory(category)
+                .companyName("한국테스트공사")
+                .jobRole("전산")
+                .workExperience("신입")
+                .recrutType("정규직")
+                .applyQualification("자격요건")
+                .applicationMethod("온라인 접수")
+                .htmlContent("<p>본문</p>")
                 .isClosed(closed)
                 .build();
     }
@@ -97,10 +100,13 @@ class PrivateMatchingServiceTest {
         return new float[]{0.1f, 0.2f, 0.3f};
     }
 
-    private ScorePrivateResponse dummyScoreResponse(double score) {
-        return new ScorePrivateResponse(
-                score, true, List.of("Java", "Spring"), List.of("Kubernetes"),
-                true, "기술스택 일치", "v1.0"
+    private ScorePublicResponse dummyScoreResponse(double score) {
+        return new ScorePublicResponse(
+                score, true, 0.5, 0.6, 0.7, -5.0,
+                List.of("Python"), List.of("Linux"),
+                List.of(), List.of(),
+                "데이터/AI", "데이터/AI",
+                "직무 클러스터 일치", List.of()
         );
     }
 
@@ -111,12 +117,12 @@ class PrivateMatchingServiceTest {
 
         service.calculateScores(1L);
 
-        verifyNoInteractions(privateMatchScoreRepository);
+        verifyNoInteractions(publicMatchScoreRepository);
         verifyNoInteractions(aiScoringClient);
     }
 
     @Test
-    @DisplayName("이력서 임베딩이 없으면 점수 계산을 건너뛴다")
+    @DisplayName("이력서 NCS 임베딩이 없으면 점수 계산을 건너뛴다")
     void calculateScores_임베딩없음() {
         Member member = createMember("신입");
         Resumes resume = createResume(member, null, null);
@@ -125,7 +131,7 @@ class PrivateMatchingServiceTest {
         service.calculateScores(1L);
 
         verifyNoInteractions(aiScoringClient);
-        verify(privateMatchScoreRepository, never()).save(any());
+        verify(publicMatchScoreRepository, never()).save(any());
     }
 
     @Test
@@ -134,78 +140,44 @@ class PrivateMatchingServiceTest {
         Member member = createMember("신입");
         Resumes resume = createResume(member, dummyEmbedding(), "[\"Java\"]");
         when(resumesRepository.findById(1L)).thenReturn(Optional.of(resume));
-        when(privateJobPostingRepository.findAll()).thenReturn(List.of());
+        when(jobPostingRepository.findActivePublicPostings()).thenReturn(List.of());
 
         service.calculateScores(1L);
 
-        verify(privateMatchScoreRepository).deleteByResumeId(1L);
-        verify(aiScoringClient, never()).scorePrivate(any());
-    }
-
-    @Test
-    @DisplayName("마감된 공고는 점수 계산에서 제외된다")
-    void calculateScores_마감공고제외() {
-        Member member = createMember("신입");
-        Resumes resume = createResume(member, dummyEmbedding(), "[\"Java\"]");
-        when(resumesRepository.findById(1L)).thenReturn(Optional.of(resume));
-
-        PrivateJobPosting closedPosting = createPosting("마감공고", "백엔드", true);
-        when(privateJobPostingRepository.findAll()).thenReturn(List.of(closedPosting));
-
-        service.calculateScores(1L);
-
-        verify(privateMatchScoreRepository).deleteByResumeId(1L);
-        verify(aiScoringClient, never()).scorePrivate(any());
-    }
-
-    @Test
-    @DisplayName("미분류/미대상 카테고리의 공고는 제외된다")
-    void calculateScores_미분류미대상_제외() {
-        Member member = createMember("신입");
-        Resumes resume = createResume(member, dummyEmbedding(), "[\"Java\"]");
-        when(resumesRepository.findById(1L)).thenReturn(Optional.of(resume));
-
-        PrivateJobPosting unclassified = createPosting("공고1", "미분류", false);
-        PrivateJobPosting notTarget = createPosting("공고2", "미대상", false);
-        when(privateJobPostingRepository.findAll()).thenReturn(List.of(unclassified, notTarget));
-
-        service.calculateScores(1L);
-
-        verify(privateMatchScoreRepository).deleteByResumeId(1L);
-        verify(aiScoringClient, never()).scorePrivate(any());
+        verify(publicMatchScoreRepository).deleteByResumeId(1L);
+        verify(aiScoringClient, never()).scorePublic(any());
     }
 
     @Test
     @DisplayName("정상적으로 매칭 점수를 계산하고 저장한다")
     void calculateScores_정상계산() {
         Member member = createMember("경력직");
-        Resumes resume = createResume(member, dummyEmbedding(), "[\"Java\",\"Spring\"]");
+        Resumes resume = createResume(member, dummyEmbedding(), "[\"Python\",\"SQL\"]");
         when(resumesRepository.findById(1L)).thenReturn(Optional.of(resume));
 
-        PrivateJobPosting posting = createPosting("백엔드 개발자", "백엔드", false);
-        when(privateJobPostingRepository.findAll()).thenReturn(List.of(posting));
+        PublicJobPosting posting = createPosting("데이터 분석원", false);
+        when(jobPostingRepository.findActivePublicPostings()).thenReturn(List.of(posting));
 
-        float[] jdVec = new float[]{0.4f, 0.5f, 0.6f};
         JobEmbedding jobEmbedding = JobEmbedding.builder()
-                .source(JobSource.PRIVATE)
+                .source(JobSource.PUBLIC)
                 .sourceId(posting.getId())
-                .embedding(jdVec)
-                .embeddingText("백엔드 개발자\n설명")
+                .embedding(new float[]{0.4f, 0.5f, 0.6f})
+                .embeddingText("데이터 분석원\n본문")
                 .build();
-        when(jobEmbeddingRepository.findBySourceAndSourceId(JobSource.PRIVATE, posting.getId()))
+        when(jobEmbeddingRepository.findBySourceAndSourceId(JobSource.PUBLIC, posting.getId()))
                 .thenReturn(Optional.of(jobEmbedding));
 
-        when(aiScoringClient.scorePrivate(any()))
+        when(aiScoringClient.scorePublic(any()))
                 .thenReturn(Mono.just(dummyScoreResponse(85.5)));
 
         service.calculateScores(1L);
 
-        verify(privateMatchScoreRepository).deleteByResumeId(1L);
-        verify(privateMatchScoreRepository).save(argThat(score -> {
+        verify(publicMatchScoreRepository).deleteByResumeId(1L);
+        verify(publicMatchScoreRepository).save(argThat(score -> {
             assertThat(score.getScore()).isEqualTo(86); // Math.round(85.5)
-            assertThat(score.getScoreReason()).isEqualTo("기술스택 일치");
-            assertThat(score.getCareerMet()).isTrue();
-            assertThat(score.getModelVersion()).isEqualTo("v1.0");
+            assertThat(score.getScoreReason()).isEqualTo("직무 클러스터 일치");
+            assertThat(score.getJobCluster()).isEqualTo("데이터/AI");
+            assertThat(score.getResumeCluster()).isEqualTo("데이터/AI");
             return true;
         }));
     }
@@ -217,27 +189,26 @@ class PrivateMatchingServiceTest {
         Resumes resume = createResume(member, dummyEmbedding(), "[\"Python\"]");
         when(resumesRepository.findById(1L)).thenReturn(Optional.of(resume));
 
-        PrivateJobPosting posting = createPosting("ML 엔지니어", "AI/ML", false);
-        when(privateJobPostingRepository.findAll()).thenReturn(List.of(posting));
+        PublicJobPosting posting = createPosting("전산 주무관", false);
+        when(jobPostingRepository.findActivePublicPostings()).thenReturn(List.of(posting));
 
-        float[] jdVec = new float[]{0.7f, 0.8f};
         JobEmbedding created = JobEmbedding.builder()
-                .source(JobSource.PRIVATE)
+                .source(JobSource.PUBLIC)
                 .sourceId(posting.getId())
-                .embedding(jdVec)
-                .embeddingText("ML 엔지니어\n설명")
+                .embedding(new float[]{0.7f, 0.8f})
+                .embeddingText("전산 주무관\n본문")
                 .build();
-        when(jobEmbeddingRepository.findBySourceAndSourceId(JobSource.PRIVATE, posting.getId()))
+        when(jobEmbeddingRepository.findBySourceAndSourceId(JobSource.PUBLIC, posting.getId()))
                 .thenReturn(Optional.empty())
                 .thenReturn(Optional.of(created));
 
-        when(aiScoringClient.scorePrivate(any()))
+        when(aiScoringClient.scorePublic(any()))
                 .thenReturn(Mono.just(dummyScoreResponse(72.0)));
 
         service.calculateScores(1L);
 
-        verify(embeddingService).embedPrivatePosting(posting);
-        verify(privateMatchScoreRepository).save(any());
+        verify(embeddingService).embedPublicPosting(posting);
+        verify(publicMatchScoreRepository).save(any());
     }
 
     @Test
@@ -247,29 +218,26 @@ class PrivateMatchingServiceTest {
         Resumes resume = createResume(member, dummyEmbedding(), "[]");
         when(resumesRepository.findById(1L)).thenReturn(Optional.of(resume));
 
-        PrivateJobPosting posting1 = createPosting("공고1", "프론트엔드", false);
-        PrivateJobPosting posting2 = createPosting("공고2", "백엔드", false);
-        when(privateJobPostingRepository.findAll()).thenReturn(List.of(posting1, posting2));
+        PublicJobPosting posting1 = createPosting("공고1", false);
+        PublicJobPosting posting2 = createPosting("공고2", false);
+        when(jobPostingRepository.findActivePublicPostings()).thenReturn(List.of(posting1, posting2));
 
-        // posting1: 임베딩 생성 실패
-        when(jobEmbeddingRepository.findBySourceAndSourceId(JobSource.PRIVATE, posting1.getId()))
+        when(jobEmbeddingRepository.findBySourceAndSourceId(JobSource.PUBLIC, posting1.getId()))
                 .thenReturn(Optional.empty());
         doThrow(new RuntimeException("AI 서버 오류"))
-                .when(embeddingService).embedPrivatePosting(posting1);
+                .when(embeddingService).embedPublicPosting(posting1);
 
-        // posting2: 정상
         JobEmbedding embed2 = JobEmbedding.builder()
-                .source(JobSource.PRIVATE).sourceId(posting2.getId())
+                .source(JobSource.PUBLIC).sourceId(posting2.getId())
                 .embedding(new float[]{0.1f}).embeddingText("text").build();
-        when(jobEmbeddingRepository.findBySourceAndSourceId(JobSource.PRIVATE, posting2.getId()))
+        when(jobEmbeddingRepository.findBySourceAndSourceId(JobSource.PUBLIC, posting2.getId()))
                 .thenReturn(Optional.of(embed2));
-        when(aiScoringClient.scorePrivate(any()))
+        when(aiScoringClient.scorePublic(any()))
                 .thenReturn(Mono.just(dummyScoreResponse(90.0)));
 
         service.calculateScores(1L);
 
-        // posting1 실패해도 posting2는 정상 저장
-        verify(privateMatchScoreRepository, times(1)).save(any());
+        verify(publicMatchScoreRepository, times(1)).save(any());
     }
 
     @Test
@@ -279,20 +247,20 @@ class PrivateMatchingServiceTest {
         Resumes resume = createResume(member, dummyEmbedding(), "[]");
         when(resumesRepository.findById(1L)).thenReturn(Optional.of(resume));
 
-        PrivateJobPosting posting = createPosting("공고", "백엔드", false);
-        when(privateJobPostingRepository.findAll()).thenReturn(List.of(posting));
+        PublicJobPosting posting = createPosting("공고", false);
+        when(jobPostingRepository.findActivePublicPostings()).thenReturn(List.of(posting));
 
         JobEmbedding embed = JobEmbedding.builder()
-                .source(JobSource.PRIVATE).sourceId(posting.getId())
+                .source(JobSource.PUBLIC).sourceId(posting.getId())
                 .embedding(new float[]{0.1f}).embeddingText("text").build();
-        when(jobEmbeddingRepository.findBySourceAndSourceId(JobSource.PRIVATE, posting.getId()))
+        when(jobEmbeddingRepository.findBySourceAndSourceId(JobSource.PUBLIC, posting.getId()))
                 .thenReturn(Optional.of(embed));
-        when(aiScoringClient.scorePrivate(any()))
+        when(aiScoringClient.scorePublic(any()))
                 .thenThrow(new RuntimeException("AI 서버 타임아웃"));
 
         service.calculateScores(1L);
 
-        verify(privateMatchScoreRepository, never()).save(any());
+        verify(publicMatchScoreRepository, never()).save(any());
     }
 
     @Test
@@ -302,23 +270,22 @@ class PrivateMatchingServiceTest {
         Resumes resume = createResume(member, dummyEmbedding(), "[\"Java\"]");
         when(resumesRepository.findById(1L)).thenReturn(Optional.of(resume));
 
-        PrivateJobPosting posting = createPosting("개발자", "백엔드", false);
-        when(privateJobPostingRepository.findAll()).thenReturn(List.of(posting));
+        PublicJobPosting posting = createPosting("개발자", false);
+        when(jobPostingRepository.findActivePublicPostings()).thenReturn(List.of(posting));
 
         JobEmbedding embed = JobEmbedding.builder()
-                .source(JobSource.PRIVATE).sourceId(posting.getId())
+                .source(JobSource.PUBLIC).sourceId(posting.getId())
                 .embedding(new float[]{0.1f}).embeddingText("text").build();
-        when(jobEmbeddingRepository.findBySourceAndSourceId(JobSource.PRIVATE, posting.getId()))
+        when(jobEmbeddingRepository.findBySourceAndSourceId(JobSource.PUBLIC, posting.getId()))
                 .thenReturn(Optional.of(embed));
-        when(aiScoringClient.scorePrivate(any()))
+        when(aiScoringClient.scorePublic(any()))
                 .thenReturn(Mono.just(dummyScoreResponse(80.0)));
 
         service.calculateScores(1L);
 
-        ArgumentCaptor<ScorePrivateRequest> captor =
-                ArgumentCaptor.forClass(ScorePrivateRequest.class);
-        verify(aiScoringClient).scorePrivate(captor.capture());
-        assertThat(captor.getValue().experienceYears()).isEqualTo(3);
+        ArgumentCaptor<ScorePublicRequest> captor = ArgumentCaptor.forClass(ScorePublicRequest.class);
+        verify(aiScoringClient).scorePublic(captor.capture());
+        assertThat(captor.getValue().resume().experienceYears()).isEqualTo(3);
     }
 
     @Test
@@ -328,23 +295,22 @@ class PrivateMatchingServiceTest {
         Resumes resume = createResume(member, dummyEmbedding(), "[\"Python\"]");
         when(resumesRepository.findById(1L)).thenReturn(Optional.of(resume));
 
-        PrivateJobPosting posting = createPosting("개발자", "프론트엔드", false);
-        when(privateJobPostingRepository.findAll()).thenReturn(List.of(posting));
+        PublicJobPosting posting = createPosting("개발자", false);
+        when(jobPostingRepository.findActivePublicPostings()).thenReturn(List.of(posting));
 
         JobEmbedding embed = JobEmbedding.builder()
-                .source(JobSource.PRIVATE).sourceId(posting.getId())
+                .source(JobSource.PUBLIC).sourceId(posting.getId())
                 .embedding(new float[]{0.1f}).embeddingText("text").build();
-        when(jobEmbeddingRepository.findBySourceAndSourceId(JobSource.PRIVATE, posting.getId()))
+        when(jobEmbeddingRepository.findBySourceAndSourceId(JobSource.PUBLIC, posting.getId()))
                 .thenReturn(Optional.of(embed));
-        when(aiScoringClient.scorePrivate(any()))
+        when(aiScoringClient.scorePublic(any()))
                 .thenReturn(Mono.just(dummyScoreResponse(70.0)));
 
         service.calculateScores(1L);
 
-        ArgumentCaptor<ScorePrivateRequest> captor =
-                ArgumentCaptor.forClass(ScorePrivateRequest.class);
-        verify(aiScoringClient).scorePrivate(captor.capture());
-        assertThat(captor.getValue().experienceYears()).isEqualTo(0);
+        ArgumentCaptor<ScorePublicRequest> captor = ArgumentCaptor.forClass(ScorePublicRequest.class);
+        verify(aiScoringClient).scorePublic(captor.capture());
+        assertThat(captor.getValue().resume().experienceYears()).isEqualTo(0);
     }
 
     @Test
@@ -354,23 +320,48 @@ class PrivateMatchingServiceTest {
         Resumes resume = createResume(member, dummyEmbedding(), null);
         when(resumesRepository.findById(1L)).thenReturn(Optional.of(resume));
 
-        PrivateJobPosting posting = createPosting("개발자", "백엔드", false);
-        when(privateJobPostingRepository.findAll()).thenReturn(List.of(posting));
+        PublicJobPosting posting = createPosting("개발자", false);
+        when(jobPostingRepository.findActivePublicPostings()).thenReturn(List.of(posting));
 
         JobEmbedding embed = JobEmbedding.builder()
-                .source(JobSource.PRIVATE).sourceId(posting.getId())
+                .source(JobSource.PUBLIC).sourceId(posting.getId())
                 .embedding(new float[]{0.1f}).embeddingText("text").build();
-        when(jobEmbeddingRepository.findBySourceAndSourceId(JobSource.PRIVATE, posting.getId()))
+        when(jobEmbeddingRepository.findBySourceAndSourceId(JobSource.PUBLIC, posting.getId()))
                 .thenReturn(Optional.of(embed));
-        when(aiScoringClient.scorePrivate(any()))
+        when(aiScoringClient.scorePublic(any()))
                 .thenReturn(Mono.just(dummyScoreResponse(60.0)));
 
         service.calculateScores(1L);
 
-        ArgumentCaptor<ScorePrivateRequest> captor =
-                ArgumentCaptor.forClass(ScorePrivateRequest.class);
-        verify(aiScoringClient).scorePrivate(captor.capture());
-        assertThat(captor.getValue().resumeSkills()).isEmpty();
+        ArgumentCaptor<ScorePublicRequest> captor = ArgumentCaptor.forClass(ScorePublicRequest.class);
+        verify(aiScoringClient).scorePublic(captor.capture());
+        assertThat(captor.getValue().resume().skills()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("자격증(certs)과 희망직무(job_role)는 항상 빈 값으로 전달된다 (미구현 필드)")
+    void calculateScores_certs_jobRole_항상빈값() {
+        Member member = createMember("신입");
+        Resumes resume = createResume(member, dummyEmbedding(), "[\"Java\"]");
+        when(resumesRepository.findById(1L)).thenReturn(Optional.of(resume));
+
+        PublicJobPosting posting = createPosting("개발자", false);
+        when(jobPostingRepository.findActivePublicPostings()).thenReturn(List.of(posting));
+
+        JobEmbedding embed = JobEmbedding.builder()
+                .source(JobSource.PUBLIC).sourceId(posting.getId())
+                .embedding(new float[]{0.1f}).embeddingText("text").build();
+        when(jobEmbeddingRepository.findBySourceAndSourceId(JobSource.PUBLIC, posting.getId()))
+                .thenReturn(Optional.of(embed));
+        when(aiScoringClient.scorePublic(any()))
+                .thenReturn(Mono.just(dummyScoreResponse(65.0)));
+
+        service.calculateScores(1L);
+
+        ArgumentCaptor<ScorePublicRequest> captor = ArgumentCaptor.forClass(ScorePublicRequest.class);
+        verify(aiScoringClient).scorePublic(captor.capture());
+        assertThat(captor.getValue().resume().certs()).isEmpty();
+        assertThat(captor.getValue().resume().jobRole()).isEmpty();
     }
 
     @Test
@@ -380,29 +371,29 @@ class PrivateMatchingServiceTest {
         Resumes resume = createResume(member, dummyEmbedding(), "[\"Java\"]");
         when(resumesRepository.findById(1L)).thenReturn(Optional.of(resume));
 
-        PrivateJobPosting posting1 = createPosting("공고A", "백엔드", false);
-        PrivateJobPosting posting2 = createPosting("공고B", "프론트엔드", false);
-        when(privateJobPostingRepository.findAll()).thenReturn(List.of(posting1, posting2));
+        PublicJobPosting posting1 = createPosting("공고A", false);
+        PublicJobPosting posting2 = createPosting("공고B", false);
+        when(jobPostingRepository.findActivePublicPostings()).thenReturn(List.of(posting1, posting2));
 
         JobEmbedding embed1 = JobEmbedding.builder()
-                .source(JobSource.PRIVATE).sourceId(posting1.getId())
+                .source(JobSource.PUBLIC).sourceId(posting1.getId())
                 .embedding(new float[]{0.1f}).embeddingText("text1").build();
         JobEmbedding embed2 = JobEmbedding.builder()
-                .source(JobSource.PRIVATE).sourceId(posting2.getId())
+                .source(JobSource.PUBLIC).sourceId(posting2.getId())
                 .embedding(new float[]{0.2f}).embeddingText("text2").build();
 
-        when(jobEmbeddingRepository.findBySourceAndSourceId(JobSource.PRIVATE, posting1.getId()))
+        when(jobEmbeddingRepository.findBySourceAndSourceId(JobSource.PUBLIC, posting1.getId()))
                 .thenReturn(Optional.of(embed1));
-        when(jobEmbeddingRepository.findBySourceAndSourceId(JobSource.PRIVATE, posting2.getId()))
+        when(jobEmbeddingRepository.findBySourceAndSourceId(JobSource.PUBLIC, posting2.getId()))
                 .thenReturn(Optional.of(embed2));
 
-        when(aiScoringClient.scorePrivate(any()))
+        when(aiScoringClient.scorePublic(any()))
                 .thenReturn(Mono.just(dummyScoreResponse(85.0)))
                 .thenReturn(Mono.just(dummyScoreResponse(72.0)));
 
         service.calculateScores(1L);
 
-        verify(privateMatchScoreRepository, times(2)).save(any());
+        verify(publicMatchScoreRepository, times(2)).save(any());
     }
 
     @Test
@@ -412,21 +403,21 @@ class PrivateMatchingServiceTest {
         Resumes resume = createResume(member, dummyEmbedding(), "[]");
         when(resumesRepository.findById(1L)).thenReturn(Optional.of(resume));
 
-        PrivateJobPosting posting = createPosting("공고", "백엔드", false);
-        when(privateJobPostingRepository.findAll()).thenReturn(List.of(posting));
+        PublicJobPosting posting = createPosting("공고", false);
+        when(jobPostingRepository.findActivePublicPostings()).thenReturn(List.of(posting));
 
         JobEmbedding embed = JobEmbedding.builder()
-                .source(JobSource.PRIVATE).sourceId(posting.getId())
+                .source(JobSource.PUBLIC).sourceId(posting.getId())
                 .embedding(new float[]{0.1f}).embeddingText("text").build();
-        when(jobEmbeddingRepository.findBySourceAndSourceId(JobSource.PRIVATE, posting.getId()))
+        when(jobEmbeddingRepository.findBySourceAndSourceId(JobSource.PUBLIC, posting.getId()))
                 .thenReturn(Optional.of(embed));
-        when(aiScoringClient.scorePrivate(any()))
+        when(aiScoringClient.scorePublic(any()))
                 .thenReturn(Mono.just(dummyScoreResponse(80.0)));
 
         service.calculateScores(1L);
 
-        var inOrder = inOrder(privateMatchScoreRepository);
-        inOrder.verify(privateMatchScoreRepository).deleteByResumeId(1L);
-        inOrder.verify(privateMatchScoreRepository).save(any());
+        var inOrder = inOrder(publicMatchScoreRepository);
+        inOrder.verify(publicMatchScoreRepository).deleteByResumeId(1L);
+        inOrder.verify(publicMatchScoreRepository).save(any());
     }
 }

@@ -1,4 +1,4 @@
-package com.jobai.backend.domain.home.service;
+package com.jobai.backend.domain.matching.service;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;

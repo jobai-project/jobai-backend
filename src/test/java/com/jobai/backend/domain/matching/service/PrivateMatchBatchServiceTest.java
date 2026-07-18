@@ -1,12 +1,12 @@
-package com.jobai.backend.domain.home.service;
+package com.jobai.backend.domain.matching.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jobai.backend.global.ai.client.AiScoringClient;
 import com.jobai.backend.global.ai.dto.ScorePrivateResponse;
 import com.jobai.backend.domain.privatejobposting.entity.PrivateJobPosting;
 import com.jobai.backend.domain.privatejobposting.repository.PrivateJobPostingRepository;
-import com.jobai.backend.domain.home.entity.PrivateMatchScore;
-import com.jobai.backend.domain.home.repository.PrivateMatchScoreRepository;
+import com.jobai.backend.domain.matching.entity.PrivateMatchScore;
+import com.jobai.backend.domain.matching.repository.PrivateMatchScoreRepository;
 import com.jobai.backend.domain.member.entity.Member;
 import com.jobai.backend.domain.member.entity.Resumes;
 import com.jobai.backend.domain.member.repository.ResumesRepository;

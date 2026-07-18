@@ -1,10 +1,10 @@
 package com.jobai.backend.domain.privatejobposting.controller;
 
-import com.jobai.backend.global.scheduler.DailyJobScheduler;
+import com.jobai.backend.domain.privatejobposting.scheduler.DailyJobScheduler;
 import com.jobai.backend.domain.privatejobposting.service.PrivateJobPostingService;
-import com.jobai.backend.domain.home.service.BatchNotificationHelper;
-import com.jobai.backend.domain.home.service.PrivateMatchBatchService;
-import com.jobai.backend.domain.home.service.PublicMatchBatchService;
+import com.jobai.backend.domain.matching.service.BatchNotificationHelper;
+import com.jobai.backend.domain.matching.service.PrivateMatchBatchService;
+import com.jobai.backend.domain.matching.service.PublicMatchBatchService;
 import com.jobai.backend.domain.search.service.EmbeddingBatchService;
 import com.jobai.backend.domain.techcard.service.TechCardCollectService;
 import lombok.RequiredArgsConstructor;
