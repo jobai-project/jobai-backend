@@ -1,5 +1,9 @@
 package com.jobai.backend.domain.publicInstitution.service;
 
+import com.jobai.backend.domain.home.entity.PublicMatchScore;
+import com.jobai.backend.domain.home.repository.PublicMatchScoreRepository;
+import com.jobai.backend.domain.member.entity.Resumes;
+import com.jobai.backend.domain.member.repository.ResumesRepository;
 import com.jobai.backend.domain.publicInstitution.dto.PublicJobPostingDetailResponse;
 import com.jobai.backend.domain.publicInstitution.entity.PublicJobPosting;
 import com.jobai.backend.domain.publicInstitution.repository.JobPostingRepository;
@@ -9,16 +13,22 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
+
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class PublicJobPostingService {
 
     private final JobPostingRepository jobPostingRepository;
+    private final ResumesRepository resumesRepository;
+    private final PublicMatchScoreRepository publicMatchScoreRepository;
 
-    public PublicJobPostingDetailResponse getDetail(Long id) {
+    public PublicJobPostingDetailResponse getDetail(Long id, String email) {
         PublicJobPosting posting = jobPostingRepository.findPublicJobPostingById(id)
                 .orElseThrow(() -> new GeneralException(GeneralErrorCode.NOT_FOUND, "해당 채용공고를 찾을 수 없습니다."));
+
+        PublicMatchScore savedScore = findSavedScore(id, email);
 
         return new PublicJobPostingDetailResponse(
                 posting.getId(),
@@ -36,7 +46,24 @@ public class PublicJobPostingService {
                 posting.getApplicationMethod(),
                 posting.getApplyLink(),
                 Boolean.TRUE.equals(posting.getIsClosed()),
+                savedScore != null ? savedScore.getScore() : null,
+                savedScore != null ? savedScore.getScoreReason() : null,
                 posting.getHtmlContent()
         );
+    }
+
+    private PublicMatchScore findSavedScore(Long jobPostingId, String email) {
+        if (email == null || email.isBlank() || "anonymousUser".equals(email)) {
+            return null;
+        }
+
+        Resumes activeResume = resumesRepository.findByMemberEmailAndIsActiveTrue(email).orElse(null);
+        if (activeResume == null) {
+            return null;
+        }
+
+        List<PublicMatchScore> scores = publicMatchScoreRepository
+                .findByResumeIdAndPublicJobPostingIdIn(activeResume.getId(), List.of(jobPostingId));
+        return scores.isEmpty() ? null : scores.get(0);
     }
 }
