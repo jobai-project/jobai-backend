@@ -22,6 +22,9 @@ public interface PublicJobPostingControllerDocs {
 
                     **인증 필요**: 로그인 후 발급된 accessToken 쿠키가 있어야 합니다.
 
+                    **매칭점수 안내**: 로그인 사용자의 활성 이력서를 기준으로 저장된 실제 AI 매칭점수(matchScore)와
+                    산정 사유(scoreReason)를 반환합니다. 활성 이력서 또는 계산된 점수가 없으면 두 필드는 null입니다.
+
                     **htmlContent 안내**: 원본 공고의 직무기술서(PDF)를 파싱한 텍스트/HTML 본문입니다.
                     "공고 상세" 영역에는 이 필드를 그대로 렌더링하면 됩니다.
 
@@ -58,6 +61,8 @@ public interface PublicJobPostingControllerDocs {
                                         "applicationMethod": "온라인 접수(공사 채용 홈페이지)",
                                         "applyLink": "https://recruit.kepco.co.kr",
                                         "isClosed": false,
+                                        "matchScore": 88,
+                                        "scoreReason": "직무 역량과 보유 기술이 높은 수준으로 일치합니다.",
                                         "htmlContent": "<p>모집분야 및 인원...</p>"
                                       }
                                     }
@@ -95,5 +100,7 @@ public interface PublicJobPostingControllerDocs {
                     )
             )
     })
-    ApiResponse<PublicJobPostingDetailResponse> getPublicJobDetail(Long id);
+    ApiResponse<PublicJobPostingDetailResponse> getPublicJobDetail(
+            Long id,
+            @Parameter(hidden = true) String email);
 }

@@ -35,6 +35,10 @@ public record PublicJobPostingDetailResponse(
         String applyLink,              // 지원 링크
         @Schema(description = "마감 여부", example = "false")
         boolean isClosed,              // 마감 여부
+        @Schema(description = "활성 이력서 기준 AI 매칭점수. 활성 이력서 또는 계산된 점수가 없으면 null", example = "88", nullable = true)
+        Integer matchScore,
+        @Schema(description = "AI 매칭점수 산정 사유. 계산된 점수가 없으면 null", example = "직무 역량과 보유 기술이 높은 수준으로 일치합니다.", nullable = true)
+        String scoreReason,
         @Schema(description = "공고 상세 본문. 원본 직무기술서(PDF)를 파싱한 텍스트/HTML로, \"공고 상세\" 영역에 그대로 렌더링하면 됨")
         String htmlContent             // 공고 상세 (직무기술서 파싱 내용)
 ) {
