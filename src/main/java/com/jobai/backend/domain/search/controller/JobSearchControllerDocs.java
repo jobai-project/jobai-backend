@@ -20,7 +20,7 @@ public interface JobSearchControllerDocs {
             description = """
                     자연어 쿼리를 입력받아 공기업/사기업 채용공고를 통합 검색합니다.
 
-                    **인증 필요**: 로그인 후 발급된 accessToken 쿠키가 있어야 합니다.
+                    **인증 선택적**: 로그인 없이도 사용 가능하며, 로그인 시 추가 기능을 제공합니다.
 
                     **동작 방식 (3단계 파이프라인)**:
                     1. **Query Expansion** — 쿼리에서 인식되지 않는 자연어 표현을 LLM으로 분석하여 관련 키워드를 확장합니다.

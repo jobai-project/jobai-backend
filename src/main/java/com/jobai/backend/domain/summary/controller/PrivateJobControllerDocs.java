@@ -16,8 +16,8 @@ public interface  PrivateJobControllerDocs {
     @Operation(
             summary = "사기업 공고 상세 조회",
             description = """
-                    공고 ID로 사기업 채용공고의 상세 정보를 조회한다.
-                    원문 description을 포함하며, 캐시된 요약이 있으면 함께 반환한다.
+                    공고 ID로 사기업 채용공고의 상세 정보를 조회합니다.
+                    원문 description을 포함하며, 캐시된 요약이 있으면 함께 반환합니다.
                     """
     )
     @Parameter(name = "id", description = "공고 ID", required = true, example = "1")
@@ -70,9 +70,9 @@ public interface  PrivateJobControllerDocs {
     @Operation(
             summary = "공고 LLM 요약 조회",
             description = """
-                    공고 ID로 구조화된 LLM 요약을 조회한다.
-                    첫 호출 시 LLM으로 요약을 생성하고 DB에 캐싱한다.
-                    이후 호출에서는 캐시된 요약을 반환한다.
+                    공고 ID로 구조화된 LLM 요약을 조회합니다.
+                    첫 호출 시 LLM으로 요약을 생성하고 DB에 캐싱합니다.
+                    이후 호출에서는 캐시된 요약을 반환합니다.
                     """
     )
     @Parameter(name = "id", description = "공고 ID", required = true, example = "1")

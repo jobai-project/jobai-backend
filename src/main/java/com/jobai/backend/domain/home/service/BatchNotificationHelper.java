@@ -1,12 +1,21 @@
 package com.jobai.backend.domain.home.service;
 
+import com.jobai.backend.domain.home.entity.PrivateMatchScore;
+import com.jobai.backend.domain.home.entity.PublicMatchScore;
+import com.jobai.backend.domain.home.repository.PrivateMatchScoreRepository;
+import com.jobai.backend.domain.home.repository.PublicMatchScoreRepository;
 import com.jobai.backend.domain.member.entity.Member;
+import com.jobai.backend.domain.member.entity.Resumes;
+import com.jobai.backend.domain.member.repository.ResumesRepository;
 import com.jobai.backend.domain.notification.dto.RealtimeNotificationPayload;
+import com.jobai.backend.domain.notification.entity.Notification;
+import com.jobai.backend.domain.notification.repository.NotificationRepository;
 import com.jobai.backend.domain.notification.service.NotificationDispatchService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
+import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 
@@ -22,6 +31,10 @@ import java.util.List;
 public class BatchNotificationHelper {
 
     private final NotificationDispatchService notificationDispatchService;
+    private final ResumesRepository resumesRepository;
+    private final PrivateMatchScoreRepository privateMatchScoreRepository;
+    private final PublicMatchScoreRepository publicMatchScoreRepository;
+    private final NotificationRepository notificationRepository;
 
     /** 임계값 이상 점수를 받은 공고 정보. 알림 메시지 구성에 사용된다. */
     public record ScoredPosting(String title, String company, int score, Long postingId, String linkPrefix) {
@@ -62,5 +75,55 @@ public class BatchNotificationHelper {
         } catch (Exception e) {
             log.warn("[배치알림] 알림 발송 실패: email={}, error={}", member.getEmail(), e.getMessage());
         }
+    }
+
+    /**
+     * 기존 DB에 저장된 점수를 기반으로 임계값 이상 공고에 대해 알림을 발송한다.
+     * 점수 산출은 하지 않으며, 알림 파이프라인만 테스트한다.
+     *
+     * @return 알림 발송된 공고 건수
+     */
+    public int sendNotificationsForExistingScores() {
+        List<Resumes> resumes = resumesRepository.findAllActiveWithEmbedding();
+        if (resumes.isEmpty()) {
+            return -1;
+        }
+
+        int totalNotified = 0;
+        for (Resumes resume : resumes) {
+            String email = resume.getMember().getEmail();
+            int threshold = notificationRepository.findByMemberEmail(email)
+                    .map(Notification::getMatchScoreThreshold)
+                    .orElse(70);
+
+            List<ScoredPosting> aboveThreshold = new ArrayList<>();
+            for (PrivateMatchScore s : privateMatchScoreRepository.findByResumeId(resume.getId())) {
+                if (s.getScore() >= threshold) {
+                    aboveThreshold.add(new ScoredPosting(
+                            s.getPrivateJobPosting().getTitle(),
+                            s.getPrivateJobPosting().getCompany(),
+                            s.getScore(), s.getPrivateJobPosting().getId(), "/jobs/private/"));
+                }
+            }
+            if (!aboveThreshold.isEmpty()) {
+                sendIfNeeded(resume.getMember(), aboveThreshold, "새 추천 공고");
+                totalNotified += aboveThreshold.size();
+            }
+
+            List<ScoredPosting> publicAbove = new ArrayList<>();
+            for (PublicMatchScore s : publicMatchScoreRepository.findByResumeId(resume.getId())) {
+                if (s.getScore() >= threshold) {
+                    publicAbove.add(new ScoredPosting(
+                            s.getPublicJobPosting().getTitle(),
+                            s.getPublicJobPosting().getCompanyName(),
+                            s.getScore(), s.getPublicJobPosting().getId(), "/jobs/public/"));
+                }
+            }
+            if (!publicAbove.isEmpty()) {
+                sendIfNeeded(resume.getMember(), publicAbove, "새 추천 공고 (공기업)");
+                totalNotified += publicAbove.size();
+            }
+        }
+        return totalNotified;
     }
 }
