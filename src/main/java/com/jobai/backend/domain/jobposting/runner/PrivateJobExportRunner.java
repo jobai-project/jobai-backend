@@ -1,4 +1,4 @@
-package com.jobai.backend.domain.jobposting.scheduler;
+package com.jobai.backend.domain.jobposting.runner;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jobai.backend.global.enums.JobCategory;

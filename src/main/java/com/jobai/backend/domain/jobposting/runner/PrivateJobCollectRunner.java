@@ -1,4 +1,4 @@
-package com.jobai.backend.domain.jobposting.scheduler;
+package com.jobai.backend.domain.jobposting.runner;
 
 import com.jobai.backend.domain.jobposting.service.PrivateJobCollectService;
 import com.jobai.backend.domain.jobposting.service.SaveResult;

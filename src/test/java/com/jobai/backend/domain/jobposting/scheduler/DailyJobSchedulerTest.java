@@ -1,4 +1,4 @@
-package com.jobai.backend.domain.crawler.scheduler;
+package com.jobai.backend.domain.jobposting.scheduler;
 
 import com.jobai.backend.domain.jobposting.service.PrivateJobBatchCollectService;
 import com.jobai.backend.domain.jobposting.service.PrivateJobPostingService;
@@ -6,7 +6,6 @@ import com.jobai.backend.domain.home.service.PrivateMatchBatchService;
 import com.jobai.backend.domain.home.service.PublicMatchBatchService;
 import com.jobai.backend.domain.publicInstitution.service.JobDataSyncService;
 import com.jobai.backend.domain.search.service.EmbeddingBatchService;
-import com.jobai.backend.global.scheduler.DailyJobScheduler;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;

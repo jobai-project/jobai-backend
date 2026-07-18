@@ -1,6 +1,6 @@
 package com.jobai.backend.domain.jobposting.service;
 
-import com.jobai.backend.global.scheduler.DailyJobScheduler;
+import com.jobai.backend.domain.jobposting.scheduler.DailyJobScheduler;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;

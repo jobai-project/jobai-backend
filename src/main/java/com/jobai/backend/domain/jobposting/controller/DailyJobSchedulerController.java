@@ -1,6 +1,6 @@
 package com.jobai.backend.domain.jobposting.controller;
 
-import com.jobai.backend.global.scheduler.DailyJobScheduler;
+import com.jobai.backend.domain.jobposting.scheduler.DailyJobScheduler;
 import com.jobai.backend.domain.jobposting.service.PrivateJobPostingService;
 import com.jobai.backend.domain.home.service.BatchNotificationHelper;
 import com.jobai.backend.domain.home.service.PrivateMatchBatchService;
