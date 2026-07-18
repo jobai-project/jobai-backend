@@ -1,4 +1,4 @@
-package com.jobai.backend.domain.crawler.summary;
+package com.jobai.backend.domain.privatejob.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jobai.backend.domain.privatejob.service.JobSummarizer;

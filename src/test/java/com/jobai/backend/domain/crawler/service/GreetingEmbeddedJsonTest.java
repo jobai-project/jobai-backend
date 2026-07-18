@@ -1,4 +1,4 @@
-package com.jobai.backend.domain.crawler.engine;
+package com.jobai.backend.domain.crawler.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jobai.backend.domain.crawler.service.JobRecord;

@@ -1,4 +1,4 @@
-package com.jobai.backend.domain.ai.client;
+package com.jobai.backend.global.ai.client;
 
 import com.jobai.backend.global.ai.client.AiScoringClient;
 import com.jobai.backend.global.ai.dto.ScorePrivateRequest;

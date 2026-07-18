@@ -1,4 +1,4 @@
-package com.jobai.backend.domain.crawler.classify;
+package com.jobai.backend.domain.privatejobposting.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jobai.backend.domain.privatejobposting.service.JobClassifier;
