@@ -1,8 +1,8 @@
 package com.jobai.backend.domain.crawler.service;
 
-import com.jobai.backend.domain.jobposting.service.PrivateJobBatchCollectService;
-import com.jobai.backend.domain.jobposting.service.PrivateJobCollectService;
-import com.jobai.backend.domain.jobposting.service.SaveResult;
+import com.jobai.backend.domain.privatejobposting.service.PrivateJobBatchCollectService;
+import com.jobai.backend.domain.privatejobposting.service.PrivateJobCollectService;
+import com.jobai.backend.domain.privatejobposting.service.SaveResult;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;

@@ -2,7 +2,7 @@ package com.jobai.backend.domain.home.repository;
 
 import com.jobai.backend.domain.home.constant.EmploymentTypeAlias;
 import com.jobai.backend.domain.home.dto.JobCandidate;
-import com.jobai.backend.domain.jobposting.entity.PrivateJobPosting;
+import com.jobai.backend.domain.privatejobposting.entity.PrivateJobPosting;
 import com.jobai.backend.domain.publicInstitution.entity.PublicJobPosting;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.TypedQuery;

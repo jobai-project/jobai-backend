@@ -1,9 +1,9 @@
 package com.jobai.backend.domain.crawler.service;
 
-import com.jobai.backend.domain.jobposting.entity.PrivateJobPosting;
-import com.jobai.backend.domain.jobposting.repository.PrivateJobPostingRepository;
-import com.jobai.backend.domain.jobposting.service.PrivateJobPostingService;
-import com.jobai.backend.domain.jobposting.service.SaveResult;
+import com.jobai.backend.domain.privatejobposting.entity.PrivateJobPosting;
+import com.jobai.backend.domain.privatejobposting.repository.PrivateJobPostingRepository;
+import com.jobai.backend.domain.privatejobposting.service.PrivateJobPostingService;
+import com.jobai.backend.domain.privatejobposting.service.SaveResult;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;

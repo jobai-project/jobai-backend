@@ -1,7 +1,7 @@
 package com.jobai.backend.domain.search.service;
 
-import com.jobai.backend.domain.jobposting.entity.PrivateJobPosting;
-import com.jobai.backend.domain.jobposting.repository.PrivateJobPostingRepository;
+import com.jobai.backend.domain.privatejobposting.entity.PrivateJobPosting;
+import com.jobai.backend.domain.privatejobposting.repository.PrivateJobPostingRepository;
 import com.jobai.backend.domain.publicInstitution.entity.JobPosting;
 import com.jobai.backend.domain.publicInstitution.entity.PublicJobPosting;
 import com.jobai.backend.domain.publicInstitution.repository.JobPostingRepository;

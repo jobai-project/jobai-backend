@@ -1,8 +1,8 @@
 package com.jobai.backend.domain.crawler.classify;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.jobai.backend.domain.jobposting.service.JobClassifier;
-import com.jobai.backend.domain.jobposting.service.JobClassifier.ClassificationResult;
+import com.jobai.backend.domain.privatejobposting.service.JobClassifier;
+import com.jobai.backend.domain.privatejobposting.service.JobClassifier.ClassificationResult;
 import com.jobai.backend.global.enums.EmploymentType;
 import com.jobai.backend.global.enums.ExperienceLevel;
 import com.jobai.backend.global.enums.JobCategory;

@@ -9,7 +9,7 @@ import com.jobai.backend.domain.home.repository.HomeJobCandidateRepository;
 import com.jobai.backend.domain.matching.repository.PrivateMatchScoreRepository;
 import com.jobai.backend.domain.matching.repository.PublicMatchScoreRepository;
 import com.jobai.backend.domain.matching.service.JobMatchScorer;
-import com.jobai.backend.domain.jobposting.entity.PrivateJobPosting;
+import com.jobai.backend.domain.privatejobposting.entity.PrivateJobPosting;
 import com.jobai.backend.domain.publicInstitution.entity.PublicJobPosting;
 import com.jobai.backend.domain.member.entity.Member;
 import com.jobai.backend.domain.member.entity.PreferredJob;

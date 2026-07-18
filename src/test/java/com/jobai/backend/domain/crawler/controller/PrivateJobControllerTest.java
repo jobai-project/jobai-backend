@@ -1,15 +1,15 @@
 package com.jobai.backend.domain.crawler.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.jobai.backend.domain.summary.entity.JobPostingSummary;
-import com.jobai.backend.domain.jobposting.entity.PrivateJobPosting;
-import com.jobai.backend.domain.summary.repository.JobPostingSummaryRepository;
-import com.jobai.backend.domain.jobposting.repository.PrivateJobPostingRepository;
-import com.jobai.backend.domain.summary.service.JobSummaryService;
-import com.jobai.backend.domain.summary.service.JobSummarizer;
+import com.jobai.backend.domain.privatejob.entity.JobPostingSummary;
+import com.jobai.backend.domain.privatejobposting.entity.PrivateJobPosting;
+import com.jobai.backend.domain.privatejob.repository.JobPostingSummaryRepository;
+import com.jobai.backend.domain.privatejobposting.repository.PrivateJobPostingRepository;
+import com.jobai.backend.domain.privatejob.service.PrivateJobDetailService;
+import com.jobai.backend.domain.privatejob.service.JobSummarizer;
 import com.jobai.backend.domain.matching.repository.PrivateMatchScoreRepository;
 import com.jobai.backend.domain.member.repository.ResumesRepository;
-import com.jobai.backend.domain.summary.controller.PrivateJobController;
+import com.jobai.backend.domain.privatejob.controller.PrivateJobController;
 import com.jobai.backend.global.apiPayload.handler.GeneralExceptionAdvice;
 import com.jobai.backend.global.llm.LlmException;
 import org.junit.jupiter.api.BeforeEach;
@@ -50,7 +50,7 @@ class PrivateJobControllerTest {
         privateMatchScoreRepository = Mockito.mock(PrivateMatchScoreRepository.class);
 
         ObjectMapper objectMapper = new ObjectMapper();
-        JobSummaryService service = new JobSummaryService(
+        PrivateJobDetailService service = new PrivateJobDetailService(
                 jobPostingRepository, summaryRepository, jobSummarizer, objectMapper,
                 resumesRepository, privateMatchScoreRepository);
         PrivateJobController controller = new PrivateJobController(service);

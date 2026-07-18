@@ -66,7 +66,8 @@ public class SecurityConfig {
                                 "/api/v1/home/tech-cards",  // IT 인사이트 카드 공개 API
                                 "/api/v1/scheduler/**",    // 스케줄러 API
                                 "/api/v1/private-jobs/**",  // private-jobs API
-                                "/api/search/**"            // 검색 API
+                                "/api/search/**",           // 검색 API
+                                "/ws/**"                    // WebSocket/SockJS handshake and fallback transports
                         ).permitAll()
                         .anyRequest().authenticated() // 위에서 명시한 경로 외의 모든 요청은 무조건 인증(로그인)을 거쳐야 함
                 )

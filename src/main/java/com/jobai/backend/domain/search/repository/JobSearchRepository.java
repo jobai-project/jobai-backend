@@ -1,6 +1,6 @@
 package com.jobai.backend.domain.search.repository;
 
-import com.jobai.backend.domain.jobposting.entity.PrivateJobPosting;
+import com.jobai.backend.domain.privatejobposting.entity.PrivateJobPosting;
 import com.jobai.backend.domain.search.dto.JobSearchResponse.JobSummary;
 import com.jobai.backend.domain.search.dto.SearchCondition;
 import jakarta.persistence.EntityManager;

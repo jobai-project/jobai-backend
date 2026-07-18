@@ -1,6 +1,6 @@
 package com.jobai.backend.domain.crawler.export;
 
-import com.jobai.backend.domain.jobposting.service.ItJobFilter;
+import com.jobai.backend.domain.privatejobposting.service.ItJobFilter;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;

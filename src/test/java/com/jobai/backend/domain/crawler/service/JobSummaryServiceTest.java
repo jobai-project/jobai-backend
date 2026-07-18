@@ -1,16 +1,16 @@
 package com.jobai.backend.domain.crawler.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.jobai.backend.domain.summary.dto.JobSummaryResponse;
-import com.jobai.backend.domain.summary.dto.PrivateJobDetailResponse;
-import com.jobai.backend.domain.summary.entity.JobPostingSummary;
-import com.jobai.backend.domain.jobposting.entity.PrivateJobPosting;
-import com.jobai.backend.domain.summary.repository.JobPostingSummaryRepository;
-import com.jobai.backend.domain.jobposting.repository.PrivateJobPostingRepository;
-import com.jobai.backend.domain.summary.service.JobSummarizer;
+import com.jobai.backend.domain.privatejob.dto.JobSummaryResponse;
+import com.jobai.backend.domain.privatejob.dto.PrivateJobDetailResponse;
+import com.jobai.backend.domain.privatejob.entity.JobPostingSummary;
+import com.jobai.backend.domain.privatejobposting.entity.PrivateJobPosting;
+import com.jobai.backend.domain.privatejob.repository.JobPostingSummaryRepository;
+import com.jobai.backend.domain.privatejobposting.repository.PrivateJobPostingRepository;
+import com.jobai.backend.domain.privatejob.service.JobSummarizer;
 import com.jobai.backend.domain.matching.repository.PrivateMatchScoreRepository;
 import com.jobai.backend.domain.member.repository.ResumesRepository;
-import com.jobai.backend.domain.summary.service.JobSummaryService;
+import com.jobai.backend.domain.privatejob.service.PrivateJobDetailService;
 import com.jobai.backend.global.apiPayload.exception.GeneralException;
 import com.jobai.backend.global.llm.LlmException;
 import org.junit.jupiter.api.BeforeEach;
@@ -32,7 +32,7 @@ class JobSummaryServiceTest {
     private PrivateJobPostingRepository jobPostingRepository;
     private JobPostingSummaryRepository summaryRepository;
     private JobSummarizer jobSummarizer;
-    private JobSummaryService service;
+    private PrivateJobDetailService service;
 
     private static final String VALID_SUMMARY_JSON = """
             {
@@ -48,7 +48,7 @@ class JobSummaryServiceTest {
         jobPostingRepository = Mockito.mock(PrivateJobPostingRepository.class);
         summaryRepository = Mockito.mock(JobPostingSummaryRepository.class);
         jobSummarizer = Mockito.mock(JobSummarizer.class);
-        service = new JobSummaryService(
+        service = new PrivateJobDetailService(
                 jobPostingRepository, summaryRepository, jobSummarizer, new ObjectMapper(),
                 Mockito.mock(ResumesRepository.class), Mockito.mock(PrivateMatchScoreRepository.class));
     }

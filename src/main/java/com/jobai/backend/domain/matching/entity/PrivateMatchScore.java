@@ -1,6 +1,6 @@
 package com.jobai.backend.domain.matching.entity;
 
-import com.jobai.backend.domain.jobposting.entity.PrivateJobPosting;
+import com.jobai.backend.domain.privatejobposting.entity.PrivateJobPosting;
 import com.jobai.backend.domain.member.entity.Member;
 import com.jobai.backend.domain.member.entity.Resumes;
 import jakarta.persistence.*;
