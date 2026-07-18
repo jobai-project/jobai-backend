@@ -82,13 +82,16 @@ jobs:
           mkdir -p "${DEPLOY_DIR}"
           cp /tmp/jobai-deploy/docker-compose.prod.yml "${DEPLOY_DIR}/docker-compose.prod.yml"
 
-          if command -v nginx >/dev/null 2>&1; then
-            mkdir -p /etc/nginx/conf.d
-            cp /tmp/jobai-deploy/nginx/jobai-upload-size.conf /etc/nginx/conf.d/jobai-upload-size.conf
-            cp /tmp/jobai-deploy/nginx/jobai-websocket-proxy.conf /etc/nginx/conf.d/jobai-websocket-proxy.conf
-            nginx -t
-            systemctl reload nginx
+          if ! command -v nginx >/dev/null 2>&1; then
+            echo "nginx is required for API reverse proxy but is not installed"
+            exit 1
           fi
+
+          mkdir -p /etc/nginx/conf.d
+          cp /tmp/jobai-deploy/nginx/jobai-upload-size.conf /etc/nginx/conf.d/jobai-upload-size.conf
+          cp /tmp/jobai-deploy/nginx/jobai-websocket-proxy.conf /etc/nginx/conf.d/jobai-websocket-proxy.conf
+          nginx -t
+          systemctl reload nginx
 
           cat > "${DEPLOY_DIR}/.env" <<ENV
           ECR_REGISTRY=$(get_param ECR_REGISTRY)
