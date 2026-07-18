@@ -1,4 +1,4 @@
-package com.jobai.backend.global.scheduler;
+package com.jobai.backend.domain.jobposting.scheduler;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jobai.backend.global.model.JobCategory;

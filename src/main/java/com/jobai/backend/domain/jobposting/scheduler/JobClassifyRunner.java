@@ -1,4 +1,4 @@
-package com.jobai.backend.global.scheduler;
+package com.jobai.backend.domain.jobposting.scheduler;
 
 import com.jobai.backend.domain.jobposting.service.PrivateJobPostingService;
 import lombok.RequiredArgsConstructor;
