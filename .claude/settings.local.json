@@ -1,7 +1,0 @@
-  {
-  "permissions": {
-    "allow": [
-      "Bash(cd \"C:/Users/이원준/Desktop/backend\" && ./gradlew test --tests \"com.jobai.backend.global.apiPayload.handler.GeneralExceptionAdviceTest\" 2>&1)"
-    ]
-  }
-}
