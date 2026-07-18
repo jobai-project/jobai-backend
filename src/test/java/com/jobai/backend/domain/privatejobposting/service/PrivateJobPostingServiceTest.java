@@ -1,5 +1,7 @@
-package com.jobai.backend.domain.crawler.service;
+package com.jobai.backend.domain.privatejobposting.service;
 
+import com.jobai.backend.domain.crawler.service.DeclarativeCrawler;
+import com.jobai.backend.domain.crawler.service.JobRecord;
 import com.jobai.backend.domain.privatejobposting.entity.PrivateJobPosting;
 import com.jobai.backend.domain.privatejobposting.repository.PrivateJobPostingRepository;
 import com.jobai.backend.domain.crawler.spec.CrawlSpec;

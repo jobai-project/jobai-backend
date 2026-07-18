@@ -1,4 +1,4 @@
-package com.jobai.backend.domain.crawler.classify;
+package com.jobai.backend.domain.privatejobposting.service;
 
 import com.jobai.backend.global.enums.JobCategory;
 import org.junit.jupiter.api.DisplayName;

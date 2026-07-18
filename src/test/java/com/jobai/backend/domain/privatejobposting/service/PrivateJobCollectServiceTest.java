@@ -1,4 +1,4 @@
-package com.jobai.backend.domain.crawler.service;
+package com.jobai.backend.domain.privatejobposting.service;
 
 import com.jobai.backend.global.enums.EmploymentType;
 import com.jobai.backend.global.enums.ExperienceLevel;
@@ -6,6 +6,8 @@ import com.jobai.backend.global.enums.JobCategory;
 import com.jobai.backend.domain.privatejobposting.service.JobClassifier;
 import com.jobai.backend.domain.privatejobposting.service.JobClassifier.ClassificationResult;
 import com.jobai.backend.domain.privatejobposting.entity.PrivateJobPosting;
+import com.jobai.backend.domain.crawler.service.DeclarativeCrawler;
+import com.jobai.backend.domain.crawler.service.JobRecord;
 import com.jobai.backend.domain.crawler.spec.CrawlSpec;
 import com.jobai.backend.domain.privatejobposting.service.PrivateJobCollectService;
 import com.jobai.backend.domain.privatejobposting.service.PrivateJobPostingService;
