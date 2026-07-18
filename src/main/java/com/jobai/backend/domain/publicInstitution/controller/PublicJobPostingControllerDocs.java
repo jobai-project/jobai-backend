@@ -23,7 +23,8 @@ public interface PublicJobPostingControllerDocs {
                     **인증 필요**: 로그인 후 발급된 accessToken 쿠키가 있어야 합니다.
 
                     **매칭점수 안내**: 로그인 사용자의 활성 이력서를 기준으로 저장된 실제 AI 매칭점수(matchScore)와
-                    산정 사유(scoreReason)를 반환합니다. 활성 이력서 또는 계산된 점수가 없으면 두 필드는 null입니다.
+                    산정 사유(scoreReason)를 반환합니다. 실제 점수가 아직 산출되지 않았거나 활성 이력서가 없으면
+                    두 필드는 null입니다.
 
                     **htmlContent 안내**: 원본 공고의 직무기술서(PDF)를 파싱한 텍스트/HTML 본문입니다.
                     "공고 상세" 영역에는 이 필드를 그대로 렌더링하면 됩니다.

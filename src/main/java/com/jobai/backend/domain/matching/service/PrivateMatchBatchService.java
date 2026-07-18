@@ -17,6 +17,7 @@ import com.jobai.backend.domain.notification.entity.Notification;
 import com.jobai.backend.domain.notification.repository.NotificationRepository;
 import com.jobai.backend.domain.search.entity.JobEmbedding;
 import com.jobai.backend.global.enums.JobSource;
+import com.jobai.backend.global.enums.JobCategory;
 import com.jobai.backend.domain.search.repository.JobEmbeddingRepository;
 import com.jobai.backend.domain.search.service.EmbeddingService;
 import lombok.RequiredArgsConstructor;
@@ -57,13 +58,6 @@ public class PrivateMatchBatchService {
     private final NotificationRepository notificationRepository;
     private final BatchNotificationHelper batchNotificationHelper;
 
-    private static final List<String> VALID_CATEGORIES = List.of(
-            "백엔드", "프론트엔드", "풀스택", "모바일", "AI/ML",
-            "데이터엔지니어링", "DevOps/인프라", "보안", "QA/테스트",
-            "임베디드", "기타개발", "UX리서처", "UX/UI디자이너",
-            "프로덕트디자이너", "웹디자이너", "PM/PO", "서비스기획"
-    );
-
     /**
      * 모든 활성 이력서 × 활성 공고 조합에서 점수가 없거나 변경된 공고에 대해 점수를 산출한다.
      *
@@ -83,7 +77,7 @@ public class PrivateMatchBatchService {
         }
 
         List<PrivateJobPosting> activePostings =
-                privateJobPostingRepository.findActiveByValidCategories(VALID_CATEGORIES);
+                privateJobPostingRepository.findActiveByValidCategories(JobCategory.matchTargetLabels());
         if (activePostings.isEmpty()) {
             log.info("[배치점수] 활성 공고가 없어 점수 산출 건너뜀");
             return;

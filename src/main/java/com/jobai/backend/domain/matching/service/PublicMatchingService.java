@@ -19,7 +19,6 @@ import com.jobai.backend.domain.search.repository.JobEmbeddingRepository;
 import com.jobai.backend.domain.search.service.EmbeddingService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -54,17 +53,6 @@ public class PublicMatchingService {
      * 비동기로 매칭 점수를 계산한다.
      * 이력서 업로드 트랜잭션 커밋 후 별도 스레드에서 실행된다.
      */
-    @Async
-    public void calculateScoresAsync(Long resumeId) {
-        log.info("공기업 매칭 점수 계산 시작: resumeId={}", resumeId);
-        try {
-            calculateScores(resumeId);
-            log.info("공기업 매칭 점수 계산 완료: resumeId={}", resumeId);
-        } catch (Exception e) {
-            log.error("공기업 매칭 점수 계산 중 오류: resumeId={}, error={}", resumeId, e.getMessage());
-        }
-    }
-
     @Transactional
     public void calculateScores(Long resumeId) {
         Resumes resume = resumesRepository.findById(resumeId).orElse(null);

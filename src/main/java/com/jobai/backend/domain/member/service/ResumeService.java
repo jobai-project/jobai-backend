@@ -9,13 +9,13 @@ import com.jobai.backend.global.apiPayload.code.GeneralErrorCode;
 import com.jobai.backend.global.apiPayload.exception.GeneralException;
 import com.jobai.backend.domain.matching.repository.PrivateMatchScoreRepository;
 import com.jobai.backend.domain.matching.repository.PublicMatchScoreRepository;
-import com.jobai.backend.domain.matching.service.PrivateMatchingService;
-import com.jobai.backend.domain.matching.service.PublicMatchingService;
+import com.jobai.backend.domain.matching.event.ResumeScoreCalculationRequestedEvent;
 import com.jobai.backend.domain.search.service.EmbeddingService;
 import com.jobai.backend.global.storage.FileStorageService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -36,8 +36,7 @@ public class ResumeService {
     private final FileStorageService fileStorageService;
     private final ResumeParsingService resumeParsingService;
     private final EmbeddingService embeddingService;
-    private final PrivateMatchingService privateMatchingService;
-    private final PublicMatchingService publicMatchingService;
+    private final ApplicationEventPublisher eventPublisher;
     private final PrivateMatchScoreRepository privateMatchScoreRepository;
     private final PublicMatchScoreRepository publicMatchScoreRepository;
 
@@ -106,8 +105,7 @@ public class ResumeService {
             }
 
             // 비동기 매칭 점수 계산 트리거
-            privateMatchingService.calculateScoresAsync(resumeId);
-            publicMatchingService.calculateScoresAsync(resumeId);
+            eventPublisher.publishEvent(new ResumeScoreCalculationRequestedEvent(resumeId));
 
             return resumeId;
         } catch (Exception e) {
@@ -130,8 +128,7 @@ public class ResumeService {
         resume.activate();
 
         // 활성 이력서 변경 시 매칭 점수 재계산
-        privateMatchingService.calculateScoresAsync(resumeId);
-        publicMatchingService.calculateScoresAsync(resumeId);
+        eventPublisher.publishEvent(new ResumeScoreCalculationRequestedEvent(resumeId));
     }
 
     @Transactional

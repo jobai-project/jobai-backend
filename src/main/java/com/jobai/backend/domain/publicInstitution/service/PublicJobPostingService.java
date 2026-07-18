@@ -28,7 +28,7 @@ public class PublicJobPostingService {
         PublicJobPosting posting = jobPostingRepository.findPublicJobPostingById(id)
                 .orElseThrow(() -> new GeneralException(GeneralErrorCode.NOT_FOUND, "해당 채용공고를 찾을 수 없습니다."));
 
-        PublicMatchScore savedScore = findSavedScore(id, email);
+        ResolvedMatchScore matchScore = resolveMatchScore(id, email);
 
         return new PublicJobPostingDetailResponse(
                 posting.getId(),
@@ -46,24 +46,35 @@ public class PublicJobPostingService {
                 posting.getApplicationMethod(),
                 posting.getApplyLink(),
                 Boolean.TRUE.equals(posting.getIsClosed()),
-                savedScore != null ? savedScore.getScore() : null,
-                savedScore != null ? savedScore.getScoreReason() : null,
+                matchScore.score(),
+                matchScore.reason(),
                 posting.getHtmlContent()
         );
     }
 
-    private PublicMatchScore findSavedScore(Long jobPostingId, String email) {
+    private ResolvedMatchScore resolveMatchScore(Long jobPostingId, String email) {
         if (email == null || email.isBlank() || "anonymousUser".equals(email)) {
-            return null;
+            return ResolvedMatchScore.empty();
         }
 
         Resumes activeResume = resumesRepository.findByMemberEmailAndIsActiveTrue(email).orElse(null);
         if (activeResume == null) {
-            return null;
+            return ResolvedMatchScore.empty();
         }
 
         List<PublicMatchScore> scores = publicMatchScoreRepository
                 .findByResumeIdAndPublicJobPostingIdIn(activeResume.getId(), List.of(jobPostingId));
-        return scores.isEmpty() ? null : scores.get(0);
+        if (!scores.isEmpty()) {
+            PublicMatchScore savedScore = scores.get(0);
+            return new ResolvedMatchScore(savedScore.getScore(), savedScore.getScoreReason());
+        }
+
+        return ResolvedMatchScore.empty();
+    }
+
+    private record ResolvedMatchScore(Integer score, String reason) {
+        private static ResolvedMatchScore empty() {
+            return new ResolvedMatchScore(null, null);
+        }
     }
 }

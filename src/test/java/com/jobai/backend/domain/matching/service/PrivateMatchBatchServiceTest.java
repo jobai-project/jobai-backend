@@ -15,6 +15,7 @@ import com.jobai.backend.domain.search.entity.JobEmbedding;
 import com.jobai.backend.global.enums.JobSource;
 import com.jobai.backend.domain.search.repository.JobEmbeddingRepository;
 import com.jobai.backend.domain.search.service.EmbeddingService;
+import com.jobai.backend.global.enums.JobCategory;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -47,12 +48,7 @@ class PrivateMatchBatchServiceTest {
 
     private final AtomicLong postingIdCounter = new AtomicLong(100);
 
-    private static final List<String> VALID_CATEGORIES = List.of(
-            "백엔드", "프론트엔드", "풀스택", "모바일", "AI/ML",
-            "데이터엔지니어링", "DevOps/인프라", "보안", "QA/테스트",
-            "임베디드", "기타개발", "UX리서처", "UX/UI디자이너",
-            "프로덕트디자이너", "웹디자이너", "PM/PO", "서비스기획"
-    );
+    private static final List<String> VALID_CATEGORIES = JobCategory.matchTargetLabels();
 
     @BeforeEach
     void setUp() throws Exception {

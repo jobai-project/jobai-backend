@@ -1,6 +1,7 @@
 package com.jobai.backend.global.enums;
 
 import java.util.Arrays;
+import java.util.List;
 
 /**
  * 직무 분류 택소노미. LLM 이 공고 제목을 보고 이 중 하나로 분류한다.
@@ -49,6 +50,13 @@ public enum JobCategory {
 
     public boolean isMatchTarget() {
         return matchTarget;
+    }
+
+    public static List<String> matchTargetLabels() {
+        return Arrays.stream(values())
+                .filter(JobCategory::isMatchTarget)
+                .map(JobCategory::getLabel)
+                .toList();
     }
 
     /** 라벨 문자열 → enum. 목록 밖 답이면 UNCLASSIFIED 로 안전하게. */

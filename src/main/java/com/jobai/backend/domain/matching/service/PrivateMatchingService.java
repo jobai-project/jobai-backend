@@ -15,11 +15,11 @@ import com.jobai.backend.domain.member.entity.Resumes;
 import com.jobai.backend.domain.member.repository.ResumesRepository;
 import com.jobai.backend.domain.search.entity.JobEmbedding;
 import com.jobai.backend.global.enums.JobSource;
+import com.jobai.backend.global.enums.JobCategory;
 import com.jobai.backend.domain.search.repository.JobEmbeddingRepository;
 import com.jobai.backend.domain.search.service.EmbeddingService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -44,28 +44,6 @@ public class PrivateMatchingService {
     private final PrivateMatchScoreRepository privateMatchScoreRepository;
     private final ResumesRepository resumesRepository;
     private final ObjectMapper objectMapper;
-
-    private static final List<String> VALID_CATEGORIES = List.of(
-            "백엔드", "프론트엔드", "풀스택", "모바일", "AI/ML",
-            "데이터엔지니어링", "DevOps/인프라", "보안", "QA/테스트",
-            "임베디드", "기타개발", "UX리서처", "UX/UI디자이너",
-            "프로덕트디자이너", "웹디자이너", "PM/PO", "서비스기획"
-    );
-
-    /**
-     * 비동기로 매칭 점수를 계산한다.
-     * 이력서 업로드 트랜잭션 커밋 후 별도 스레드에서 실행된다.
-     */
-    @Async
-    public void calculateScoresAsync(Long resumeId) {
-        log.info("매칭 점수 계산 시작: resumeId={}", resumeId);
-        try {
-            calculateScores(resumeId);
-            log.info("매칭 점수 계산 완료: resumeId={}", resumeId);
-        } catch (Exception e) {
-            log.error("매칭 점수 계산 중 오류: resumeId={}, error={}", resumeId, e.getMessage());
-        }
-    }
 
     @Transactional
     public void calculateScores(Long resumeId) {
@@ -159,7 +137,7 @@ public class PrivateMatchingService {
         return privateJobPostingRepository.findAll().stream()
                 .filter(p -> !p.isClosed())
                 .filter(p -> p.getJobCategory() != null)
-                .filter(p -> VALID_CATEGORIES.contains(p.getJobCategory()))
+                .filter(p -> JobCategory.matchTargetLabels().contains(p.getJobCategory()))
                 .collect(Collectors.toList());
     }
 
