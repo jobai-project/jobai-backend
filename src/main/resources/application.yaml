@@ -118,6 +118,7 @@ app:
     cookie:
       secure: false
     frontend-redirect-url: ${APP_FRONTEND_REDIRECT_URL:http://localhost:3000/oauth2/redirect}
+  frontend-base-url: ${APP_FRONTEND_BASE_URL:http://localhost:3000}
 
 management:
   health:
@@ -127,6 +128,10 @@ management:
 websocket:
   # comma-separated allowed origins for WebSocket (use full origin(s), e.g. http://localhost:3000)
   allowed-origins: ${WEBSOCKET_ALLOWED_ORIGINS:http://localhost:3000}
+
+notification:
+  email:
+    from: ${SES_FROM_EMAIL:}
 
 ---
 
@@ -198,6 +203,7 @@ app:
     cookie:
       secure: true
     frontend-redirect-url: ${APP_FRONTEND_REDIRECT_URL:http://localhost:3000/oauth2/redirect}
+  frontend-base-url: ${APP_FRONTEND_BASE_URL:https://app.jobai.site}
   s3:
     bucket: ${S3_BUCKET_NAME}
     region: ${AWS_REGION:ap-northeast-2}
@@ -209,3 +215,7 @@ management:
 
 websocket:
   allowed-origins: ${WEBSOCKET_ALLOWED_ORIGINS:http://localhost:3000}
+
+notification:
+  email:
+    from: ${SES_FROM_EMAIL:}

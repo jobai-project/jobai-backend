@@ -97,6 +97,7 @@ dependencies {
 
 	// ── AWS Lambda 직접 호출을 위한 SDK 추가 ──
 	implementation 'software.amazon.awssdk:lambda:2.25.60'
+	implementation 'software.amazon.awssdk:sesv2:2.25.60'
 
 	// ── Swagger UI ───────────────────────────────────────────
 	implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.8.9'
