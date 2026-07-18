@@ -35,7 +35,7 @@ JobA!는 사용자가 채용공고를 직접 찾는 대신,
 - **자동 통합 수집** — 사기업·공공기관 IT 공고를 한곳에 자동으로 수집해 제공해요
 - **AI 적합도 분석** — 이력서를 분석해 공고별 적합도를 0~100점으로 산출해요
 - **AI 요약 제공** — 공고의 핵심 내용을 요약해 빠르게 확인할 수 있어요
-- **신규 공고 알림** — 설정한 적합도 기준을 넘는 공고가 올라오면 Slack·이메일로 알려드려요
+- **신규 공고 알림** — 설정한 적합도 기준을 넘는 공고가 올라오면 Slack·Discord·이메일로 알려드려요
 - **매칭 근거 제** — 적합도 점수의 근거를 함께 제공해 신뢰성을 높여요
 - **자연어 검색** — 키워드 한 단어든 긴 문장이든, 의도를 파악해 적합한 공고를 찾아드려요
 - **일정 통합 관리** — 스크랩한 공고의 지원 현황·면접 일정을 한곳에서 관리해드려요
@@ -88,10 +88,18 @@ JobA!는 사용자가 채용공고를 직접 찾는 대신,
 
 ### 🛠 Backend & Framework
 <div>
-  <img src="https://img.shields.io/badge/Java 17-007396?style=flat-square&logo=java&logoColor=white">
+  <img src="https://img.shields.io/badge/Java 21-007396?style=flat-square&logo=openjdk&logoColor=white">
   <img src="https://img.shields.io/badge/Gradle-02303A?style=flat-square&logo=gradle&logoColor=white">
   <img src="https://img.shields.io/badge/Spring Boot-6DB33F?style=flat-square&logo=springboot&logoColor=white">
   <img src="https://img.shields.io/badge/Spring Data JPA-6DB33F?style=flat-square&logo=hibernate&logoColor=white">
+  <img src="https://img.shields.io/badge/Flyway-CC0200?style=flat-square&logo=flyway&logoColor=white">
+</div>
+
+### 🤖 AI
+<div>
+  <img src="https://img.shields.io/badge/Spring AI-6DB33F?style=flat-square&logo=spring&logoColor=white">
+  <img src="https://img.shields.io/badge/Claude API (Anthropic)-D97757?style=flat-square&logo=anthropic&logoColor=white">
+  <img src="https://img.shields.io/badge/KOMORAN-4B8BBE?style=flat-square&logoColor=white">
 </div>
 
 ### 🔐 Authentication & Security
@@ -101,24 +109,34 @@ JobA!는 사용자가 채용공고를 직접 찾는 대신,
   <img src="https://img.shields.io/badge/JWT-000000?style=flat-square&logo=jsonwebtokens&logoColor=white">
 </div>
 
-### 🗄 Database & Infrastructure
+### 🗄 Database
 <div>
   <img src="https://img.shields.io/badge/PostgreSQL-4169E1?style=flat-square&logo=postgresql&logoColor=white">
   <img src="https://img.shields.io/badge/Redis-DC382D?style=flat-square&logo=redis&logoColor=white">
-  <img src="https://img.shields.io/badge/Amazon ElastiCache-C925D1?style=flat-square&logo=amazonelasticache&logoColor=white">
-  <img src="https://img.shields.io/badge/AWS EC2-FF9900?style=flat-square&logo=amazonec2&logoColor=white">
+  <img src="https://img.shields.io/badge/Redisson-DC382D?style=flat-square&logo=redis&logoColor=white">
 </div>
 
-### 🧲 Data Collection & Scheduling
+### ☁️ Cloud (AWS)
+<div>
+  <img src="https://img.shields.io/badge/AWS EC2-FF9900?style=flat-square&logo=amazonec2&logoColor=white">
+  <img src="https://img.shields.io/badge/AWS S3-569A31?style=flat-square&logo=amazons3&logoColor=white">
+  <img src="https://img.shields.io/badge/AWS Lambda-FF9900?style=flat-square&logo=awslambda&logoColor=white">
+  <img src="https://img.shields.io/badge/AWS SES-DD344C?style=flat-square&logo=amazonsimpleemailservice&logoColor=white">
+</div>
+
+### 🧲 Data Collection
 <div>
   <img src="https://img.shields.io/badge/Jsoup-1E9E4A?style=flat-square&logo=java&logoColor=white">
-  <img src="https://img.shields.io/badge/Quartz Scheduler-006699?style=flat-square&logo=quartz&logoColor=white">
+  <img src="https://img.shields.io/badge/Rome (RSS)-FA9B39?style=flat-square&logoColor=white">
   <img src="https://img.shields.io/badge/Apache PDFBox-D22128?style=flat-square&logo=apache&logoColor=white">
-  <img src="https://img.shields.io/badge/공공데이터 API-003D7C?style=flat-square&logo=data&logoColor=white">
+  <img src="https://img.shields.io/badge/HWPLib-0068B7?style=flat-square&logoColor=white">
+  <img src="https://img.shields.io/badge/공공데이터 API-003D7C?style=flat-square&logoColor=white">
+  <img src="https://img.shields.io/badge/@Scheduled-6DB33F?style=flat-square&logo=spring&logoColor=white">
 </div>
 
-### 🔔 Notification
+### 💬 Communication
 <div>
+  <img src="https://img.shields.io/badge/WebSocket-010101?style=flat-square&logo=socketdotio&logoColor=white">
   <img src="https://img.shields.io/badge/Slack-4A154B?style=flat-square&logo=slack&logoColor=white">
   <img src="https://img.shields.io/badge/Discord-5865F2?style=flat-square&logo=discord&logoColor=white">
   <img src="https://img.shields.io/badge/Email-EA4335?style=flat-square&logo=gmail&logoColor=white">
@@ -128,7 +146,6 @@ JobA!는 사용자가 채용공고를 직접 찾는 대신,
 <div>
   <img src="https://img.shields.io/badge/Docker-2496ED?style=flat-square&logo=docker&logoColor=white">
   <img src="https://img.shields.io/badge/GitHub Actions-2088FF?style=flat-square&logo=githubactions&logoColor=white">
-  <img src="https://img.shields.io/badge/GitHub-181717?style=flat-square&logo=github&logoColor=white">
 </div>
 
 ### 🧪 Docs & Test
@@ -158,54 +175,57 @@ JobA!는 사용자가 채용공고를 직접 찾는 대신,
 ## 📂 Directory Structure
 ```text
 📦 src/main/java/com/jobai/backend
- ├── 📁 domain                    # 핵심 비즈니스 로직
- │   ├── 📁 ai                    # AI 서비스 연동 (client / dto / exception)
- │   ├── 📁 application           # 지원서 관리
- │   ├── 📁 auth                  # 인증 (OAuth2)
- │   ├── 📁 bloom                 # Bloom Filter 기반 공고 중복 제거
- │   ├── 📁 crawler               # 채용공고 크롤링 파이프라인
- │   │   ├── 📁 classify              # 공고 분류
- │   │   ├── 📁 engine                # 크롤링 엔진
- │   │   ├── 📁 runner                # 수집 실행
- │   │   ├── 📁 scheduler             # 수집 스케줄러 (DailyJobScheduler)
- │   │   ├── 📁 spec                  # 기업별 크롤링 스펙 로직
- │   │   ├── 📁 summary               # AI 공고 요약
- │   │   └── 📁 export                # 수집 결과 내보내기
- │   ├── 📁 home                  # 홈 화면
- │   ├── 📁 member                # 회원 관리 / 온보딩
- │   ├── 📁 notification          # 알림 (Slack·Email·Discord)
- │   ├── 📁 publicInstitution     # 공기업 채용공고 수집
- │   ├── 📁 scrap                 # 공고 스크랩
- │   ├── 📁 search                # 채용공고 검색 (자연어)
- │   └── 📁 techcard              # 테크 뉴스 카드 (collector / scheduler)
+ ├── 📁 domain                        # 핵심 비즈니스 로직
+ │   ├── 📁 application               # 입사 지원 현황 트래커
+ │   ├── 📁 auth                      # 인증 (OAuth2)
+ │   ├── 📁 bloom                     # Bloom Filter 기반 공고 중복 제거
+ │   ├── 📁 crawler                   # 선언형 웹 크롤러 엔진
+ │   │   ├── 📁 service                   # 크롤링 엔진 핵심 로직
+ │   │   └── 📁 spec                      # 기업별 크롤링 스펙 정의
+ │   ├── 📁 home                      # 홈 화면 추천 공고
+ │   ├── 📁 matching                  # AI 매칭 점수 산출 · 배치
+ │   ├── 📁 member                    # 회원 관리 · 이력서 · 온보딩
+ │   ├── 📁 notification              # 알림 (Slack · Email · Discord)
+ │   ├── 📁 privatejob                # 사기업 공고 상세 조회 · AI 요약
+ │   ├── 📁 privatejobposting         # 사기업 공고 수집 · 분류 · 스케줄링
+ │   │   ├── 📁 runner                    # 수집 실행기
+ │   │   ├── 📁 scheduler                 # 수집 스케줄러
+ │   │   └── 📁 service                   # 수집 · 분류 · 내보내기
+ │   ├── 📁 publicInstitution         # 공공기관 채용공고 수집 (공공데이터 API)
+ │   ├── 📁 scrap                     # 공고 스크랩 · 마감 임박 알림
+ │   ├── 📁 search                    # 자연어 검색 · 임베딩 · 벡터 검색
+ │   └── 📁 techcard                  # 테크 트렌드 카드 수집 · 요약
  │
- └── 📁 global                    # 공통 모듈
-     ├── 📁 apiPayload            # 공통 응답 / 에러 / 예외 처리 (code / exception / handler)
-     ├── 📁 auth                  # 인증·인가 공통 로직
-     ├── 📁 config                # 공통 설정 정의
-     ├── 📁 llm                   # LLM 연동 공통 모듈
-     ├── 📁 storage               # 파일·스토리지(S3) 연동
-     └── 📁 util                  # 공통 유틸리티
+ └── 📁 global                        # 공통 모듈
+     ├── 📁 ai                        # AI 서버 클라이언트 (스코어링 · 임베딩)
+     ├── 📁 apiPayload                # 공통 응답 · 에러 코드 · 예외 처리
+     ├── 📁 auth                      # Security Filter · OAuth2 핸들러
+     ├── 📁 config                    # WebClient · Redis · Swagger · S3 설정
+     ├── 📁 enums                     # 공통 Enum (직무 · 고용형태 · 경력)
+     ├── 📁 llm                       # Claude API 클라이언트
+     ├── 📁 storage                   # 파일 스토리지 (S3)
+     └── 📁 util                      # 공통 유틸리티
 
 📦 src/main/resources
- ├── 📄 application.yaml          # 기본 설정
- ├── 📄 application-classify.yml  # 공고 분류 프로필
- ├── 📄 application-collect.yml   # 공고 수집 프로필
- ├── 📄 application-export.yml    # 내보내기 프로필
- ├── 📁 db/migration              # Flyway 마이그레이션 (V1~V9)
- └── 📁 specs                     # 크롤러 기업별 스펙 (17개 기업)
+ ├── 📄 application.yaml              # 기본 설정
+ ├── 📄 application-classify.yml      # 공고 분류 프로필
+ ├── 📄 application-collect.yml       # 공고 수집 프로필
+ ├── 📄 application-export.yml        # 내보내기 프로필
+ ├── 📁 db/migration                  # Flyway 마이그레이션 (V1~V10)
+ └── 📁 specs                         # 크롤러 기업별 스펙 (15개 기업)
 
-📦 infra                         # 인프라 구성
- ├── 📁 nginx                     # Nginx 설정
- ├── 📁 postgres                  # DB 초기화 스크립트
- └── 📁 terraform                 # AWS IaC (EC2 / ECR / IAM / S3)
+📦 infra                              # 인프라 구성
+ ├── 📁 nginx                         # Nginx 설정
+ ├── 📁 postgres                      # DB 초기화 스크립트
+ └── 📁 terraform                     # AWS IaC (EC2 / ECR / IAM / S3)
 
-📄 .github                        # GitHub Actions CI/CD
-📄 docker-compose.yml             # 로컬 개발용
-📄 docker-compose.prod.yml        # 운영 배포용
+📄 .github/workflows                  # GitHub Actions CI/CD
+📄 docker-compose.yml                 # 로컬 개발용
+📄 docker-compose.prod.yml            # 운영 배포용
 📄 Dockerfile
 📄 build.gradle
 ```
+
 
 ---
 
