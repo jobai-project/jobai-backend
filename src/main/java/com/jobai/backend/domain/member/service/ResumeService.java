@@ -7,6 +7,8 @@ import com.jobai.backend.domain.member.repository.MemberRepository;
 import com.jobai.backend.domain.member.repository.ResumesRepository;
 import com.jobai.backend.global.apiPayload.code.GeneralErrorCode;
 import com.jobai.backend.global.apiPayload.exception.GeneralException;
+import com.jobai.backend.domain.home.repository.PrivateMatchScoreRepository;
+import com.jobai.backend.domain.home.repository.PublicMatchScoreRepository;
 import com.jobai.backend.domain.home.service.PrivateMatchingService;
 import com.jobai.backend.domain.home.service.PublicMatchingService;
 import com.jobai.backend.domain.search.service.EmbeddingService;
@@ -36,6 +38,8 @@ public class ResumeService {
     private final EmbeddingService embeddingService;
     private final PrivateMatchingService privateMatchingService;
     private final PublicMatchingService publicMatchingService;
+    private final PrivateMatchScoreRepository privateMatchScoreRepository;
+    private final PublicMatchScoreRepository publicMatchScoreRepository;
 
     public ResumeResponseDTO.ResumeListDTO getResumes(String email) {
         List<Resumes> resumes = resumesRepository.findByMemberEmailOrderByUpdatedAtDescIdDesc(email);
@@ -140,7 +144,10 @@ public class ResumeService {
         }
 
         // DB를 먼저 삭제 후 S3 삭제: DB 실패 시 파일은 보존되어 재시도 가능
+        // 매칭 점수는 resume_id FK(NOT NULL, cascade 없음)를 갖고 있어 이력서보다 먼저 삭제해야 함
         String storedFileUrl = resume.getStoredFileUrl();
+        privateMatchScoreRepository.deleteByResumeId(resumeId);
+        publicMatchScoreRepository.deleteByResumeId(resumeId);
         resumesRepository.delete(resume);
         fileStorageService.delete(storedFileUrl);
     }
