@@ -10,7 +10,7 @@ public interface PublicMatchScoreRepository extends JpaRepository<PublicMatchSco
     /** 홈화면용: 특정 이력서에 대해 여러 공고의 점수를 벌크 조회한다. */
     List<PublicMatchScore> findByResumeIdAndPublicJobPostingIdIn(Long resumeId, List<Long> jobIds);
 
-    /** 이력서 변경 시 기존 점수를 삭제한다. */
+    /** 이력서 삭제 시 연결된 점수를 함께 삭제한다. */
     void deleteByResumeId(Long resumeId);
 
     /** 배치 점수 산출: 특정 이력서의 기존 점수를 공고 ID 포함하여 조회 (신규/변경 판단용) */

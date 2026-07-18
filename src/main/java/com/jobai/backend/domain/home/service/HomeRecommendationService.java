@@ -31,6 +31,7 @@ public class HomeRecommendationService {
 
     private static final List<String> DEFAULT_COMPANY_TYPES = List.of("PUBLIC", "PRIVATE");
     private static final int MAX_PAGE_SIZE = 100;
+    private static final int MAX_OFFSET = 10_000;
 
     // Notification.createDefault()의 기본값과 동일. 온보딩 전이라 설정 행이 없는 회원에게 적용.
     private static final int DEFAULT_MATCH_SCORE_THRESHOLD = 70;
@@ -151,7 +152,7 @@ public class HomeRecommendationService {
                 .map(sc -> toRecommendedJob(sc.candidate(), sc.score()))
                 .toList();
 
-        return new HomeRecommendationResponse(totalCount, offset + size < totalCount, jobs);
+        return new HomeRecommendationResponse(totalCount, (long) offset + size < totalCount, jobs);
     }
 
     private int calculateFetchLimit(int offset, int size) {
@@ -160,10 +161,10 @@ public class HomeRecommendationService {
     }
 
     private void validatePagination(int offset, int size) {
-        if (offset < 0 || size < 1 || size > MAX_PAGE_SIZE) {
+        if (offset < 0 || offset > MAX_OFFSET || size < 1 || size > MAX_PAGE_SIZE) {
             throw new GeneralException(
                     GeneralErrorCode.BAD_REQUEST,
-                    "offset은 0 이상, size는 1 이상 100 이하여야 합니다."
+                    "offset은 0 이상 10000 이하, size는 1 이상 100 이하여야 합니다."
             );
         }
     }
@@ -185,7 +186,7 @@ public class HomeRecommendationService {
                 .map(c -> toRecommendedJob(c, null))
                 .toList();
 
-        return new HomeRecommendationResponse(totalCount, offset + size < totalCount, jobs);
+        return new HomeRecommendationResponse(totalCount, (long) offset + size < totalCount, jobs);
     }
 
     private int resolveMatchScoreThreshold(String email) {

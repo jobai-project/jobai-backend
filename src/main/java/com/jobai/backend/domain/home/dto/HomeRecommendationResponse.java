@@ -22,8 +22,7 @@ public record HomeRecommendationResponse(
             String companyName,
             @Schema(description = "공고 제목", example = "2026년 신입사원 채용")
             String title,
-            @Schema(description = "매칭점수 (0~100). 활성 이력서 기준 AI 서버가 산출한 실제 값이며, 아직 점수가 산출되지 않은 "
-                    + "저장된 실제 AI 매칭점수가 있는 공고에만 값이 제공됨. "
+            @Schema(description = "매칭점수 (0~100). 활성 이력서 기준 저장된 실제 AI 매칭점수가 있는 공고에만 값이 제공됨. "
                     + "온보딩 미완료 또는 희망직무/지역을 하나도 설정하지 않아 매칭 근거가 없는 회원에게는 null이 반환되며, "
                     + "이 경우 목록은 매칭점수가 아니라 최신순(createdAt DESC)으로 정렬됨",
                     example = "92", nullable = true)

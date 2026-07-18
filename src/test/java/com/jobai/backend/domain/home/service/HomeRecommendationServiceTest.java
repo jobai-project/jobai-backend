@@ -205,7 +205,7 @@ class HomeRecommendationServiceTest {
     }
 
     @ParameterizedTest
-    @CsvSource({"-1,18", "0,0", "0,-1", "0,101"})
+    @CsvSource({"-1,18", "10001,18", "0,0", "0,-1", "0,101"})
     @DisplayName("잘못된 offset 또는 size는 후보 조회 전에 거부한다")
     void rejectsInvalidPagination(int offset, int size) {
         assertThatThrownBy(() -> service.getRecommendedJobs(
@@ -215,6 +215,20 @@ class HomeRecommendationServiceTest {
                         .isEqualTo("COMMON_400_001"));
 
         verifyNoInteractions(candidateRepository);
+    }
+
+    @Test
+    @DisplayName("최대 offset은 허용하고 제한된 범위로 조회한다")
+    void acceptsMaximumOffset() {
+        when(candidateRepository.countScoredPublicCandidates(10L, null, null, 70))
+                .thenReturn(10_101L);
+
+        HomeRecommendationResponse response = service.getRecommendedJobs(
+                EMAIL, List.of("PUBLIC"), null, null, 10_000, 100
+        );
+
+        verify(candidateRepository).findScoredPublicCandidates(10L, null, null, 70, 10_100);
+        assertThat(response.hasMore()).isTrue();
     }
 
     @Test

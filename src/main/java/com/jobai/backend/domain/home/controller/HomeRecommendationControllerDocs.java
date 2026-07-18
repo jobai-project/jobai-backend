@@ -24,9 +24,8 @@ public interface HomeRecommendationControllerDocs {
 
                     **인증 필요**: 로그인 후 발급된 accessToken 쿠키가 있어야 합니다.
 
-                    **매칭점수(matchScore) 안내**: 활성 이력서를 기준으로 AI 서버가 산출해 저장한 실제 매칭점수를 우선 반환합니다.
-                    신규·변경 공고처럼 배치 또는 비동기 계산을 기다리는 동안 실제 점수가 아직 없을 때만
-                    실제 AI 매칭점수가 아직 저장되지 않은 공고는 추천 결과에서 제외합니다.
+                    **매칭점수(matchScore) 안내**: 활성 이력서를 기준으로 AI 서버가 산출해 저장한 실제 매칭점수를 반환합니다.
+                    저장된 실제 점수가 없는 공고는 추천 결과에서 제외합니다.
 
                     **매칭 근거가 없는 회원 처리**: 온보딩을 완료하지 않았거나 희망직무/희망지역을
                     하나도 설정하지 않은 회원은 매칭점수를 계산할 근거가 없다고 보고, 매 항목의 `matchScore`를
@@ -52,7 +51,7 @@ public interface HomeRecommendationControllerDocs {
     @Parameter(name = "companyTypes", description = "기업형태 필터. 값: PUBLIC, PRIVATE (Swagger UI에서는 'Add string item'으로 값을 하나씩 추가하세요. 실제 호출 시에는 companyTypes=PUBLIC&companyTypes=PRIVATE 처럼 반복하거나 콤마로 이어 붙여도 됩니다.)")
     @Parameter(name = "locations", description = "지역 필터. 값 예: 서울, 경기 (Swagger UI에서는 'Add string item'으로 값을 하나씩 추가하세요.)")
     @Parameter(name = "employmentTypes", description = "고용형태 필터. 값: 인턴, 신입, 경력직, 계약직 (Swagger UI에서는 'Add string item'으로 값을 하나씩 추가하세요.)")
-    @Parameter(name = "offset", description = "조회 시작 위치 (0부터 시작)", example = "0")
+    @Parameter(name = "offset", description = "조회 시작 위치 (0~10000)", example = "0")
     @Parameter(name = "size", description = "한 번에 불러올 공고 개수 (1~100)", example = "18")
     @ApiResponses(value = {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(

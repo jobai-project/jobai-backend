@@ -25,6 +25,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
@@ -58,15 +59,15 @@ public class PrivateMatchingService {
             return;
         }
 
-        // 기존 점수 삭제
-        privateMatchScoreRepository.deleteByResumeId(resumeId);
-
         // 활성 공고 조회 (유효 카테고리만)
         List<PrivateJobPosting> activePostings = findActivePostings();
         if (activePostings.isEmpty()) {
             log.info("활성 공고가 없어 점수 계산 건너뜀: resumeId={}", resumeId);
             return;
         }
+
+        Map<Long, PrivateMatchScore> existingScores = privateMatchScoreRepository.findByResumeId(resumeId).stream()
+                .collect(Collectors.toMap(score -> score.getPrivateJobPosting().getId(), score -> score));
 
         List<String> resumeSkills = parseSkills(resume.getResumeSkills());
         List<Double> resumeVec = toDoubleList(resume.getEmbedding());
@@ -93,7 +94,7 @@ public class PrivateMatchingService {
                     continue;
                 }
 
-                privateMatchScoreRepository.save(PrivateMatchScore.builder()
+                PrivateMatchScore replacement = PrivateMatchScore.builder()
                         .member(resume.getMember())
                         .resume(resume)
                         .privateJobPosting(posting)
@@ -103,7 +104,8 @@ public class PrivateMatchingService {
                         .missingSkills(toJson(response.missingSkills()))
                         .careerMet(response.careerMet())
                         .modelVersion(response.modelVersion())
-                        .build());
+                        .build();
+                saveOrReplace(existingScores.get(posting.getId()), replacement);
                 successCount++;
             } catch (Exception e) {
                 log.warn("공고 점수 계산 실패: postingId={}, error={}", posting.getId(), e.getMessage());
@@ -112,6 +114,14 @@ public class PrivateMatchingService {
         }
 
         log.info("매칭 점수 계산 결과: resumeId={}, 성공={}, 실패={}", resumeId, successCount, failCount);
+    }
+
+    private void saveOrReplace(PrivateMatchScore existing, PrivateMatchScore replacement) {
+        if (existing != null) {
+            privateMatchScoreRepository.delete(existing);
+            privateMatchScoreRepository.flush();
+        }
+        privateMatchScoreRepository.save(replacement);
     }
 
     private float[] getOrCreateJobEmbedding(PrivateJobPosting posting) {
