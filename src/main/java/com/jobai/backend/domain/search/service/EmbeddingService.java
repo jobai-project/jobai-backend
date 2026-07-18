@@ -3,7 +3,7 @@ package com.jobai.backend.domain.search.service;
 import com.jobai.backend.global.ai.client.AiEmbeddingClient;
 import com.jobai.backend.global.ai.dto.EmbedRequest;
 import com.jobai.backend.global.ai.dto.EmbedResponse;
-import com.jobai.backend.domain.jobposting.entity.PrivateJobPosting;
+import com.jobai.backend.domain.privatejobposting.entity.PrivateJobPosting;
 import com.jobai.backend.domain.publicInstitution.entity.PublicJobPosting;
 import com.jobai.backend.domain.search.entity.JobEmbedding;
 import com.jobai.backend.global.enums.JobSource;

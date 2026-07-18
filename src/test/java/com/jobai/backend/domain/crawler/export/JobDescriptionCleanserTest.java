@@ -1,6 +1,6 @@
 package com.jobai.backend.domain.crawler.export;
 
-import com.jobai.backend.domain.jobposting.service.JobDescriptionCleanser;
+import com.jobai.backend.domain.privatejobposting.service.JobDescriptionCleanser;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 

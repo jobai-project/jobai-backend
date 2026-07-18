@@ -1,7 +1,7 @@
 package com.jobai.backend.global.scheduler;
 
-import com.jobai.backend.domain.jobposting.service.PrivateJobBatchCollectService;
-import com.jobai.backend.domain.jobposting.service.PrivateJobPostingService;
+import com.jobai.backend.domain.privatejobposting.service.PrivateJobBatchCollectService;
+import com.jobai.backend.domain.privatejobposting.service.PrivateJobPostingService;
 import com.jobai.backend.domain.home.service.PrivateMatchBatchService;
 import com.jobai.backend.domain.home.service.PublicMatchBatchService;
 import com.jobai.backend.domain.publicInstitution.service.JobDataSyncService;
