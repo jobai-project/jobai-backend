@@ -46,7 +46,7 @@ public class HomeJobCandidateRepository {
                 "SELECT p FROM PublicJobPosting p",
                 "(p.isClosed IS NULL OR p.isClosed = false)",
                 pr,
-                "p.createdAt DESC"
+                "p.createdAt DESC, p.id DESC"
         );
         TypedQuery<PublicJobPosting> query = em.createQuery(jpql, PublicJobPosting.class)
                 .setMaxResults(limit);
@@ -90,7 +90,7 @@ public class HomeJobCandidateRepository {
                 "SELECT p FROM PrivateJobPosting p",
                 "p.isClosed = false AND p.jobCategory IN :validCategories",
                 pr,
-                "p.createdAt DESC"
+                "p.createdAt DESC, p.id DESC"
         );
         TypedQuery<PrivateJobPosting> query = em.createQuery(jpql, PrivateJobPosting.class)
                 .setParameter("validCategories", JobCategory.matchTargetLabels())
@@ -134,7 +134,7 @@ public class HomeJobCandidateRepository {
                 "s.resume.id = :resumeId AND s.score >= :threshold"
                         + " AND (p.isClosed IS NULL OR p.isClosed = false)",
                 pr,
-                "s.score DESC, p.createdAt DESC"
+                "s.score DESC, p.createdAt DESC, p.id DESC"
         );
 
         var query = em.createQuery(jpql, Object[].class)
@@ -179,7 +179,7 @@ public class HomeJobCandidateRepository {
                 "s.resume.id = :resumeId AND s.score >= :threshold"
                         + " AND p.isClosed = false AND p.jobCategory IN :validCategories",
                 pr,
-                "s.score DESC, p.createdAt DESC"
+                "s.score DESC, p.createdAt DESC, p.id DESC"
         );
 
         var query = em.createQuery(jpql, Object[].class)

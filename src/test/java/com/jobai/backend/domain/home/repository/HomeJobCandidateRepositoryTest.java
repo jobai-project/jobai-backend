@@ -21,6 +21,7 @@ class HomeJobCandidateRepositoryTest {
 
     private EntityManager entityManager;
     private TypedQuery<Long> countQuery;
+    private TypedQuery<Object[]> scoredQuery;
     private HomeJobCandidateRepository repository;
 
     @SuppressWarnings("unchecked")
@@ -28,10 +29,15 @@ class HomeJobCandidateRepositoryTest {
     void setUp() {
         entityManager = Mockito.mock(EntityManager.class);
         countQuery = Mockito.mock(TypedQuery.class);
+        scoredQuery = Mockito.mock(TypedQuery.class);
         repository = new HomeJobCandidateRepository(entityManager);
         when(entityManager.createQuery(anyString(), eq(Long.class))).thenReturn(countQuery);
+        when(entityManager.createQuery(anyString(), eq(Object[].class))).thenReturn(scoredQuery);
         when(countQuery.setParameter(anyString(), Mockito.any())).thenReturn(countQuery);
         when(countQuery.getSingleResult()).thenReturn(1L);
+        when(scoredQuery.setParameter(anyString(), Mockito.any())).thenReturn(scoredQuery);
+        when(scoredQuery.setMaxResults(Mockito.anyInt())).thenReturn(scoredQuery);
+        when(scoredQuery.getResultList()).thenReturn(List.of());
     }
 
     @Test
@@ -65,5 +71,16 @@ class HomeJobCandidateRepositoryTest {
                 .contains("LOWER(p.workRegion) LIKE :loc0")
                 .contains("LOWER(p.jobRole) LIKE :prefJob0")
                 .contains("LOWER(p.workRegion) LIKE :prefLocation0");
+    }
+
+    @Test
+    @DisplayName("점수 후보 조회는 점수, 생성시각, ID 순으로 정렬하고 요청 범위만 조회한다")
+    void ordersScoredCandidatesDeterministically() {
+        repository.findScoredPrivateCandidates(10L, null, null, 70, 1_018);
+
+        ArgumentCaptor<String> jpql = ArgumentCaptor.forClass(String.class);
+        verify(entityManager).createQuery(jpql.capture(), eq(Object[].class));
+        assertThat(jpql.getValue()).contains("ORDER BY s.score DESC, p.createdAt DESC, p.id DESC");
+        verify(scoredQuery).setMaxResults(1_018);
     }
 }

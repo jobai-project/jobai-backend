@@ -53,7 +53,7 @@ public interface HomeRecommendationControllerDocs {
     @Parameter(name = "locations", description = "지역 필터. 값 예: 서울, 경기 (Swagger UI에서는 'Add string item'으로 값을 하나씩 추가하세요.)")
     @Parameter(name = "employmentTypes", description = "고용형태 필터. 값: 인턴, 신입, 경력직, 계약직 (Swagger UI에서는 'Add string item'으로 값을 하나씩 추가하세요.)")
     @Parameter(name = "offset", description = "조회 시작 위치 (0부터 시작)", example = "0")
-    @Parameter(name = "size", description = "한 번에 불러올 공고 개수", example = "18")
+    @Parameter(name = "size", description = "한 번에 불러올 공고 개수 (1~100)", example = "18")
     @ApiResponses(value = {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(
                     responseCode = "200",

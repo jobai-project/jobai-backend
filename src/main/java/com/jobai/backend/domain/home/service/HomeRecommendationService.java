@@ -30,6 +30,7 @@ import java.util.stream.Stream;
 public class HomeRecommendationService {
 
     private static final List<String> DEFAULT_COMPANY_TYPES = List.of("PUBLIC", "PRIVATE");
+    private static final int MAX_PAGE_SIZE = 100;
 
     // Notification.createDefault()의 기본값과 동일. 온보딩 전이라 설정 행이 없는 회원에게 적용.
     private static final int DEFAULT_MATCH_SCORE_THRESHOLD = 70;
@@ -47,6 +48,8 @@ public class HomeRecommendationService {
             int offset,
             int size
     ) {
+        validatePagination(offset, size);
+
         Member member = memberRepository.findByEmail(email)
                 .orElseThrow(() -> new GeneralException(GeneralErrorCode.MEMBER_NOT_FOUND, "해당 이메일은 존재하지 않는 회원입니다."));
 
@@ -128,7 +131,9 @@ public class HomeRecommendationService {
                 .sorted(Comparator
                         .comparingInt(ScoredJobCandidate::score)
                         .reversed()
-                        .thenComparing(sc -> sc.candidate().createdAt(), Comparator.nullsLast(Comparator.reverseOrder())))
+                        .thenComparing(sc -> sc.candidate().createdAt(), Comparator.nullsLast(Comparator.reverseOrder()))
+                        .thenComparing(sc -> sc.candidate().source(), Comparator.nullsLast(Comparator.naturalOrder()))
+                        .thenComparing(sc -> sc.candidate().id(), Comparator.nullsLast(Comparator.reverseOrder())))
                 .toList();
 
         long totalCount = 0;
@@ -150,8 +155,17 @@ public class HomeRecommendationService {
     }
 
     private int calculateFetchLimit(int offset, int size) {
-        long requested = (long) Math.max(offset, 0) + Math.max(size, 0);
-        return (int) Math.min(Math.max(requested, 1L), Integer.MAX_VALUE);
+        long requested = (long) offset + size;
+        return (int) Math.min(requested, Integer.MAX_VALUE);
+    }
+
+    private void validatePagination(int offset, int size) {
+        if (offset < 0 || size < 1 || size > MAX_PAGE_SIZE) {
+            throw new GeneralException(
+                    GeneralErrorCode.BAD_REQUEST,
+                    "offset은 0 이상, size는 1 이상 100 이하여야 합니다."
+            );
+        }
     }
 
     // 온보딩 미완료 또는 희망직무/지역 미설정: 최신순으로만 노출, matchScore는 null
@@ -159,7 +173,10 @@ public class HomeRecommendationService {
             List<JobCandidate> candidates, long totalCount, int offset, int size
     ) {
         List<JobCandidate> sorted = candidates.stream()
-                .sorted(Comparator.comparing(JobCandidate::createdAt, Comparator.nullsLast(Comparator.reverseOrder())))
+                .sorted(Comparator
+                        .comparing(JobCandidate::createdAt, Comparator.nullsLast(Comparator.reverseOrder()))
+                        .thenComparing(JobCandidate::source, Comparator.nullsLast(Comparator.naturalOrder()))
+                        .thenComparing(JobCandidate::id, Comparator.nullsLast(Comparator.reverseOrder())))
                 .toList();
 
         List<RecommendedJob> jobs = sorted.stream()

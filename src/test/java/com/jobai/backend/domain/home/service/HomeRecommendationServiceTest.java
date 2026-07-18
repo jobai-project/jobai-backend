@@ -17,6 +17,8 @@ import com.jobai.backend.global.apiPayload.exception.GeneralException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.mockito.Mockito;
 
 import java.time.LocalDateTime;
@@ -202,6 +204,48 @@ class HomeRecommendationServiceTest {
         verify(resumesRepository, never()).findByMemberEmailAndIsActiveTrue(EMAIL);
     }
 
+    @ParameterizedTest
+    @CsvSource({"-1,18", "0,0", "0,-1", "0,101"})
+    @DisplayName("잘못된 offset 또는 size는 후보 조회 전에 거부한다")
+    void rejectsInvalidPagination(int offset, int size) {
+        assertThatThrownBy(() -> service.getRecommendedJobs(
+                EMAIL, List.of("PUBLIC"), null, null, offset, size))
+                .isInstanceOf(GeneralException.class)
+                .satisfies(error -> assertThat(((GeneralException) error).getErrorCode().getCode())
+                        .isEqualTo("COMMON_400_001"));
+
+        verifyNoInteractions(candidateRepository);
+    }
+
+    @Test
+    @DisplayName("동점 공고를 여러 페이지로 조회해도 중복과 누락 없이 동일한 순서를 유지한다")
+    void paginatesTiedScoresDeterministically() {
+        LocalDateTime sameCreatedAt = LocalDateTime.of(2026, 7, 18, 0, 0);
+        List<ScoredJobCandidate> publicScores = List.of(
+                scored(1L, "PUBLIC", 90, sameCreatedAt),
+                scored(2L, "PUBLIC", 90, sameCreatedAt)
+        );
+        List<ScoredJobCandidate> privateScores = List.of(
+                scored(1L, "PRIVATE", 90, sameCreatedAt),
+                scored(2L, "PRIVATE", 90, sameCreatedAt)
+        );
+        when(candidateRepository.findScoredPublicCandidates(eq(10L), any(), any(), eq(70), anyInt()))
+                .thenReturn(publicScores);
+        when(candidateRepository.findScoredPrivateCandidates(eq(10L), any(), any(), eq(70), anyInt()))
+                .thenReturn(privateScores);
+        when(candidateRepository.countScoredPublicCandidates(10L, null, null, 70)).thenReturn(2L);
+        when(candidateRepository.countScoredPrivateCandidates(10L, null, null, 70)).thenReturn(2L);
+
+        HomeRecommendationResponse first = service.getRecommendedJobs(EMAIL, null, null, null, 0, 2);
+        HomeRecommendationResponse second = service.getRecommendedJobs(EMAIL, null, null, null, 2, 2);
+
+        List<String> firstKeys = first.jobs().stream().map(job -> job.source() + ":" + job.id()).toList();
+        List<String> secondKeys = second.jobs().stream().map(job -> job.source() + ":" + job.id()).toList();
+        assertThat(firstKeys).doesNotContainAnyElementsOf(secondKeys);
+        assertThat(java.util.stream.Stream.concat(firstKeys.stream(), secondKeys.stream()).toList())
+                .containsExactly("PRIVATE:2", "PRIVATE:1", "PUBLIC:2", "PUBLIC:1");
+    }
+
     private Member memberWithPreferences() {
         Member member = Member.builder().id(1L).email(EMAIL).onboardingCompleted(true).build();
         member.getPrefJobs().add(new PreferredJob(member, "백엔드"));
@@ -209,8 +253,12 @@ class HomeRecommendationServiceTest {
     }
 
     private ScoredJobCandidate scored(Long id, String source, int score) {
+        return scored(id, source, score, LocalDateTime.of(2026, 1, 1, 0, 0));
+    }
+
+    private ScoredJobCandidate scored(Long id, String source, int score, LocalDateTime createdAt) {
         return new ScoredJobCandidate(
-                candidate(id, source, "백엔드", "서울", LocalDateTime.of(2026, 1, 1, 0, 0)),
+                candidate(id, source, "백엔드", "서울", createdAt),
                 score
         );
     }
