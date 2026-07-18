@@ -112,6 +112,30 @@ resource "aws_iam_role_policy_attachment" "ec2_ai_model_s3_read" {
   policy_arn = aws_iam_policy.ec2_ai_model_s3_read.arn
 }
 
+resource "aws_iam_policy" "ec2_ses_email_send" {
+  name        = "jobai-ec2-ses-email-send"
+  description = "Allow EC2 application to send notification emails through Amazon SES"
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "ses:SendEmail",
+          "ses:SendRawEmail"
+        ]
+        Resource = "*"
+      }
+    ]
+  })
+}
+
+resource "aws_iam_role_policy_attachment" "ec2_ses_email_send" {
+  role       = aws_iam_role.ec2.name
+  policy_arn = aws_iam_policy.ec2_ses_email_send.arn
+}
+
 resource "aws_iam_policy" "rds_ssm_port_forward" {
   name        = "jobai-rds-ssm-port-forward"
   description = "Allow team members to port-forward to RDS through the backend EC2 using SSM Session Manager"
