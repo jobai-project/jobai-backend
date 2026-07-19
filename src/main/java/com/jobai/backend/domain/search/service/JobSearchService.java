@@ -151,8 +151,12 @@ public class JobSearchService {
         SearchCondition condition = buildCondition(match, SearchCondition.METHOD_HYBRID);
 
         // 키워드 검색 (고정 후보 깊이)
-        List<JobSummary> keywordPrivate = jobSearchRepository.searchPrivate(condition, 0, HYBRID_CANDIDATE_DEPTH);
-        List<JobSummary> keywordPublic = jobSearchRepository.searchPublic(condition, 0, HYBRID_CANDIDATE_DEPTH);
+        List<JobSummary> keywordPrivate = "PUBLIC".equals(condition.sourceType())
+                ? List.of()
+                : jobSearchRepository.searchPrivate(condition, 0, HYBRID_CANDIDATE_DEPTH);
+        List<JobSummary> keywordPublic = "PRIVATE".equals(condition.sourceType())
+                ? List.of()
+                : jobSearchRepository.searchPublic(condition, 0, HYBRID_CANDIDATE_DEPTH);
         List<JobSummary> keywordResults = Stream.concat(keywordPrivate.stream(), keywordPublic.stream())
                 .sorted(Comparator.comparingInt((JobSummary j) -> MATCH_TYPE_ORDER.getOrDefault(j.matchType(), 3))
                         .thenComparing(JobSummary::createdAt, Comparator.nullsLast(Comparator.reverseOrder())))
@@ -164,10 +168,14 @@ public class JobSearchService {
             String textForEmbedding = expansion.expandedText();
             float[] queryVector = embeddingService.embedQuery(textForEmbedding);
 
-            List<ScoredJob> vectorPrivate = vectorSearchRepository.searchPrivateByVector(
-                    queryVector, VECTOR_THRESHOLD, condition, 0, HYBRID_CANDIDATE_DEPTH);
-            List<ScoredJob> vectorPublic = vectorSearchRepository.searchPublicByVector(
-                    queryVector, VECTOR_THRESHOLD, condition, 0, HYBRID_CANDIDATE_DEPTH);
+            List<ScoredJob> vectorPrivate = "PUBLIC".equals(condition.sourceType())
+                    ? List.of()
+                    : vectorSearchRepository.searchPrivateByVector(
+                            queryVector, VECTOR_THRESHOLD, condition, 0, HYBRID_CANDIDATE_DEPTH);
+            List<ScoredJob> vectorPublic = "PRIVATE".equals(condition.sourceType())
+                    ? List.of()
+                    : vectorSearchRepository.searchPublicByVector(
+                            queryVector, VECTOR_THRESHOLD, condition, 0, HYBRID_CANDIDATE_DEPTH);
             vectorResults = Stream.concat(vectorPrivate.stream(), vectorPublic.stream())
                     .sorted(Comparator.comparingDouble(ScoredJob::distance))
                     .map(ScoredJob::job)
@@ -181,8 +189,8 @@ public class JobSearchService {
         List<JobSummary> merged = hybridSearchMerger.merge(keywordResults, vectorResults);
 
         // 정확한 totalCount: DB count 쿼리 사용
-        long totalCount = jobSearchRepository.countPrivate(condition)
-                + jobSearchRepository.countPublic(condition);
+        long totalCount = ("PUBLIC".equals(condition.sourceType()) ? 0 : jobSearchRepository.countPrivate(condition))
+                + ("PRIVATE".equals(condition.sourceType()) ? 0 : jobSearchRepository.countPublic(condition));
 
         SearchInfo searchInfo = new SearchInfo(
                 SearchCondition.METHOD_HYBRID, condition.categories(), List.of());
@@ -192,10 +200,14 @@ public class JobSearchService {
     // ---------- 기존 검색 경로 ----------
 
     private JobSearchResponse executeVectorSearch(float[] queryVector, SearchCondition condition) {
-        List<ScoredJob> privateResults = vectorSearchRepository.searchPrivateByVector(
-                queryVector, VECTOR_THRESHOLD, condition, 0, HYBRID_CANDIDATE_DEPTH);
-        List<ScoredJob> publicResults = vectorSearchRepository.searchPublicByVector(
-                queryVector, VECTOR_THRESHOLD, condition, 0, HYBRID_CANDIDATE_DEPTH);
+        List<ScoredJob> privateResults = "PUBLIC".equals(condition.sourceType())
+                ? List.of()
+                : vectorSearchRepository.searchPrivateByVector(
+                        queryVector, VECTOR_THRESHOLD, condition, 0, HYBRID_CANDIDATE_DEPTH);
+        List<ScoredJob> publicResults = "PRIVATE".equals(condition.sourceType())
+                ? List.of()
+                : vectorSearchRepository.searchPublicByVector(
+                        queryVector, VECTOR_THRESHOLD, condition, 0, HYBRID_CANDIDATE_DEPTH);
 
         List<JobSummary> allResults = Stream.concat(privateResults.stream(), publicResults.stream())
                 .sorted(Comparator.comparingInt((ScoredJob s) -> MATCH_TYPE_ORDER.getOrDefault(s.job().matchType(), 3))
@@ -203,8 +215,10 @@ public class JobSearchService {
                 .map(ScoredJob::job)
                 .toList();
 
-        long totalCount = vectorSearchRepository.countPrivateByVector(queryVector, VECTOR_THRESHOLD, condition)
-                + vectorSearchRepository.countPublicByVector(queryVector, VECTOR_THRESHOLD, condition);
+        long totalCount = ("PUBLIC".equals(condition.sourceType()) ? 0
+                        : vectorSearchRepository.countPrivateByVector(queryVector, VECTOR_THRESHOLD, condition))
+                + ("PRIVATE".equals(condition.sourceType()) ? 0
+                        : vectorSearchRepository.countPublicByVector(queryVector, VECTOR_THRESHOLD, condition));
 
         SearchInfo searchInfo = new SearchInfo(
                 condition.method(), condition.categories(), List.of());
@@ -212,16 +226,20 @@ public class JobSearchService {
     }
 
     private JobSearchResponse executeTraditionalSearch(SearchCondition condition) {
-        List<JobSummary> privateResults = jobSearchRepository.searchPrivate(condition, 0, HYBRID_CANDIDATE_DEPTH);
-        List<JobSummary> publicResults = jobSearchRepository.searchPublic(condition, 0, HYBRID_CANDIDATE_DEPTH);
+        List<JobSummary> privateResults = "PUBLIC".equals(condition.sourceType())
+                ? List.of()
+                : jobSearchRepository.searchPrivate(condition, 0, HYBRID_CANDIDATE_DEPTH);
+        List<JobSummary> publicResults = "PRIVATE".equals(condition.sourceType())
+                ? List.of()
+                : jobSearchRepository.searchPublic(condition, 0, HYBRID_CANDIDATE_DEPTH);
 
         List<JobSummary> allResults = Stream.concat(privateResults.stream(), publicResults.stream())
                 .sorted(Comparator.comparingInt((JobSummary j) -> MATCH_TYPE_ORDER.getOrDefault(j.matchType(), 3))
                         .thenComparing(JobSummary::createdAt, Comparator.nullsLast(Comparator.reverseOrder())))
                 .toList();
 
-        long totalCount = jobSearchRepository.countPrivate(condition)
-                + jobSearchRepository.countPublic(condition);
+        long totalCount = ("PUBLIC".equals(condition.sourceType()) ? 0 : jobSearchRepository.countPrivate(condition))
+                + ("PRIVATE".equals(condition.sourceType()) ? 0 : jobSearchRepository.countPublic(condition));
 
         SearchInfo searchInfo = new SearchInfo(
                 condition.method(), condition.categories(), List.of());
@@ -236,7 +254,7 @@ public class JobSearchService {
                 match.categories(), match.company(),
                 match.location(), match.experience(),
                 match.experienceLevels(), match.employmentTypes(),
-                method);
+                method, match.sourceType());
     }
 
     /** 검색 결과에 매칭 점수를 부착한다. */

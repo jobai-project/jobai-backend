@@ -91,7 +91,10 @@ public class BatchNotificationHelper {
 
         int totalNotified = 0;
         for (Resumes resume : resumes) {
-            String email = resume.getMember().getEmail();
+            Member member = resume.getMember();
+            if (!member.isOnboardingCompleted()) continue;
+
+            String email = member.getEmail();
             int threshold = notificationRepository.findByMemberEmail(email)
                     .map(Notification::getMatchScoreThreshold)
                     .orElse(70);

@@ -31,6 +31,7 @@ public class KeywordMatcher {
     private final Map<String, String> employmentTypeKeywords = new HashMap<>();
     private final Map<String, String> companyKeywords = new HashMap<>();
     private final Map<String, String> companyDisplayNames = new HashMap<>();
+    private final Map<String, String> sourceTypeKeywords = new HashMap<>();
 
     /** Komoran POS 태그 중 키워드 매칭 대상이 되는 콘텐츠 형태소 */
     private static final Set<String> CONTENT_POS_TAGS = Set.of(
@@ -63,6 +64,7 @@ public class KeywordMatcher {
         initExperienceKeywords();
         initEmploymentTypeKeywords();
         initCompanyKeywords();
+        initSourceTypeKeywords();
         this.komoran = initKomoran();
     }
 
@@ -82,6 +84,7 @@ public class KeywordMatcher {
         String matchedLocation = null;
         String matchedExperience = null;
         String matchedEmploymentType = null;
+        String matchedSourceType = null;
         List<String> unmatchedTokens = new ArrayList<>();
 
         // 인접 토큰 결합(bigram) 매칭을 위해 소비 여부 추적
@@ -93,6 +96,13 @@ public class KeywordMatcher {
             JobCategory category = categorySynonyms.get(combined);
             if (category != null) {
                 matchedCategories.add(category);
+                consumed[i] = true;
+                consumed[i + 1] = true;
+                continue;
+            }
+            String sourceType = sourceTypeKeywords.get(combined);
+            if (sourceType != null) {
+                matchedSourceType = sourceType;
                 consumed[i] = true;
                 consumed[i + 1] = true;
             }
@@ -134,6 +144,12 @@ public class KeywordMatcher {
                 continue;
             }
 
+            String sourceType = sourceTypeKeywords.get(token);
+            if (sourceType != null) {
+                matchedSourceType = sourceType;
+                continue;
+            }
+
             unmatchedTokens.add(token);
         }
 
@@ -145,7 +161,7 @@ public class KeywordMatcher {
         List<String> empTypes = deriveEmploymentTypes(matchedEmploymentType);
 
         return new MatchResult(categoryLabels, matchedCompany, matchedLocation,
-                matchedExperience, expLevels, empTypes, unmatchedTokens);
+                matchedExperience, expLevels, empTypes, matchedSourceType, unmatchedTokens);
     }
 
     /** Komoran으로 형태소 분석 후 콘텐츠 형태소(명사/외국어)만 추출한다. */
@@ -179,7 +195,8 @@ public class KeywordMatcher {
 
         if (result.categories().isEmpty() && result.company() == null
                 && result.location() == null
-                && result.experience() == null && result.employmentTypes().isEmpty()) {
+                && result.experience() == null && result.employmentTypes().isEmpty()
+                && result.sourceType() == null) {
             return Optional.empty();
         }
 
@@ -190,7 +207,8 @@ public class KeywordMatcher {
                 result.experience(),
                 result.experienceLevels(),
                 result.employmentTypes(),
-                SearchCondition.METHOD_KEYWORD
+                SearchCondition.METHOD_KEYWORD,
+                result.sourceType()
         ));
     }
 
@@ -285,6 +303,9 @@ public class KeywordMatcher {
         companyKeywords.keySet().stream()
                 .filter(w -> w.matches(".*[가-힣].*"))
                 .forEach(dictWords::add);
+        sourceTypeKeywords.keySet().stream()
+                .filter(w -> w.matches(".*[가-힣].*"))
+                .forEach(dictWords::add);
 
         // bigram 구성 단어 중 Komoran이 분리할 수 있는 단어 추가
         dictWords.addAll(List.of("리서처", "리서치", "매니저", "오너"));
@@ -337,6 +358,15 @@ public class KeywordMatcher {
         }
     }
 
+    private void initSourceTypeKeywords() {
+        for (String keyword : List.of("공공기관", "공기업", "공공")) {
+            sourceTypeKeywords.put(keyword, "PUBLIC");
+        }
+        for (String keyword : List.of("사기업", "민간")) {
+            sourceTypeKeywords.put(keyword, "PRIVATE");
+        }
+    }
+
     private void initCompanyKeywords() {
         addCompany("kakao", "카카오");
         addCompany("kakaopay", "카카오페이");
@@ -378,6 +408,7 @@ public class KeywordMatcher {
             String experience,
             List<String> experienceLevels,
             List<String> employmentTypes,
+            String sourceType,
             List<String> unmatchedTokens
     ) {
         public boolean hasUnmatchedTokens() {
@@ -385,7 +416,7 @@ public class KeywordMatcher {
         }
 
         public static MatchResult empty() {
-            return new MatchResult(List.of(), null, null, null, List.of(), List.of(), List.of());
+            return new MatchResult(List.of(), null, null, null, List.of(), List.of(), null, List.of());
         }
     }
 }

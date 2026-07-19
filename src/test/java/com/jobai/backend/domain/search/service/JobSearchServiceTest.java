@@ -74,7 +74,7 @@ class JobSearchServiceTest {
     @DisplayName("미매칭 토큰 없으면 기존 검색, 벡터 안 씀")
     void 미매칭없으면_기존검색() {
         when(keywordMatcher.extract(anyString()))
-                .thenReturn(new MatchResult(List.of("백엔드"), null, "서울", null, List.of(), List.of(), List.of()));
+                .thenReturn(new MatchResult(List.of("백엔드"), null, "서울", null, List.of(), List.of(), null, List.of()));
 
         when(jobSearchRepository.searchPrivate(any(), anyInt(), anyInt())).thenReturn(List.of());
         when(jobSearchRepository.searchPublic(any(), anyInt(), anyInt())).thenReturn(List.of());
@@ -94,7 +94,7 @@ class JobSearchServiceTest {
     @DisplayName("미매칭 토큰 있으면 벡터 검색 실행")
     void 미매칭있으면_벡터검색() {
         when(keywordMatcher.extract(anyString()))
-                .thenReturn(new MatchResult(List.of("백엔드"), null, "서울", null, List.of(), List.of(), List.of("혼자", "일하기")));
+                .thenReturn(new MatchResult(List.of("백엔드"), null, "서울", null, List.of(), List.of(), null, List.of("혼자", "일하기")));
 
         float[] queryVector = new float[]{0.1f, 0.2f};
         when(embeddingService.embedQuery(anyString())).thenReturn(queryVector);
@@ -119,7 +119,7 @@ class JobSearchServiceTest {
     @DisplayName("벡터 검색에 카테고리/지역/경력 pre-filter가 전달된다")
     void 벡터검색_필터전달() {
         when(keywordMatcher.extract(anyString()))
-                .thenReturn(new MatchResult(List.of("백엔드"), null, "판교", "경력", List.of("경력", "무관", "미확인"), List.of(), List.of("혼자")));
+                .thenReturn(new MatchResult(List.of("백엔드"), null, "판교", "경력", List.of("경력", "무관", "미확인"), List.of(), null, List.of("혼자")));
 
         when(embeddingService.embedQuery(anyString())).thenReturn(new float[]{0.1f});
         when(vectorSearchRepository.searchPrivateByVector(any(), anyDouble(), any(), anyInt(), anyInt()))
@@ -145,7 +145,7 @@ class JobSearchServiceTest {
     @DisplayName("벡터 검색 결과 0건이면 빈 결과 반환 (폴백 없음)")
     void 벡터검색_결과없으면_빈결과() {
         when(keywordMatcher.extract(anyString()))
-                .thenReturn(new MatchResult(List.of(), null, null, null, List.of(), List.of(), List.of("혼자", "일하기")));
+                .thenReturn(new MatchResult(List.of(), null, null, null, List.of(), List.of(), null, List.of("혼자", "일하기")));
 
         when(embeddingService.embedQuery(anyString())).thenReturn(new float[]{0.1f});
         when(vectorSearchRepository.searchPrivateByVector(any(), anyDouble(), any(), anyInt(), anyInt()))
@@ -169,7 +169,7 @@ class JobSearchServiceTest {
     @DisplayName("임베딩 실패 시 기존 검색으로 폴백")
     void 임베딩실패시_폴백() {
         when(keywordMatcher.extract(anyString()))
-                .thenReturn(new MatchResult(List.of("백엔드"), null, null, null, List.of(), List.of(), List.of("혼자")));
+                .thenReturn(new MatchResult(List.of("백엔드"), null, null, null, List.of(), List.of(), null, List.of("혼자")));
 
         when(embeddingService.embedQuery(anyString()))
                 .thenThrow(new RuntimeException("ai-server 연결 실패"));
@@ -191,7 +191,7 @@ class JobSearchServiceTest {
     @DisplayName("사기업/공기업 유사도순(distance 오름차순) 합산 정렬")
     void 소스무관_유사도순정렬() {
         when(keywordMatcher.extract(anyString()))
-                .thenReturn(new MatchResult(List.of(), null, null, null, List.of(), List.of(), List.of("혼자")));
+                .thenReturn(new MatchResult(List.of(), null, null, null, List.of(), List.of(), null, List.of("혼자")));
 
         when(embeddingService.embedQuery(anyString())).thenReturn(new float[]{0.1f});
 
@@ -226,7 +226,7 @@ class JobSearchServiceTest {
         ReflectionTestUtils.setField(jobSearchService, "embeddingEnabled", false);
 
         when(keywordMatcher.extract(anyString()))
-                .thenReturn(new MatchResult(List.of(), null, null, null, List.of(), List.of(), List.of("혼자")));
+                .thenReturn(new MatchResult(List.of(), null, null, null, List.of(), List.of(), null, List.of("혼자")));
 
         when(jobSearchRepository.searchPrivate(any(), anyInt(), anyInt())).thenReturn(List.of());
         when(jobSearchRepository.searchPublic(any(), anyInt(), anyInt())).thenReturn(List.of());
@@ -248,7 +248,7 @@ class JobSearchServiceTest {
         ReflectionTestUtils.setField(jobSearchService, "hybridEnabled", true);
 
         when(keywordMatcher.extract(anyString()))
-                .thenReturn(new MatchResult(List.of("백엔드"), null, null, null, List.of(), List.of(), List.of("혼자")));
+                .thenReturn(new MatchResult(List.of("백엔드"), null, null, null, List.of(), List.of(), null, List.of("혼자")));
 
         // 키워드와 벡터에 서로 다른 문서 반환
         JobSummary keywordJob = createJobSummary(1L, "PRIVATE", "키워드결과", LocalDateTime.now());
@@ -289,7 +289,7 @@ class JobSearchServiceTest {
         ReflectionTestUtils.setField(jobSearchService, "hybridEnabled", true);
 
         when(keywordMatcher.extract(anyString()))
-                .thenReturn(new MatchResult(List.of("백엔드"), null, null, null, List.of(), List.of(), List.of("혼자")));
+                .thenReturn(new MatchResult(List.of("백엔드"), null, null, null, List.of(), List.of(), null, List.of("혼자")));
 
         JobSummary keywordJob = createJobSummary(1L, "PRIVATE", "키워드결과", LocalDateTime.now());
         when(jobSearchRepository.searchPrivate(any(), anyInt(), anyInt())).thenReturn(List.of(keywordJob));
@@ -318,7 +318,7 @@ class JobSearchServiceTest {
     @DisplayName("쿼리 확장 시 expandedKeywords가 SearchInfo에 반영되고 확장된 텍스트로 임베딩")
     void 확장키워드_SearchInfo_반영() {
         when(keywordMatcher.extract(anyString()))
-                .thenReturn(new MatchResult(List.of("백엔드"), null, null, null, List.of(), List.of(), List.of("재택근무")));
+                .thenReturn(new MatchResult(List.of("백엔드"), null, null, null, List.of(), List.of(), null, List.of("재택근무")));
 
         String expandedText = "재택근무 백엔드 원격근무 리모트워크";
         when(queryExpander.expand(anyString(), anyList()))

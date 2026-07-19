@@ -10,7 +10,8 @@ public record SearchCondition(
         String experience,
         List<String> experienceLevels,
         List<String> employmentTypes,
-        String method
+        String method,
+        String sourceType
 ) {
     public static final String METHOD_KEYWORD = "KEYWORD";
     public static final String METHOD_VECTOR = "VECTOR";
