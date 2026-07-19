@@ -15,16 +15,17 @@ import com.jobai.backend.domain.member.entity.Resumes;
 import com.jobai.backend.domain.member.repository.ResumesRepository;
 import com.jobai.backend.domain.search.entity.JobEmbedding;
 import com.jobai.backend.global.enums.JobSource;
+import com.jobai.backend.global.enums.JobCategory;
 import com.jobai.backend.domain.search.repository.JobEmbeddingRepository;
 import com.jobai.backend.domain.search.service.EmbeddingService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
@@ -45,28 +46,6 @@ public class PrivateMatchingService {
     private final ResumesRepository resumesRepository;
     private final ObjectMapper objectMapper;
 
-    private static final List<String> VALID_CATEGORIES = List.of(
-            "백엔드", "프론트엔드", "풀스택", "모바일", "AI/ML",
-            "데이터엔지니어링", "DevOps/인프라", "보안", "QA/테스트",
-            "임베디드", "기타개발", "UX리서처", "UX/UI디자이너",
-            "프로덕트디자이너", "웹디자이너", "PM/PO", "서비스기획"
-    );
-
-    /**
-     * 비동기로 매칭 점수를 계산한다.
-     * 이력서 업로드 트랜잭션 커밋 후 별도 스레드에서 실행된다.
-     */
-    @Async
-    public void calculateScoresAsync(Long resumeId) {
-        log.info("매칭 점수 계산 시작: resumeId={}", resumeId);
-        try {
-            calculateScores(resumeId);
-            log.info("매칭 점수 계산 완료: resumeId={}", resumeId);
-        } catch (Exception e) {
-            log.error("매칭 점수 계산 중 오류: resumeId={}, error={}", resumeId, e.getMessage());
-        }
-    }
-
     @Transactional
     public void calculateScores(Long resumeId) {
         Resumes resume = resumesRepository.findById(resumeId).orElse(null);
@@ -80,15 +59,15 @@ public class PrivateMatchingService {
             return;
         }
 
-        // 기존 점수 삭제
-        privateMatchScoreRepository.deleteByResumeId(resumeId);
-
         // 활성 공고 조회 (유효 카테고리만)
         List<PrivateJobPosting> activePostings = findActivePostings();
         if (activePostings.isEmpty()) {
             log.info("활성 공고가 없어 점수 계산 건너뜀: resumeId={}", resumeId);
             return;
         }
+
+        Map<Long, PrivateMatchScore> existingScores = privateMatchScoreRepository.findByResumeId(resumeId).stream()
+                .collect(Collectors.toMap(score -> score.getPrivateJobPosting().getId(), score -> score));
 
         List<String> resumeSkills = parseSkills(resume.getResumeSkills());
         List<Double> resumeVec = toDoubleList(resume.getEmbedding());
@@ -115,7 +94,7 @@ public class PrivateMatchingService {
                     continue;
                 }
 
-                privateMatchScoreRepository.save(PrivateMatchScore.builder()
+                PrivateMatchScore replacement = PrivateMatchScore.builder()
                         .member(resume.getMember())
                         .resume(resume)
                         .privateJobPosting(posting)
@@ -125,7 +104,8 @@ public class PrivateMatchingService {
                         .missingSkills(toJson(response.missingSkills()))
                         .careerMet(response.careerMet())
                         .modelVersion(response.modelVersion())
-                        .build());
+                        .build();
+                saveOrReplace(existingScores.get(posting.getId()), replacement);
                 successCount++;
             } catch (Exception e) {
                 log.warn("공고 점수 계산 실패: postingId={}, error={}", posting.getId(), e.getMessage());
@@ -134,6 +114,14 @@ public class PrivateMatchingService {
         }
 
         log.info("매칭 점수 계산 결과: resumeId={}, 성공={}, 실패={}", resumeId, successCount, failCount);
+    }
+
+    private void saveOrReplace(PrivateMatchScore existing, PrivateMatchScore replacement) {
+        if (existing != null) {
+            privateMatchScoreRepository.delete(existing);
+            privateMatchScoreRepository.flush();
+        }
+        privateMatchScoreRepository.save(replacement);
     }
 
     private float[] getOrCreateJobEmbedding(PrivateJobPosting posting) {
@@ -159,7 +147,7 @@ public class PrivateMatchingService {
         return privateJobPostingRepository.findAll().stream()
                 .filter(p -> !p.isClosed())
                 .filter(p -> p.getJobCategory() != null)
-                .filter(p -> VALID_CATEGORIES.contains(p.getJobCategory()))
+                .filter(p -> JobCategory.matchTargetLabels().contains(p.getJobCategory()))
                 .collect(Collectors.toList());
     }
 

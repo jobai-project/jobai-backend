@@ -19,13 +19,14 @@ import com.jobai.backend.domain.search.repository.JobEmbeddingRepository;
 import com.jobai.backend.domain.search.service.EmbeddingService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 /**
  * 이력서 업로드 시 모든 활성 공기업 공고에 대해
@@ -54,17 +55,6 @@ public class PublicMatchingService {
      * 비동기로 매칭 점수를 계산한다.
      * 이력서 업로드 트랜잭션 커밋 후 별도 스레드에서 실행된다.
      */
-    @Async
-    public void calculateScoresAsync(Long resumeId) {
-        log.info("공기업 매칭 점수 계산 시작: resumeId={}", resumeId);
-        try {
-            calculateScores(resumeId);
-            log.info("공기업 매칭 점수 계산 완료: resumeId={}", resumeId);
-        } catch (Exception e) {
-            log.error("공기업 매칭 점수 계산 중 오류: resumeId={}, error={}", resumeId, e.getMessage());
-        }
-    }
-
     @Transactional
     public void calculateScores(Long resumeId) {
         Resumes resume = resumesRepository.findById(resumeId).orElse(null);
@@ -78,14 +68,14 @@ public class PublicMatchingService {
             return;
         }
 
-        // 기존 점수 삭제
-        publicMatchScoreRepository.deleteByResumeId(resumeId);
-
         List<PublicJobPosting> activePostings = jobPostingRepository.findActivePublicPostings();
         if (activePostings.isEmpty()) {
             log.info("활성 공기업 공고가 없어 점수 계산 건너뜀: resumeId={}", resumeId);
             return;
         }
+
+        Map<Long, PublicMatchScore> existingScores = publicMatchScoreRepository.findByResumeId(resumeId).stream()
+                .collect(Collectors.toMap(score -> score.getPublicJobPosting().getId(), score -> score));
 
         ScorePublicRequest.ResumePayload resumePayload = buildResumePayload(resume);
         List<Double> resumeVec = toDoubleList(resume.getNcsEmbedding());
@@ -109,7 +99,7 @@ public class PublicMatchingService {
                     continue;
                 }
 
-                publicMatchScoreRepository.save(PublicMatchScore.builder()
+                PublicMatchScore replacement = PublicMatchScore.builder()
                         .member(resume.getMember())
                         .resume(resume)
                         .publicJobPosting(posting)
@@ -121,7 +111,8 @@ public class PublicMatchingService {
                         .missingCerts(toJson(response.missingCerts()))
                         .jobCluster(response.jobCluster())
                         .resumeCluster(response.resumeCluster())
-                        .build());
+                        .build();
+                saveOrReplace(existingScores.get(posting.getId()), replacement);
                 successCount++;
             } catch (Exception e) {
                 log.warn("공고 점수 계산 실패: postingId={}, error={}", posting.getId(), e.getMessage());
@@ -130,6 +121,14 @@ public class PublicMatchingService {
         }
 
         log.info("공기업 매칭 점수 계산 결과: resumeId={}, 성공={}, 실패={}", resumeId, successCount, failCount);
+    }
+
+    private void saveOrReplace(PublicMatchScore existing, PublicMatchScore replacement) {
+        if (existing != null) {
+            publicMatchScoreRepository.delete(existing);
+            publicMatchScoreRepository.flush();
+        }
+        publicMatchScoreRepository.save(replacement);
     }
 
     private ScorePublicRequest buildRequest(

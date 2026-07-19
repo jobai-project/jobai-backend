@@ -9,8 +9,7 @@ import com.jobai.backend.global.apiPayload.code.GeneralErrorCode;
 import com.jobai.backend.global.apiPayload.exception.GeneralException;
 import com.jobai.backend.domain.matching.repository.PrivateMatchScoreRepository;
 import com.jobai.backend.domain.matching.repository.PublicMatchScoreRepository;
-import com.jobai.backend.domain.matching.service.PrivateMatchingService;
-import com.jobai.backend.domain.matching.service.PublicMatchingService;
+import com.jobai.backend.domain.matching.event.ResumeScoreCalculationRequestedEvent;
 import com.jobai.backend.domain.search.service.EmbeddingService;
 import com.jobai.backend.global.storage.FileStorageService;
 import org.junit.jupiter.api.DisplayName;
@@ -21,6 +20,7 @@ import org.mockito.InOrder;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.mock.web.MockMultipartFile;
+import org.springframework.context.ApplicationEventPublisher;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -57,10 +57,7 @@ class ResumeServiceTest {
     private EmbeddingService embeddingService;
 
     @Mock
-    private PrivateMatchingService privateMatchingService;
-
-    @Mock
-    private PublicMatchingService publicMatchingService;
+    private ApplicationEventPublisher eventPublisher;
 
     @Mock
     private PrivateMatchScoreRepository privateMatchScoreRepository;
@@ -76,7 +73,7 @@ class ResumeServiceTest {
     void setUp() {
         resumeService = new ResumeService(
                 resumesRepository, memberRepository, fileStorageService,
-                resumeParsingService, embeddingService, privateMatchingService, publicMatchingService,
+                resumeParsingService, embeddingService, eventPublisher,
                 privateMatchScoreRepository, publicMatchScoreRepository);
     }
 
@@ -162,6 +159,10 @@ class ResumeServiceTest {
         assertThat(saved.getStoredFileUrl()).isEqualTo(fileUrl);
         assertThat(saved.getFileSize()).isEqualTo(file.getSize() + " B");
         verify(resumesRepository).deactivateOthersByMemberId(1L, 99L);
+        ArgumentCaptor<ResumeScoreCalculationRequestedEvent> eventCaptor =
+                ArgumentCaptor.forClass(ResumeScoreCalculationRequestedEvent.class);
+        verify(eventPublisher).publishEvent(eventCaptor.capture());
+        assertThat(eventCaptor.getValue().resumeId()).isEqualTo(99L);
     }
 
     @Test
@@ -243,6 +244,10 @@ class ResumeServiceTest {
 
         verify(resumesRepository).deactivateOthersByMemberId(1L, 5L);
         assertThat(resume.getIsActive()).isTrue();
+        ArgumentCaptor<ResumeScoreCalculationRequestedEvent> eventCaptor =
+                ArgumentCaptor.forClass(ResumeScoreCalculationRequestedEvent.class);
+        verify(eventPublisher).publishEvent(eventCaptor.capture());
+        assertThat(eventCaptor.getValue().resumeId()).isEqualTo(5L);
     }
 
     @Test

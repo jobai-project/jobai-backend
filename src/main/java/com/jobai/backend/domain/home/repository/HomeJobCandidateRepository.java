@@ -4,6 +4,7 @@ import com.jobai.backend.domain.home.constant.EmploymentTypeAlias;
 import com.jobai.backend.domain.home.dto.JobCandidate;
 import com.jobai.backend.domain.privatejobposting.entity.PrivateJobPosting;
 import com.jobai.backend.domain.publicInstitution.entity.PublicJobPosting;
+import com.jobai.backend.global.enums.JobCategory;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.TypedQuery;
 import lombok.RequiredArgsConstructor;
@@ -24,9 +25,240 @@ public class HomeJobCandidateRepository {
 
     private final EntityManager em;
 
-    private static final List<String> EXCLUDED_CATEGORIES = List.of("미분류", "비대상");
-
     private record PredicateResult(List<String> predicates, Map<String, String> params) {
+    }
+
+    public record ScoredJobCandidate(JobCandidate candidate, Integer score) {
+    }
+
+    public List<JobCandidate> findLatestPublicCandidates(
+            List<String> locations,
+            List<String> employmentTypes,
+            List<String> preferredJobCategories,
+            List<String> preferredLocations,
+            int limit
+    ) {
+        PredicateResult pr = addPreferencePredicates(
+                buildPublicPredicates(locations, employmentTypes),
+                "p.jobRole", "p.workRegion", preferredJobCategories, preferredLocations
+        );
+        String jpql = buildQuery(
+                "SELECT p FROM PublicJobPosting p",
+                "(p.isClosed IS NULL OR p.isClosed = false)",
+                pr,
+                "p.createdAt DESC, p.id DESC"
+        );
+        TypedQuery<PublicJobPosting> query = em.createQuery(jpql, PublicJobPosting.class)
+                .setMaxResults(limit);
+        pr.params().forEach(query::setParameter);
+        return query.getResultList().stream().map(this::toPublicCandidate).toList();
+    }
+
+    public long countLatestPublicCandidates(
+            List<String> locations,
+            List<String> employmentTypes,
+            List<String> preferredJobCategories,
+            List<String> preferredLocations
+    ) {
+        PredicateResult pr = addPreferencePredicates(
+                buildPublicPredicates(locations, employmentTypes),
+                "p.jobRole", "p.workRegion", preferredJobCategories, preferredLocations
+        );
+        String jpql = buildQuery(
+                "SELECT COUNT(p) FROM PublicJobPosting p",
+                "(p.isClosed IS NULL OR p.isClosed = false)",
+                pr,
+                null
+        );
+        TypedQuery<Long> query = em.createQuery(jpql, Long.class);
+        pr.params().forEach(query::setParameter);
+        return query.getSingleResult();
+    }
+
+    public List<JobCandidate> findLatestPrivateCandidates(
+            List<String> locations,
+            List<String> employmentTypes,
+            List<String> preferredJobCategories,
+            List<String> preferredLocations,
+            int limit
+    ) {
+        PredicateResult pr = addPreferencePredicates(
+                buildPrivatePredicates(locations, employmentTypes),
+                "p.jobCategory", "p.location", preferredJobCategories, preferredLocations
+        );
+        String jpql = buildQuery(
+                "SELECT p FROM PrivateJobPosting p",
+                "p.isClosed = false AND p.jobCategory IN :validCategories",
+                pr,
+                "p.createdAt DESC, p.id DESC"
+        );
+        TypedQuery<PrivateJobPosting> query = em.createQuery(jpql, PrivateJobPosting.class)
+                .setParameter("validCategories", JobCategory.matchTargetLabels())
+                .setMaxResults(limit);
+        pr.params().forEach(query::setParameter);
+        return query.getResultList().stream().map(this::toPrivateCandidate).toList();
+    }
+
+    public long countLatestPrivateCandidates(
+            List<String> locations,
+            List<String> employmentTypes,
+            List<String> preferredJobCategories,
+            List<String> preferredLocations
+    ) {
+        PredicateResult pr = addPreferencePredicates(
+                buildPrivatePredicates(locations, employmentTypes),
+                "p.jobCategory", "p.location", preferredJobCategories, preferredLocations
+        );
+        String jpql = buildQuery(
+                "SELECT COUNT(p) FROM PrivateJobPosting p",
+                "p.isClosed = false AND p.jobCategory IN :validCategories",
+                pr,
+                null
+        );
+        TypedQuery<Long> query = em.createQuery(jpql, Long.class)
+                .setParameter("validCategories", JobCategory.matchTargetLabels());
+        pr.params().forEach(query::setParameter);
+        return query.getSingleResult();
+    }
+
+    public List<ScoredJobCandidate> findScoredPublicCandidates(
+            Long resumeId,
+            List<String> locations,
+            List<String> employmentTypes,
+            int threshold,
+            int limit
+    ) {
+        PredicateResult pr = buildPublicPredicates(locations, employmentTypes);
+        String jpql = buildQuery(
+                "SELECT p, s.score FROM PublicMatchScore s JOIN s.publicJobPosting p",
+                "s.resume.id = :resumeId AND s.score >= :threshold"
+                        + " AND (p.isClosed IS NULL OR p.isClosed = false)",
+                pr,
+                "s.score DESC, p.createdAt DESC, p.id DESC"
+        );
+
+        var query = em.createQuery(jpql, Object[].class)
+                .setParameter("resumeId", resumeId)
+                .setParameter("threshold", threshold)
+                .setMaxResults(limit);
+        pr.params().forEach(query::setParameter);
+
+        return query.getResultList().stream()
+                .map(row -> new ScoredJobCandidate(toPublicCandidate((PublicJobPosting) row[0]), (Integer) row[1]))
+                .toList();
+    }
+
+    public long countScoredPublicCandidates(
+            Long resumeId, List<String> locations, List<String> employmentTypes, int threshold
+    ) {
+        PredicateResult pr = buildPublicPredicates(locations, employmentTypes);
+        String jpql = buildQuery(
+                "SELECT COUNT(s) FROM PublicMatchScore s JOIN s.publicJobPosting p",
+                "s.resume.id = :resumeId AND s.score >= :threshold"
+                        + " AND (p.isClosed IS NULL OR p.isClosed = false)",
+                pr,
+                null
+        );
+        TypedQuery<Long> query = em.createQuery(jpql, Long.class)
+                .setParameter("resumeId", resumeId)
+                .setParameter("threshold", threshold);
+        pr.params().forEach(query::setParameter);
+        return query.getSingleResult();
+    }
+
+    public List<ScoredJobCandidate> findScoredPrivateCandidates(
+            Long resumeId,
+            List<String> locations,
+            List<String> employmentTypes,
+            int threshold,
+            int limit
+    ) {
+        PredicateResult pr = buildPrivatePredicates(locations, employmentTypes);
+        String jpql = buildQuery(
+                "SELECT p, s.score FROM PrivateMatchScore s JOIN s.privateJobPosting p",
+                "s.resume.id = :resumeId AND s.score >= :threshold"
+                        + " AND p.isClosed = false AND p.jobCategory IN :validCategories",
+                pr,
+                "s.score DESC, p.createdAt DESC, p.id DESC"
+        );
+
+        var query = em.createQuery(jpql, Object[].class)
+                .setParameter("resumeId", resumeId)
+                .setParameter("threshold", threshold)
+                .setParameter("validCategories", JobCategory.matchTargetLabels())
+                .setMaxResults(limit);
+        pr.params().forEach(query::setParameter);
+
+        return query.getResultList().stream()
+                .map(row -> new ScoredJobCandidate(toPrivateCandidate((PrivateJobPosting) row[0]), (Integer) row[1]))
+                .toList();
+    }
+
+    public long countScoredPrivateCandidates(
+            Long resumeId, List<String> locations, List<String> employmentTypes, int threshold
+    ) {
+        PredicateResult pr = buildPrivatePredicates(locations, employmentTypes);
+        String jpql = buildQuery(
+                "SELECT COUNT(s) FROM PrivateMatchScore s JOIN s.privateJobPosting p",
+                "s.resume.id = :resumeId AND s.score >= :threshold"
+                        + " AND p.isClosed = false AND p.jobCategory IN :validCategories",
+                pr,
+                null
+        );
+        TypedQuery<Long> query = em.createQuery(jpql, Long.class)
+                .setParameter("resumeId", resumeId)
+                .setParameter("threshold", threshold)
+                .setParameter("validCategories", JobCategory.matchTargetLabels());
+        pr.params().forEach(query::setParameter);
+        return query.getSingleResult();
+    }
+
+    private String buildQuery(
+            String selectAndFrom, String basePredicate, PredicateResult pr, String orderBy
+    ) {
+        StringBuilder jpql = new StringBuilder(selectAndFrom)
+                .append(" WHERE ")
+                .append(basePredicate);
+        for (String predicate : pr.predicates()) {
+            jpql.append(" AND ").append(predicate);
+        }
+        if (orderBy != null) {
+            jpql.append(" ORDER BY ").append(orderBy);
+        }
+        return jpql.toString();
+    }
+
+    private PredicateResult addPreferencePredicates(
+            PredicateResult base,
+            String jobCategoryField,
+            String locationField,
+            List<String> preferredJobCategories,
+            List<String> preferredLocations
+    ) {
+        List<String> predicates = new ArrayList<>(base.predicates());
+        Map<String, String> params = new LinkedHashMap<>(base.params());
+        addLikeAnyPredicate(predicates, params, jobCategoryField, "prefJob", preferredJobCategories);
+        addLikeAnyPredicate(predicates, params, locationField, "prefLocation", preferredLocations);
+        return new PredicateResult(predicates, params);
+    }
+
+    private void addLikeAnyPredicate(
+            List<String> predicates,
+            Map<String, String> params,
+            String field,
+            String parameterPrefix,
+            List<String> values
+    ) {
+        if (!hasItems(values)) {
+            return;
+        }
+        List<String> clauses = new ArrayList<>();
+        for (int i = 0; i < values.size(); i++) {
+            String key = parameterPrefix + i;
+            clauses.add("LOWER(" + field + ") LIKE :" + key);
+            params.put(key, likePattern(values.get(i)));
+        }
+        predicates.add("(" + String.join(" OR ", clauses) + ")");
     }
 
     // ─────────────────────────── PUBLIC(공기업) ───────────────────────────
@@ -137,14 +369,14 @@ public class HomeJobCandidateRepository {
 
         StringBuilder jpql = new StringBuilder(
                 "SELECT p FROM PrivateJobPosting p WHERE p.isClosed = false"
-                + " AND p.jobCategory IS NOT NULL AND p.jobCategory NOT IN :excludedCategories");
+                + " AND p.jobCategory IN :validCategories");
         for (String pred : pr.predicates()) {
             jpql.append(" AND ").append(pred);
         }
         jpql.append(" ORDER BY p.createdAt DESC");
 
         TypedQuery<PrivateJobPosting> query = em.createQuery(jpql.toString(), PrivateJobPosting.class);
-        query.setParameter("excludedCategories", EXCLUDED_CATEGORIES);
+        query.setParameter("validCategories", JobCategory.matchTargetLabels());
         pr.params().forEach(query::setParameter);
         query.setMaxResults(limit);
 
@@ -221,6 +453,34 @@ public class HomeJobCandidateRepository {
         }
 
         return new PredicateResult(predicates, params);
+    }
+
+    private JobCandidate toPublicCandidate(PublicJobPosting posting) {
+        return new JobCandidate(
+                posting.getId(),
+                "PUBLIC",
+                posting.getCompanyName(),
+                posting.getTitle(),
+                posting.getWorkRegion(),
+                posting.getRecrutType(),
+                posting.getJobRole(),
+                posting.getEndDate(),
+                posting.getCreatedAt()
+        );
+    }
+
+    private JobCandidate toPrivateCandidate(PrivateJobPosting posting) {
+        return new JobCandidate(
+                posting.getId(),
+                "PRIVATE",
+                posting.getCompany(),
+                posting.getTitle(),
+                posting.getLocation(),
+                posting.getEmploymentType(),
+                posting.getJobCategory(),
+                posting.getDeadline(),
+                posting.getCreatedAt()
+        );
     }
 
     private static boolean hasItems(List<String> list) {

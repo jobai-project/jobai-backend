@@ -3,12 +3,8 @@ package com.jobai.backend.domain.home.service;
 import com.jobai.backend.domain.home.dto.HomeRecommendationResponse;
 import com.jobai.backend.domain.home.dto.HomeRecommendationResponse.RecommendedJob;
 import com.jobai.backend.domain.home.dto.JobCandidate;
-import com.jobai.backend.domain.matching.entity.PrivateMatchScore;
-import com.jobai.backend.domain.matching.entity.PublicMatchScore;
 import com.jobai.backend.domain.home.repository.HomeJobCandidateRepository;
-import com.jobai.backend.domain.matching.repository.PrivateMatchScoreRepository;
-import com.jobai.backend.domain.matching.repository.PublicMatchScoreRepository;
-import com.jobai.backend.domain.matching.service.JobMatchScorer;
+import com.jobai.backend.domain.home.repository.HomeJobCandidateRepository.ScoredJobCandidate;
 import com.jobai.backend.domain.member.entity.Member;
 import com.jobai.backend.domain.member.entity.PreferredJob;
 import com.jobai.backend.domain.member.entity.PreferredRegion;
@@ -25,10 +21,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Comparator;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
-import java.util.Set;
-import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 @Service
@@ -36,11 +29,9 @@ import java.util.stream.Stream;
 @Transactional(readOnly = true)
 public class HomeRecommendationService {
 
-    // 매칭점수 정렬/필터를 애플리케이션 레벨에서 수행하므로, 필터된 후보 전체를 담을 안전 상한.
-    // 현재 데이터 규모(공기업 987건 수준)에서는 충분하며, 데이터가 크게 늘면 재검토 필요.
-    private static final int CANDIDATE_FETCH_CAP = 1000;
-
     private static final List<String> DEFAULT_COMPANY_TYPES = List.of("PUBLIC", "PRIVATE");
+    private static final int MAX_PAGE_SIZE = 100;
+    private static final int MAX_OFFSET = 10_000;
 
     // Notification.createDefault()의 기본값과 동일. 온보딩 전이라 설정 행이 없는 회원에게 적용.
     private static final int DEFAULT_MATCH_SCORE_THRESHOLD = 70;
@@ -48,10 +39,7 @@ public class HomeRecommendationService {
     private final MemberRepository memberRepository;
     private final HomeJobCandidateRepository candidateRepository;
     private final NotificationRepository notificationRepository;
-    private final JobMatchScorer jobMatchScorer;
     private final ResumesRepository resumesRepository;
-    private final PrivateMatchScoreRepository privateMatchScoreRepository;
-    private final PublicMatchScoreRepository publicMatchScoreRepository;
 
     public HomeRecommendationResponse getRecommendedJobs(
             String email,
@@ -61,6 +49,8 @@ public class HomeRecommendationService {
             int offset,
             int size
     ) {
+        validatePagination(offset, size);
+
         Member member = memberRepository.findByEmail(email)
                 .orElseThrow(() -> new GeneralException(GeneralErrorCode.MEMBER_NOT_FOUND, "해당 이메일은 존재하지 않는 회원입니다."));
 
@@ -70,24 +60,43 @@ public class HomeRecommendationService {
         boolean includePublic = effectiveCompanyTypes.contains("PUBLIC");
         boolean includePrivate = effectiveCompanyTypes.contains("PRIVATE");
 
+        boolean hasPreferences = hasPreferences(member);
+        if (hasPreferences) {
+            Optional<Resumes> activeResume = resumesRepository.findByMemberEmailAndIsActiveTrue(email);
+            if (activeResume.isPresent()) {
+                return buildScoredResponse(
+                        email, activeResume.get(), includePublic, includePrivate,
+                        locations, employmentTypes, offset, size
+                );
+            }
+        }
+
+        List<String> preferredJobCategories = hasPreferences
+                ? member.getPrefJobs().stream().map(PreferredJob::getJobCategory).toList()
+                : List.of();
+        List<String> preferredLocations = hasPreferences
+                ? member.getPrefLocations().stream().map(PreferredRegion::getLocation).toList()
+                : List.of();
+        int fetchLimit = calculateFetchLimit(offset, size);
         List<JobCandidate> publicCandidates = includePublic
-                ? candidateRepository.findPublicCandidates(locations, employmentTypes, CANDIDATE_FETCH_CAP)
+                ? candidateRepository.findLatestPublicCandidates(
+                        locations, employmentTypes, preferredJobCategories, preferredLocations, fetchLimit)
                 : List.of();
         List<JobCandidate> privateCandidates = includePrivate
-                ? candidateRepository.findPrivateCandidates(locations, employmentTypes, CANDIDATE_FETCH_CAP)
+                ? candidateRepository.findLatestPrivateCandidates(
+                        locations, employmentTypes, preferredJobCategories, preferredLocations, fetchLimit)
                 : List.of();
         List<JobCandidate> allCandidates = Stream.concat(publicCandidates.stream(), privateCandidates.stream()).toList();
-
-        if (!hasPreferences(member)) {
-            return buildLatestResponse(allCandidates, offset, size);
+        long totalCount = 0;
+        if (includePublic) {
+            totalCount += candidateRepository.countLatestPublicCandidates(
+                    locations, employmentTypes, preferredJobCategories, preferredLocations);
         }
-
-        Optional<Resumes> activeResume = resumesRepository.findByMemberEmailAndIsActiveTrue(email);
-        if (activeResume.isPresent()) {
-            return buildScoredResponse(email, activeResume.get(), allCandidates, offset, size);
+        if (includePrivate) {
+            totalCount += candidateRepository.countLatestPrivateCandidates(
+                    locations, employmentTypes, preferredJobCategories, preferredLocations);
         }
-
-        return buildFilteredLatestResponse(member, allCandidates, offset, size);
+        return buildLatestResponse(allCandidates, totalCount, offset, size);
     }
 
     // 온보딩 완료 + 희망직무/지역 중 하나라도 설정했는지 확인
@@ -98,139 +107,86 @@ public class HomeRecommendationService {
 
     // 매칭 근거가 있는 회원: 적합도 기준 이상만 남기고 매칭점수 내림차순 정렬
     private HomeRecommendationResponse buildScoredResponse(
-            String email, Resumes activeResume, List<JobCandidate> candidates, int offset, int size
+            String email,
+            Resumes activeResume,
+            boolean includePublic,
+            boolean includePrivate,
+            List<String> locations,
+            List<String> employmentTypes,
+            int offset,
+            int size
     ) {
         int matchScoreThreshold = resolveMatchScoreThreshold(email);
-        Map<Long, Integer> privateScoreMap = loadPrivateScores(activeResume, candidates);
-        Map<Long, Integer> publicScoreMap = loadPublicScores(activeResume, candidates);
+        int fetchLimit = calculateFetchLimit(offset, size);
+        List<ScoredJobCandidate> publicCandidates = includePublic
+                ? candidateRepository.findScoredPublicCandidates(
+                        activeResume.getId(), locations, employmentTypes, matchScoreThreshold, fetchLimit)
+                : List.of();
+        List<ScoredJobCandidate> privateCandidates = includePrivate
+                ? candidateRepository.findScoredPrivateCandidates(
+                        activeResume.getId(), locations, employmentTypes, matchScoreThreshold, fetchLimit)
+                : List.of();
 
-        List<ScoredCandidate> scoredCandidates = candidates.stream()
-                .map(c -> new ScoredCandidate(c, resolveScore(c, privateScoreMap, publicScoreMap)))
-                .filter(sc -> sc.score() >= matchScoreThreshold)
+        List<ScoredJobCandidate> scoredCandidates = Stream.concat(
+                        publicCandidates.stream(), privateCandidates.stream())
                 .sorted(Comparator
-                        .comparingInt(ScoredCandidate::score)
+                        .comparingInt(ScoredJobCandidate::score)
                         .reversed()
-                        .thenComparing(sc -> sc.candidate().createdAt(), Comparator.nullsLast(Comparator.reverseOrder())))
+                        .thenComparing(sc -> sc.candidate().createdAt(), Comparator.nullsLast(Comparator.reverseOrder()))
+                        .thenComparing(sc -> sc.candidate().source(), Comparator.nullsLast(Comparator.naturalOrder()))
+                        .thenComparing(sc -> sc.candidate().id(), Comparator.nullsLast(Comparator.reverseOrder())))
                 .toList();
 
-        long totalCount = scoredCandidates.size();
+        long totalCount = 0;
+        if (includePublic) {
+            totalCount += candidateRepository.countScoredPublicCandidates(
+                    activeResume.getId(), locations, employmentTypes, matchScoreThreshold);
+        }
+        if (includePrivate) {
+            totalCount += candidateRepository.countScoredPrivateCandidates(
+                    activeResume.getId(), locations, employmentTypes, matchScoreThreshold);
+        }
         List<RecommendedJob> jobs = scoredCandidates.stream()
                 .skip(offset)
                 .limit(size)
                 .map(sc -> toRecommendedJob(sc.candidate(), sc.score()))
                 .toList();
 
-        return new HomeRecommendationResponse(totalCount, offset + size < totalCount, jobs);
+        return new HomeRecommendationResponse(totalCount, (long) offset + size < totalCount, jobs);
     }
 
-    /**
-     * 활성 이력서의 PRIVATE 공고 AI 매칭 점수를 벌크 조회하여 Map으로 반환한다.
-     * PRIVATE 공고가 없으면 빈 Map을 반환한다.
-     */
-    private Map<Long, Integer> loadPrivateScores(Resumes activeResume, List<JobCandidate> candidates) {
-        List<Long> privateJobIds = candidates.stream()
-                .filter(c -> "PRIVATE".equals(c.source()))
-                .map(JobCandidate::id)
-                .toList();
-        if (privateJobIds.isEmpty()) {
-            return Map.of();
+    private int calculateFetchLimit(int offset, int size) {
+        long requested = (long) offset + size;
+        return (int) Math.min(requested, Integer.MAX_VALUE);
+    }
+
+    private void validatePagination(int offset, int size) {
+        if (offset < 0 || offset > MAX_OFFSET || size < 1 || size > MAX_PAGE_SIZE) {
+            throw new GeneralException(
+                    GeneralErrorCode.BAD_REQUEST,
+                    "offset은 0 이상 10000 이하, size는 1 이상 100 이하여야 합니다."
+            );
         }
-
-        return privateMatchScoreRepository
-                .findByResumeIdAndPrivateJobPostingIdIn(activeResume.getId(), privateJobIds)
-                .stream()
-                .collect(Collectors.toMap(
-                        s -> s.getPrivateJobPosting().getId(),
-                        PrivateMatchScore::getScore
-                ));
-    }
-
-    /**
-     * 활성 이력서의 PUBLIC 공고 AI 매칭 점수를 벌크 조회하여 Map으로 반환한다.
-     * PUBLIC 공고가 없으면 빈 Map을 반환한다.
-     */
-    private Map<Long, Integer> loadPublicScores(Resumes activeResume, List<JobCandidate> candidates) {
-        List<Long> publicJobIds = candidates.stream()
-                .filter(c -> "PUBLIC".equals(c.source()))
-                .map(JobCandidate::id)
-                .toList();
-        if (publicJobIds.isEmpty()) {
-            return Map.of();
-        }
-
-        return publicMatchScoreRepository
-                .findByResumeIdAndPublicJobPostingIdIn(activeResume.getId(), publicJobIds)
-                .stream()
-                .collect(Collectors.toMap(
-                        s -> s.getPublicJobPosting().getId(),
-                        PublicMatchScore::getScore
-                ));
-    }
-
-    private int resolveScore(JobCandidate candidate, Map<Long, Integer> privateScoreMap, Map<Long, Integer> publicScoreMap) {
-        Map<Long, Integer> scoreMap = "PRIVATE".equals(candidate.source()) ? privateScoreMap : publicScoreMap;
-        Integer realScore = scoreMap.get(candidate.id());
-        if (realScore != null) {
-            return realScore;
-        }
-        return jobMatchScorer.mockScore(candidate.source(), candidate.id());
-    }
-
-    // 이력서 미업로드 회원: 희망직무/지역으로 필터링 후 최신순 노출, matchScore는 null
-    private HomeRecommendationResponse buildFilteredLatestResponse(
-            Member member, List<JobCandidate> candidates, int offset, int size
-    ) {
-        Set<String> prefJobCategories = member.getPrefJobs().stream()
-                .map(PreferredJob::getJobCategory)
-                .collect(Collectors.toSet());
-        Set<String> prefLocations = member.getPrefLocations().stream()
-                .map(PreferredRegion::getLocation)
-                .collect(Collectors.toSet());
-
-        List<JobCandidate> filtered = candidates.stream()
-                .filter(c -> matchesJobCategory(c, prefJobCategories))
-                .filter(c -> matchesLocation(c, prefLocations))
-                .sorted(Comparator.comparing(JobCandidate::createdAt, Comparator.nullsLast(Comparator.reverseOrder())))
-                .toList();
-
-        long totalCount = filtered.size();
-        List<RecommendedJob> jobs = filtered.stream()
-                .skip(offset)
-                .limit(size)
-                .map(c -> toRecommendedJob(c, null))
-                .toList();
-
-        return new HomeRecommendationResponse(totalCount, offset + size < totalCount, jobs);
-    }
-
-    private boolean matchesJobCategory(JobCandidate candidate, Set<String> prefJobCategories) {
-        if (prefJobCategories.isEmpty()) return true;
-        if (candidate.jobCategory() == null) return false;
-        return prefJobCategories.stream()
-                .anyMatch(pref -> candidate.jobCategory().contains(pref));
-    }
-
-    private boolean matchesLocation(JobCandidate candidate, Set<String> prefLocations) {
-        if (prefLocations.isEmpty()) return true;
-        if (candidate.location() == null) return false;
-        return prefLocations.stream()
-                .anyMatch(pref -> candidate.location().contains(pref));
     }
 
     // 온보딩 미완료 또는 희망직무/지역 미설정: 최신순으로만 노출, matchScore는 null
-    private HomeRecommendationResponse buildLatestResponse(List<JobCandidate> candidates, int offset, int size) {
+    private HomeRecommendationResponse buildLatestResponse(
+            List<JobCandidate> candidates, long totalCount, int offset, int size
+    ) {
         List<JobCandidate> sorted = candidates.stream()
-                .sorted(Comparator.comparing(JobCandidate::createdAt, Comparator.nullsLast(Comparator.reverseOrder())))
+                .sorted(Comparator
+                        .comparing(JobCandidate::createdAt, Comparator.nullsLast(Comparator.reverseOrder()))
+                        .thenComparing(JobCandidate::source, Comparator.nullsLast(Comparator.naturalOrder()))
+                        .thenComparing(JobCandidate::id, Comparator.nullsLast(Comparator.reverseOrder())))
                 .toList();
 
-        long totalCount = sorted.size();
         List<RecommendedJob> jobs = sorted.stream()
                 .skip(offset)
                 .limit(size)
                 .map(c -> toRecommendedJob(c, null))
                 .toList();
 
-        return new HomeRecommendationResponse(totalCount, offset + size < totalCount, jobs);
+        return new HomeRecommendationResponse(totalCount, (long) offset + size < totalCount, jobs);
     }
 
     private int resolveMatchScoreThreshold(String email) {
@@ -252,6 +208,4 @@ public class HomeRecommendationService {
         );
     }
 
-    private record ScoredCandidate(JobCandidate candidate, int score) {
-    }
 }

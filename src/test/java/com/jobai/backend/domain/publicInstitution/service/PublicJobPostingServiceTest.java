@@ -80,15 +80,15 @@ class PublicJobPostingServiceTest {
     }
 
     @Test
-    @DisplayName("계산된 점수가 없으면 매칭점수와 산정 사유를 null로 반환한다")
-    void getDetailReturnsNullScoreWithoutSavedScore() {
+    @DisplayName("계산된 실제 점수가 없으면 매칭점수와 산정 사유를 null로 반환한다")
+    void getDetailReturnsNullWithoutSavedScore() {
         Resumes activeResume = Resumes.builder().id(10L).isActive(true).build();
-        when(jobPostingRepository.findPublicJobPostingById(1L)).thenReturn(Optional.of(createPosting(1L)));
+        when(jobPostingRepository.findPublicJobPostingById(79L)).thenReturn(Optional.of(createPosting(79L)));
         when(resumesRepository.findByMemberEmailAndIsActiveTrue(EMAIL)).thenReturn(Optional.of(activeResume));
-        when(publicMatchScoreRepository.findByResumeIdAndPublicJobPostingIdIn(10L, List.of(1L)))
+        when(publicMatchScoreRepository.findByResumeIdAndPublicJobPostingIdIn(10L, List.of(79L)))
                 .thenReturn(List.of());
 
-        PublicJobPostingDetailResponse response = service.getDetail(1L, EMAIL);
+        PublicJobPostingDetailResponse response = service.getDetail(79L, EMAIL);
 
         assertThat(response.matchScore()).isNull();
         assertThat(response.scoreReason()).isNull();
