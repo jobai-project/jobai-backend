@@ -90,6 +90,16 @@ jobs:
           mkdir -p /etc/nginx/conf.d
           cp /tmp/jobai-deploy/nginx/jobai-upload-size.conf /etc/nginx/conf.d/jobai-upload-size.conf
           cp /tmp/jobai-deploy/nginx/jobai-websocket-proxy.conf /etc/nginx/conf.d/jobai-websocket-proxy.conf
+
+          if [ -f /etc/nginx/sites-enabled/jobai-api ] \
+            && ! grep -q "proxy_set_header Upgrade" /etc/nginx/sites-enabled/jobai-api; then
+            sed -i '/proxy_http_version 1.1;/a\
+          proxy_set_header Upgrade $http_upgrade;\
+          proxy_set_header Connection $connection_upgrade;\
+          proxy_read_timeout 3600s;\
+          proxy_send_timeout 3600s;' /etc/nginx/sites-enabled/jobai-api
+          fi
+
           nginx -t
           systemctl reload nginx
 
