@@ -92,6 +92,8 @@ public class PrivateMatchBatchService {
         int totalNew = 0;
         int totalUpdated = 0;
         int totalFail = 0;
+        int resumeError = 0;
+        String lastError = "";
 
         for (Resumes resume : activeResumes) {
             try {
@@ -103,14 +105,20 @@ public class PrivateMatchBatchService {
                 batchNotificationHelper.sendIfNeeded(
                         resume.getMember(), result.aboveThresholdPostings(), "새 추천 공고");
             } catch (Exception e) {
+                resumeError++;
+                lastError = e.getMessage();
                 log.error("[배치점수] 이력서 {} 처리 중 오류: {}", resume.getId(), e.getMessage(), e);
             }
         }
 
         log.info("[배치점수] 완료 — 신규 점수 {}건, 변경 재산출 {}건, 실패 {}건",
                 totalNew, totalUpdated, totalFail);
-        return String.format("이력서 %d건 × 공고 %d건 | 신규 %d, 변경 %d, 실패 %d",
+        String summary = String.format("이력서 %d건 × 공고 %d건 | 신규 %d, 변경 %d, 실패 %d",
                 activeResumes.size(), activePostings.size(), totalNew, totalUpdated, totalFail);
+        if (resumeError > 0) {
+            summary += " | 이력서오류 " + resumeError + "건: " + lastError;
+        }
+        return summary;
     }
 
     /** 이력서별 점수 산출 결과. 알림 대상 공고 목록을 포함한다. */
