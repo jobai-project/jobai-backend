@@ -125,21 +125,18 @@ public class HomeJobCandidateRepository {
             Long resumeId,
             List<String> locations,
             List<String> employmentTypes,
-            int threshold,
             int limit
     ) {
         PredicateResult pr = buildPublicPredicates(locations, employmentTypes);
         String jpql = buildQuery(
                 "SELECT p, s.score FROM PublicMatchScore s JOIN s.publicJobPosting p",
-                "s.resume.id = :resumeId AND s.score >= :threshold"
-                        + " AND (p.isClosed IS NULL OR p.isClosed = false)",
+                "s.resume.id = :resumeId AND (p.isClosed IS NULL OR p.isClosed = false)",
                 pr,
                 "s.score DESC, p.createdAt DESC, p.id DESC"
         );
 
         var query = em.createQuery(jpql, Object[].class)
                 .setParameter("resumeId", resumeId)
-                .setParameter("threshold", threshold)
                 .setMaxResults(limit);
         pr.params().forEach(query::setParameter);
 
@@ -149,19 +146,17 @@ public class HomeJobCandidateRepository {
     }
 
     public long countScoredPublicCandidates(
-            Long resumeId, List<String> locations, List<String> employmentTypes, int threshold
+            Long resumeId, List<String> locations, List<String> employmentTypes
     ) {
         PredicateResult pr = buildPublicPredicates(locations, employmentTypes);
         String jpql = buildQuery(
                 "SELECT COUNT(s) FROM PublicMatchScore s JOIN s.publicJobPosting p",
-                "s.resume.id = :resumeId AND s.score >= :threshold"
-                        + " AND (p.isClosed IS NULL OR p.isClosed = false)",
+                "s.resume.id = :resumeId AND (p.isClosed IS NULL OR p.isClosed = false)",
                 pr,
                 null
         );
         TypedQuery<Long> query = em.createQuery(jpql, Long.class)
-                .setParameter("resumeId", resumeId)
-                .setParameter("threshold", threshold);
+                .setParameter("resumeId", resumeId);
         pr.params().forEach(query::setParameter);
         return query.getSingleResult();
     }
@@ -170,21 +165,18 @@ public class HomeJobCandidateRepository {
             Long resumeId,
             List<String> locations,
             List<String> employmentTypes,
-            int threshold,
             int limit
     ) {
         PredicateResult pr = buildPrivatePredicates(locations, employmentTypes);
         String jpql = buildQuery(
                 "SELECT p, s.score FROM PrivateMatchScore s JOIN s.privateJobPosting p",
-                "s.resume.id = :resumeId AND s.score >= :threshold"
-                        + " AND p.isClosed = false AND p.jobCategory IN :validCategories",
+                "s.resume.id = :resumeId AND p.isClosed = false AND p.jobCategory IN :validCategories",
                 pr,
                 "s.score DESC, p.createdAt DESC, p.id DESC"
         );
 
         var query = em.createQuery(jpql, Object[].class)
                 .setParameter("resumeId", resumeId)
-                .setParameter("threshold", threshold)
                 .setParameter("validCategories", JobCategory.matchTargetLabels())
                 .setMaxResults(limit);
         pr.params().forEach(query::setParameter);
@@ -195,19 +187,17 @@ public class HomeJobCandidateRepository {
     }
 
     public long countScoredPrivateCandidates(
-            Long resumeId, List<String> locations, List<String> employmentTypes, int threshold
+            Long resumeId, List<String> locations, List<String> employmentTypes
     ) {
         PredicateResult pr = buildPrivatePredicates(locations, employmentTypes);
         String jpql = buildQuery(
                 "SELECT COUNT(s) FROM PrivateMatchScore s JOIN s.privateJobPosting p",
-                "s.resume.id = :resumeId AND s.score >= :threshold"
-                        + " AND p.isClosed = false AND p.jobCategory IN :validCategories",
+                "s.resume.id = :resumeId AND p.isClosed = false AND p.jobCategory IN :validCategories",
                 pr,
                 null
         );
         TypedQuery<Long> query = em.createQuery(jpql, Long.class)
                 .setParameter("resumeId", resumeId)
-                .setParameter("threshold", threshold)
                 .setParameter("validCategories", JobCategory.matchTargetLabels());
         pr.params().forEach(query::setParameter);
         return query.getSingleResult();

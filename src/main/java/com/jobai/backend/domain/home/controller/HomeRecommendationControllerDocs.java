@@ -32,10 +32,10 @@ public interface HomeRecommendationControllerDocs {
                     `null`로 반환하며 목록 전체를 **최신순(createdAt DESC)**으로 정렬합니다.
                     이 경우 적합도 기준 필터도 적용되지 않습니다(필터 근거 자체가 없으므로).
 
-                    **적합도 기준(matchScoreThreshold) 필터링**: 매칭 근거가 있는 회원에 한해, 온보딩 또는
-                    마이페이지 알림 설정(`PATCH /api/v1/members/me/onboarding/notification-settings`)에서
-                    설정한 적합도 기준 점수 **이상인 공고만** 반환됩니다. 아직 설정한 적이 없는 회원은 기본값 70이 적용됩니다.
-                    `totalCount`/`hasMore`도 이 필터가 적용된 이후의 개수를 기준으로 계산됩니다.
+                    **적합도 기준(matchScoreThreshold)과의 관계**: 마이페이지 알림 설정
+                    (`PATCH /api/v1/members/me/onboarding/notification-settings`)에서 설정하는 적합도 기준 점수는
+                    알림 발송 여부를 판단하는 데만 사용되며, 이 목록에는 적용되지 않습니다. 매칭 근거가 있는 회원에게는
+                    저장된 실제 매칭점수가 있는 공고 전체를 점수 높은 순으로 반환합니다.
 
                     **페이지네이션**: `offset`/`size` 기반입니다. 처음 조회는 `offset=0`, "더 불러오기" 클릭 시
                     `offset += size`로 누적 호출하면 됩니다. 응답의 `hasMore`가 `false`면 더 이상 불러올 데이터가 없습니다.

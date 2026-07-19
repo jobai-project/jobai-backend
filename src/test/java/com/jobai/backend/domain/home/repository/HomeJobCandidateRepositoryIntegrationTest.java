@@ -87,6 +87,11 @@ class HomeJobCandidateRepositoryIntegrationTest {
             }
         }
 
+        // 적합도 기준(과거 기본값 70)보다 낮은 점수도 이제는 결과에서 제외되지 않아야 한다.
+        PrivateJobPosting belowOldThreshold = posting("below-threshold", JobCategory.BACKEND.getLabel(), baseTime.plusDays(2));
+        entityManager.persist(belowOldThreshold);
+        entityManager.persist(score(member, resume, belowOldThreshold, 20));
+
         PrivateJobPosting excluded = posting("excluded", JobCategory.NON_TARGET.getLabel(), baseTime.plusDays(1));
         entityManager.persist(excluded);
         entityManager.persist(score(member, resume, excluded, 100));
@@ -94,14 +99,15 @@ class HomeJobCandidateRepositoryIntegrationTest {
         entityManager.clear();
 
         List<ScoredJobCandidate> result = repository.findScoredPrivateCandidates(
-                resume.getId(), null, null, 70, 1
+                resume.getId(), null, null, 1
         );
-        long totalCount = repository.countScoredPrivateCandidates(resume.getId(), null, null, 70);
+        long totalCount = repository.countScoredPrivateCandidates(resume.getId(), null, null);
 
         assertThat(result).hasSize(1);
         assertThat(result.get(0).candidate().id()).isEqualTo(expectedPostingId);
         assertThat(result.get(0).score()).isEqualTo(99);
-        assertThat(totalCount).isEqualTo(1_001);
+        // 1001건(0~1000) + 적합도 기준 미만 1건. 비대상 카테고리 1건만 제외된다.
+        assertThat(totalCount).isEqualTo(1_002);
     }
 
     private PrivateJobPosting posting(String sourceJobId, String category, LocalDateTime createdAt) {
