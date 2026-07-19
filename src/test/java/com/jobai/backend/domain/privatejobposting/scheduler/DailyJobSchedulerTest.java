@@ -14,7 +14,8 @@ import org.mockito.Mockito;
 
 import static org.mockito.Mockito.*;
 
-class DailyJobSchedulerTest {
+class
+DailyJobSchedulerTest {
 
     private PrivateJobBatchCollectService privateJobBatchCollectService;
     private PrivateJobPostingService privateJobPostingService;
@@ -45,7 +46,7 @@ class DailyJobSchedulerTest {
     }
 
     @Test
-    @DisplayName("정상 실행 시 6개 단계가 순서대로 호출된다")
+    @DisplayName("정상 실행 시 7개 단계가 순서대로 호출된다")
     void runDailyPipeline_정상실행_순서검증() {
         scheduler.runDailyPipeline();
 
@@ -57,13 +58,14 @@ class DailyJobSchedulerTest {
         inOrder.verify(privateJobPostingService).classifyUnclassified(100);
         inOrder.verify(privateJobPostingService).classifyMissingEmploymentTypes(100);
         inOrder.verify(privateJobPostingService).classifyMissingRegions(100);
-        inOrder.verify(embeddingBatchService).generateMissingEmbeddings();
+        inOrder.verify(embeddingBatchService).generateMissingResumeEmbeddings();
+        inOrder.verify(embeddingBatchService).generateAllMissingEmbeddings();
         inOrder.verify(privateMatchBatchService).scoreNewAndUpdatedPostings();
         inOrder.verify(publicMatchBatchService).scoreNewAndUpdatedPostings();
     }
 
     @Test
-    @DisplayName("Step 1(사기업 수집) 실패 시에도 Step 2~4가 실행된다")
+    @DisplayName("Step 1(사기업 수집) 실패 시에도 나머지 단계가 실행된다")
     void runDailyPipeline_step1실패_나머지실행() {
         doThrow(new RuntimeException("수집 실패"))
                 .when(privateJobBatchCollectService).collectAll();
@@ -71,13 +73,14 @@ class DailyJobSchedulerTest {
         scheduler.runDailyPipeline();
 
         verify(jobDataSyncService).syncPublicJobOpenings();
-        verify(embeddingBatchService).generateMissingEmbeddings();
+        verify(embeddingBatchService).generateMissingResumeEmbeddings();
+        verify(embeddingBatchService).generateAllMissingEmbeddings();
         verify(privateMatchBatchService).scoreNewAndUpdatedPostings();
         verify(publicMatchBatchService).scoreNewAndUpdatedPostings();
     }
 
     @Test
-    @DisplayName("Step 2(공기업 수집) 실패 시에도 Step 3~4가 실행된다")
+    @DisplayName("Step 2(공기업 수집) 실패 시에도 나머지 단계가 실행된다")
     void runDailyPipeline_step2실패_나머지실행() {
         doThrow(new RuntimeException("공기업 수집 실패"))
                 .when(jobDataSyncService).syncPublicJobOpenings();
@@ -85,28 +88,45 @@ class DailyJobSchedulerTest {
         scheduler.runDailyPipeline();
 
         verify(privateJobBatchCollectService).collectAll();
-        verify(embeddingBatchService).generateMissingEmbeddings();
+        verify(embeddingBatchService).generateMissingResumeEmbeddings();
+        verify(embeddingBatchService).generateAllMissingEmbeddings();
         verify(privateMatchBatchService).scoreNewAndUpdatedPostings();
         verify(publicMatchBatchService).scoreNewAndUpdatedPostings();
     }
 
     @Test
-    @DisplayName("Step 3(임베딩) 실패 시에도 Step 4가 실행된다")
-    void runDailyPipeline_step3실패_나머지실행() {
-        doThrow(new RuntimeException("임베딩 실패"))
-                .when(embeddingBatchService).generateMissingEmbeddings();
+    @DisplayName("Step 5(이력서 임베딩 복구) 실패 시에도 나머지 단계가 실행된다")
+    void runDailyPipeline_step5실패_나머지실행() {
+        doThrow(new RuntimeException("이력서 임베딩 실패"))
+                .when(embeddingBatchService).generateMissingResumeEmbeddings();
 
         scheduler.runDailyPipeline();
 
         verify(privateJobBatchCollectService).collectAll();
         verify(jobDataSyncService).syncPublicJobOpenings();
+        verify(embeddingBatchService).generateAllMissingEmbeddings();
         verify(privateMatchBatchService).scoreNewAndUpdatedPostings();
         verify(publicMatchBatchService).scoreNewAndUpdatedPostings();
     }
 
     @Test
-    @DisplayName("Step 4 사기업 매칭 점수 산출 실패 시에도 공기업 매칭 점수 산출은 실행되고 예외 전파 없이 정상 종료된다")
-    void runDailyPipeline_step4사기업실패_공기업은계속() {
+    @DisplayName("Step 6(공고 임베딩) 실패 시에도 Step 7이 실행된다")
+    void runDailyPipeline_step6실패_나머지실행() {
+        doThrow(new RuntimeException("공고 임베딩 실패"))
+                .when(embeddingBatchService).generateAllMissingEmbeddings();
+
+        scheduler.runDailyPipeline();
+
+        verify(privateJobBatchCollectService).collectAll();
+        verify(jobDataSyncService).syncPublicJobOpenings();
+        verify(embeddingBatchService).generateMissingResumeEmbeddings();
+        verify(privateMatchBatchService).scoreNewAndUpdatedPostings();
+        verify(publicMatchBatchService).scoreNewAndUpdatedPostings();
+    }
+
+    @Test
+    @DisplayName("Step 7 사기업 매칭 점수 산출 실패 시에도 공기업 매칭 점수 산출은 실행된다")
+    void runDailyPipeline_step7사기업실패_공기업은계속() {
         doThrow(new RuntimeException("사기업 점수 산출 실패"))
                 .when(privateMatchBatchService).scoreNewAndUpdatedPostings();
 
@@ -114,13 +134,14 @@ class DailyJobSchedulerTest {
 
         verify(privateJobBatchCollectService).collectAll();
         verify(jobDataSyncService).syncPublicJobOpenings();
-        verify(embeddingBatchService).generateMissingEmbeddings();
+        verify(embeddingBatchService).generateMissingResumeEmbeddings();
+        verify(embeddingBatchService).generateAllMissingEmbeddings();
         verify(publicMatchBatchService).scoreNewAndUpdatedPostings();
     }
 
     @Test
-    @DisplayName("Step 4 공기업 매칭 점수 산출 실패 시에도 예외 전파 없이 정상 종료된다")
-    void runDailyPipeline_step4공기업실패_정상종료() {
+    @DisplayName("Step 7 공기업 매칭 점수 산출 실패 시에도 예외 전파 없이 정상 종료된다")
+    void runDailyPipeline_step7공기업실패_정상종료() {
         doThrow(new RuntimeException("공기업 점수 산출 실패"))
                 .when(publicMatchBatchService).scoreNewAndUpdatedPostings();
 
@@ -128,7 +149,8 @@ class DailyJobSchedulerTest {
 
         verify(privateJobBatchCollectService).collectAll();
         verify(jobDataSyncService).syncPublicJobOpenings();
-        verify(embeddingBatchService).generateMissingEmbeddings();
+        verify(embeddingBatchService).generateMissingResumeEmbeddings();
+        verify(embeddingBatchService).generateAllMissingEmbeddings();
         verify(privateMatchBatchService).scoreNewAndUpdatedPostings();
     }
 }

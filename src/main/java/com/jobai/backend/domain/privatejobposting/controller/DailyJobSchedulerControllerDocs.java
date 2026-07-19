@@ -13,16 +13,17 @@ public interface DailyJobSchedulerControllerDocs {
     @Operation(
             summary = "새벽 파이프라인 수동 실행",
             description = """
-                    사기업 수집 → 공기업 수집 → 직무/고용형태/경력 분류 → 지역 분류 → 임베딩 생성 → 매칭 점수 산출 파이프라인을 즉시 실행합니다.
+                    전체 파이프라인을 백그라운드로 즉시 실행합니다.
+                    202 Accepted를 즉시 반환하며, 실제 처리는 비동기로 ��행됩니다.
                     """
     )
     @ApiResponses(value = {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(
-                    responseCode = "200",
-                    description = "파이프라인 실행 성공",
+                    responseCode = "202",
+                    description = "파이프라인 실행 시작됨",
                     content = @Content(
                             mediaType = "application/json",
-                            examples = @ExampleObject(value = "\"새벽 파이프라인 실행 완료\"")
+                            examples = @ExampleObject(value = "\"새벽 파이프라인 실행 시작됨 (백그라운드)\"")
                     )
             )
     })
@@ -86,36 +87,38 @@ public interface DailyJobSchedulerControllerDocs {
     ResponseEntity<String> classifyMissingRegions();
 
     @Operation(
-            summary = "임베딩 생성",
+            summary = "공고 임베딩 생성",
             description = """
-                    임베딩이 아직 생성되지 않은 공고를 찾아 AI 서버를 호출하여 임베딩을 생성합니다.
+                    임베딩이 아직 생성되지 않은 전체 공고에 대해 AI 서버를 호출하여 임베딩을 생성합니다.
+                    백그라운드로 실행되며 미생성 건이 0이 될 때까지 반복 처리합니다.
                     """
     )
     @ApiResponses(value = {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(
-                    responseCode = "200",
-                    description = "임베딩 생성 완료",
+                    responseCode = "202",
+                    description = "임베딩 생성 시작됨",
                     content = @Content(
                             mediaType = "application/json",
-                            examples = @ExampleObject(value = "\"임베딩 생성 완료\"")
+                            examples = @ExampleObject(value = "\"공고 임베딩 생성 시작됨 (백그라운드)\"")
                     )
             )
     })
     ResponseEntity<String> generateEmbeddings();
 
     @Operation(
-            summary = "매칭 점수 산출",
+            summary = "사기업 매칭 점수 산출",
             description = """
-                    신규/변경 공고에 대해 AI 서버를 호출하여 매칭 점수를 산출합니다.
+                    신규/변경 사기업 공고에 대해 AI 서버를 호출하여 매칭 점수를 산출합니다.
+                    백그라운드로 실행됩니다.
                     """
     )
     @ApiResponses(value = {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(
-                    responseCode = "200",
-                    description = "점수 산출 완료",
+                    responseCode = "202",
+                    description = "점수 산출 시작됨",
                     content = @Content(
                             mediaType = "application/json",
-                            examples = @ExampleObject(value = "\"매칭 점수 산출 완료\"")
+                            examples = @ExampleObject(value = "\"사기업 매칭 점수 산출 시작됨 (백그라운드)\"")
                     )
             )
     })
@@ -125,15 +128,16 @@ public interface DailyJobSchedulerControllerDocs {
             summary = "공기업 매칭 점수 산출",
             description = """
                     신규/변경 공기업 공고에 대해 AI 서버(/score/public)를 호출하여 매칭 점수를 산출합니다.
+                    백그라운드로 실행됩니다.
                     """
     )
     @ApiResponses(value = {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(
-                    responseCode = "200",
-                    description = "점수 산출 완료",
+                    responseCode = "202",
+                    description = "점수 산출 시작됨",
                     content = @Content(
                             mediaType = "application/json",
-                            examples = @ExampleObject(value = "\"공기업 매칭 점수 산출 완료\"")
+                            examples = @ExampleObject(value = "\"공기업 매칭 점수 산출 시작됨 (백그라운드)\"")
                     )
             )
     })
@@ -142,7 +146,8 @@ public interface DailyJobSchedulerControllerDocs {
     @Operation(
             summary = "이력서 임베딩 생성",
             description = """
-                    활성 이력서 중 임베딩이 없는 이력서에 대해 AI 서버를 호출하여 임베딩을 생성합니다.
+                    활성 이력서 중 ��베딩이 없는 이력서에 대해 AI 서버를 호출하여 임베딩을 생성합니다.
+                    동기 ���행(완료 후 응답)합니다.
                     """
     )
     @ApiResponses(value = {
@@ -161,15 +166,16 @@ public interface DailyJobSchedulerControllerDocs {
             summary = "IT 뉴스 카드 수집",
             description = """
                     HackerNews에서 IT 뉴스를 수집하고 LLM으로 요약하여 테크 카드를 생성합니다.
+                    백그라운드로 실행됩니다.
                     """
     )
     @ApiResponses(value = {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(
-                    responseCode = "200",
-                    description = "수집 완료",
+                    responseCode = "202",
+                    description = "수집 시작됨",
                     content = @Content(
                             mediaType = "application/json",
-                            examples = @ExampleObject(value = "\"IT 뉴스 카드 수집 완료\"")
+                            examples = @ExampleObject(value = "\"IT 뉴스 카드 수집 시작됨 (백그라운드)\"")
                     )
             )
     })
@@ -180,10 +186,6 @@ public interface DailyJobSchedulerControllerDocs {
             description = """
                     기존 DB에 저장된 점수를 기반으로 임계값 이상 공고에 대해 알림을 발송합니다.
                     점수 산출은 하지 않으며, 알림 파이프라인(WebSocket·Slack·Discord)만 테스트합니다.
-
-                    > ⚠️ **테스트용 API입니다.** 실 서비스에서는 새벽 2시 스케줄러가 점수 산출 후 자동 발송합니다.
-
-                    **인증 불필요**: `/api/v1/scheduler/**` 경로는 permitAll 설정이므로 인증 없이 호출 가능합니다.
                     """
     )
     @ApiResponses(value = {

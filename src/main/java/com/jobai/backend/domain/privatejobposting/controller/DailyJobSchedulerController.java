@@ -10,18 +10,21 @@ import com.jobai.backend.domain.techcard.service.TechCardCollectService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.concurrent.Executor;
+
 /**
  * 새벽 파이프라인 수동 트리거용 API.
+ * 장시간 작업은 백그라운드로 실행하고 즉시 202 Accepted를 반환한다.
  */
 @Slf4j
 @RestController
 @RequestMapping("/api/v1/scheduler")
-@RequiredArgsConstructor
 public class DailyJobSchedulerController implements DailyJobSchedulerControllerDocs {
 
     private final DailyJobScheduler dailyJobScheduler;
@@ -31,12 +34,39 @@ public class DailyJobSchedulerController implements DailyJobSchedulerControllerD
     private final PublicMatchBatchService publicMatchBatchService;
     private final TechCardCollectService techCardCollectService;
     private final BatchNotificationHelper batchNotificationHelper;
+    private final Executor schedulerTaskExecutor;
+
+    public DailyJobSchedulerController(
+            DailyJobScheduler dailyJobScheduler,
+            PrivateJobPostingService privateJobPostingService,
+            EmbeddingBatchService embeddingBatchService,
+            PrivateMatchBatchService privateMatchBatchService,
+            PublicMatchBatchService publicMatchBatchService,
+            TechCardCollectService techCardCollectService,
+            BatchNotificationHelper batchNotificationHelper,
+            @Qualifier("schedulerTaskExecutor") Executor schedulerTaskExecutor
+    ) {
+        this.dailyJobScheduler = dailyJobScheduler;
+        this.privateJobPostingService = privateJobPostingService;
+        this.embeddingBatchService = embeddingBatchService;
+        this.privateMatchBatchService = privateMatchBatchService;
+        this.publicMatchBatchService = publicMatchBatchService;
+        this.techCardCollectService = techCardCollectService;
+        this.batchNotificationHelper = batchNotificationHelper;
+        this.schedulerTaskExecutor = schedulerTaskExecutor;
+    }
 
     @Override
     @PostMapping("/daily-pipeline")
     public ResponseEntity<String> triggerDailyPipeline() {
-        dailyJobScheduler.runDailyPipeline();
-        return ResponseEntity.ok("새벽 파이프라인 실행 완료");
+        schedulerTaskExecutor.execute(() -> {
+            try {
+                dailyJobScheduler.runDailyPipeline();
+            } catch (Exception e) {
+                log.error("[수동트리거] 새벽 파이프라인 실행 실패: {}", e.getMessage(), e);
+            }
+        });
+        return ResponseEntity.accepted().body("새벽 파이프라인 실행 시작됨 (백그라운드)");
     }
 
     @Override
@@ -63,22 +93,40 @@ public class DailyJobSchedulerController implements DailyJobSchedulerControllerD
     @Override
     @PostMapping("/embedding")
     public ResponseEntity<String> generateEmbeddings() {
-        embeddingBatchService.generateMissingEmbeddings();
-        return ResponseEntity.ok("임베딩 생성 완료");
+        schedulerTaskExecutor.execute(() -> {
+            try {
+                embeddingBatchService.generateAllMissingEmbeddings();
+            } catch (Exception e) {
+                log.error("[수동트리거] 임베딩 생성 실패: {}", e.getMessage(), e);
+            }
+        });
+        return ResponseEntity.accepted().body("공고 임베딩 생성 시작됨 (백그라운드)");
     }
 
     @Override
     @PostMapping("/scoring")
     public ResponseEntity<String> scorePostings() {
-        privateMatchBatchService.scoreNewAndUpdatedPostings();
-        return ResponseEntity.ok("매칭 점수 산출 완료");
+        schedulerTaskExecutor.execute(() -> {
+            try {
+                privateMatchBatchService.scoreNewAndUpdatedPostings();
+            } catch (Exception e) {
+                log.error("[수동트리거] 사기업 매칭 점수 산출 실패: {}", e.getMessage(), e);
+            }
+        });
+        return ResponseEntity.accepted().body("사기업 매칭 점수 산출 시작됨 (백그라운드)");
     }
 
     @Override
     @PostMapping("/scoring-public")
     public ResponseEntity<String> scorePublicPostings() {
-        publicMatchBatchService.scoreNewAndUpdatedPostings();
-        return ResponseEntity.ok("공기업 매칭 점수 산출 완료");
+        schedulerTaskExecutor.execute(() -> {
+            try {
+                publicMatchBatchService.scoreNewAndUpdatedPostings();
+            } catch (Exception e) {
+                log.error("[수동트리거] 공기업 매칭 점수 산출 실패: {}", e.getMessage(), e);
+            }
+        });
+        return ResponseEntity.accepted().body("공기업 매칭 점수 산출 시작됨 (백그라운드)");
     }
 
     @Override
@@ -91,8 +139,14 @@ public class DailyJobSchedulerController implements DailyJobSchedulerControllerD
     @Override
     @PostMapping("/tech-cards")
     public ResponseEntity<String> collectTechCards() {
-        techCardCollectService.collectAndSummarize();
-        return ResponseEntity.ok("IT 뉴스 카드 수집 완료");
+        schedulerTaskExecutor.execute(() -> {
+            try {
+                techCardCollectService.collectAndSummarize();
+            } catch (Exception e) {
+                log.error("[수동트리거] IT 뉴스 카드 수집 실패: {}", e.getMessage(), e);
+            }
+        });
+        return ResponseEntity.accepted().body("IT 뉴스 카드 수집 시작됨 (백그라운드)");
     }
 
     @Override
