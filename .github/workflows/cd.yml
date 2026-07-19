@@ -115,6 +115,7 @@ jobs:
           AWS_REGION=$(get_param AWS_REGION)
           S3_BUCKET_NAME=$(get_param S3_BUCKET_NAME)
           DATA_GO_KR_SERVICE_KEY=$(get_param DATA_GO_KR_SERVICE_KEY)
+          SES_FROM_EMAIL=$(get_param SES_FROM_EMAIL)
           ANTHROPIC_API_KEY=$(get_param ANTHROPIC_API_KEY)
           OPENAI_API_KEY=$(get_param OPENAI_API_KEY)
           SENDGRID_USERNAME=$(get_param SENDGRID_USERNAME)
@@ -154,6 +155,7 @@ jobs:
           WEBSOCKET_ALLOWED_ORIGINS: ${{ secrets.WEBSOCKET_ALLOWED_ORIGINS || 'https://app.jobai.site' }}
           S3_BUCKET_NAME: ${{ secrets.S3_BUCKET_NAME }}
           DATA_GO_KR_SERVICE_KEY: ${{ secrets.DATA_GO_KR_SERVICE_KEY }}
+          SES_FROM_EMAIL: ${{ secrets.SES_FROM_EMAIL }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           SENDGRID_USERNAME: ${{ secrets.SENDGRID_USERNAME }}
@@ -191,6 +193,7 @@ jobs:
           put_param AWS_REGION "${AWS_REGION}"
           put_param S3_BUCKET_NAME "${S3_BUCKET_NAME}"
           put_param DATA_GO_KR_SERVICE_KEY "${DATA_GO_KR_SERVICE_KEY}"
+          put_param SES_FROM_EMAIL "${SES_FROM_EMAIL}"
           put_param ANTHROPIC_API_KEY "${ANTHROPIC_API_KEY}"
           put_param OPENAI_API_KEY "${OPENAI_API_KEY}"
           put_param SENDGRID_USERNAME "${SENDGRID_USERNAME}"
