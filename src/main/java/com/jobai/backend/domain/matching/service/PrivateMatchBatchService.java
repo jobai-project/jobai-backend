@@ -69,18 +69,19 @@ public class PrivateMatchBatchService {
      *
      * <p>이력서별 try-catch로 한 이력서 처리 실패 시에도 나머지는 계속 진행한다.</p>
      */
-    public void scoreNewAndUpdatedPostings() {
+    /** @return 결과 요약 문자열 */
+    public String scoreNewAndUpdatedPostings() {
         List<Resumes> activeResumes = resumesRepository.findAllActiveWithEmbedding();
         if (activeResumes.isEmpty()) {
             log.info("[배치점수] 활성 이력서가 없어 점수 산출 건너뜀");
-            return;
+            return "활성 이력서 0건 — 건너뜀";
         }
 
         List<PrivateJobPosting> activePostings =
                 privateJobPostingRepository.findActiveByValidCategories(JobCategory.matchTargetLabels());
         if (activePostings.isEmpty()) {
             log.info("[배치점수] 활성 공고가 없어 점수 산출 건너뜀");
-            return;
+            return "이력서 " + activeResumes.size() + "건, 활성 공고 0건 — 건너뜀";
         }
 
         Map<Long, PrivateJobPosting> postingMap = activePostings.stream()
@@ -108,6 +109,8 @@ public class PrivateMatchBatchService {
 
         log.info("[배치점수] 완료 — 신규 점수 {}건, 변경 재산출 {}건, 실패 {}건",
                 totalNew, totalUpdated, totalFail);
+        return String.format("이력서 %d건 × 공고 %d건 | 신규 %d, 변경 %d, 실패 %d",
+                activeResumes.size(), activePostings.size(), totalNew, totalUpdated, totalFail);
     }
 
     /** 이력서별 점수 산출 결과. 알림 대상 공고 목록을 포함한다. */
