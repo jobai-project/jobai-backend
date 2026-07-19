@@ -15,7 +15,7 @@ import software.amazon.awssdk.services.sesv2.model.EmailContent;
 import software.amazon.awssdk.services.sesv2.model.Message;
 import software.amazon.awssdk.services.sesv2.model.SendEmailRequest;
 
-import java.net.URI;
+import java.util.regex.Pattern;
 
 @Slf4j
 @Service
@@ -23,6 +23,8 @@ import java.net.URI;
 public class EmailNotificationService {
 
     private final SesV2Client sesV2Client;
+
+    private static final Pattern ABSOLUTE_URL_PATTERN = Pattern.compile("^[a-zA-Z][a-zA-Z0-9+.-]*://.+");
 
     @Value("${notification.email.from:}")
     private String fromEmail;
@@ -111,12 +113,7 @@ public class EmailNotificationService {
     }
 
     private boolean isAbsoluteUrl(String linkUrl) {
-        try {
-            URI uri = URI.create(linkUrl);
-            return uri.isAbsolute();
-        } catch (IllegalArgumentException e) {
-            return false;
-        }
+        return ABSOLUTE_URL_PATTERN.matcher(linkUrl).matches();
     }
 
     private String escapeHtmlWithLineBreaks(String value) {

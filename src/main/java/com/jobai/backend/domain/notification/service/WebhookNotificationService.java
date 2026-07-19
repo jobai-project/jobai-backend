@@ -3,15 +3,18 @@ package com.jobai.backend.domain.notification.service;
 import com.jobai.backend.domain.notification.dto.RealtimeNotificationPayload;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.reactive.function.client.WebClientResponseException;
 import reactor.util.retry.Retry;
 
+import java.util.LinkedHashMap;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Pattern;
 
 @Slf4j
 @Service
@@ -19,6 +22,11 @@ import java.util.Map;
 public class WebhookNotificationService {
 
     private final WebClient webClient;
+
+    private static final Pattern ABSOLUTE_URL_PATTERN = Pattern.compile("^[a-zA-Z][a-zA-Z0-9+.-]*://.+");
+
+    @Value("${app.frontend-base-url:}")
+    private String frontendBaseUrl;
 
     public void sendSlack(String slackUrl, RealtimeNotificationPayload payload) {
         if (!StringUtils.hasText(slackUrl)) {
@@ -43,15 +51,16 @@ public class WebhookNotificationService {
             return;
         }
 
-        post(discordUrl, Map.of(
-                "embeds", List.of(
-                        Map.of(
-                                "title", nullToEmpty(payload.title()),
-                                "description", nullToEmpty(payload.message()),
-                                "url", nullToEmpty(payload.linkUrl())
-                        )
-                )
-        ), "Discord");
+        Map<String, Object> embed = new LinkedHashMap<>();
+        embed.put("title", nullToEmpty(payload.title()));
+        embed.put("description", nullToEmpty(payload.message()));
+
+        String linkUrl = resolveLinkUrl(payload.linkUrl());
+        if (StringUtils.hasText(linkUrl)) {
+            embed.put("url", linkUrl);
+        }
+
+        post(discordUrl, Map.of("embeds", List.of(embed)), "Discord");
     }
 
     private void post(String url, Object body, String target) {
@@ -78,12 +87,28 @@ public class WebhookNotificationService {
     private String buildSlackText(RealtimeNotificationPayload payload) {
         String title = nullToEmpty(payload.title());
         String message = nullToEmpty(payload.message());
-        String linkUrl = payload.linkUrl();
+        String linkUrl = resolveLinkUrl(payload.linkUrl());
 
         if (StringUtils.hasText(linkUrl)) {
             return "*" + title + "*\n" + message + "\n<" + linkUrl + "|Open>";
         }
         return "*" + title + "*\n" + message;
+    }
+
+    private String resolveLinkUrl(String linkUrl) {
+        if (!StringUtils.hasText(linkUrl)) {
+            return null;
+        }
+
+        if (isAbsoluteUrl(linkUrl) || !StringUtils.hasText(frontendBaseUrl)) {
+            return linkUrl;
+        }
+
+        return frontendBaseUrl.replaceAll("/+$", "") + "/" + linkUrl.replaceAll("^/+", "");
+    }
+
+    private boolean isAbsoluteUrl(String linkUrl) {
+        return ABSOLUTE_URL_PATTERN.matcher(linkUrl).matches();
     }
 
     private String nullToEmpty(String value) {
