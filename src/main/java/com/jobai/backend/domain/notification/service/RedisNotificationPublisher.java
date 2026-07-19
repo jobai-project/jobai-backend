@@ -3,6 +3,7 @@ package com.jobai.backend.domain.notification.service;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jobai.backend.domain.notification.dto.RealtimeNotificationPayload;
+import com.jobai.backend.domain.notification.util.NotificationLogUtils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -32,17 +33,10 @@ public class RedisNotificationPublisher {
         try {
             String channel = CHANNEL_PREFIX + userId;
             Long receiverCount = redisTemplate.convertAndSend(channel, objectMapper.writeValueAsString(payload));
-            log.info("[실시간알림] Redis 발행 완료: user={}, receivers={}", maskUserId(userId), receiverCount);
+            log.info("[실시간알림] Redis 발행 완료: user={}, receivers={}",
+                    NotificationLogUtils.maskUserId(userId), receiverCount);
         } catch (JsonProcessingException e) {
             throw new IllegalStateException("Failed to serialize notification payload", e);
         }
-    }
-
-    private String maskUserId(String userId) {
-        int atIndex = userId.indexOf('@');
-        if (atIndex <= 1) {
-            return "***";
-        }
-        return userId.charAt(0) + "***" + userId.substring(atIndex);
     }
 }

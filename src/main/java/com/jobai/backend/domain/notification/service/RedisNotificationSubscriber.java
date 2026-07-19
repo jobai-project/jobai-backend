@@ -3,6 +3,7 @@ package com.jobai.backend.domain.notification.service;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jobai.backend.domain.notification.dto.RealtimeNotificationPayload;
+import com.jobai.backend.domain.notification.util.NotificationLogUtils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Profile;
@@ -29,7 +30,7 @@ public class RedisNotificationSubscriber {
 
         try {
             RealtimeNotificationPayload payload = objectMapper.readValue(message, RealtimeNotificationPayload.class);
-            log.info("[실시간알림] Redis 구독 수신: user={}", maskUserId(userId));
+            log.info("[실시간알림] Redis 구독 수신: user={}", NotificationLogUtils.maskUserId(userId));
             webSocketNotificationService.sendToUser(userId, payload);
         } catch (JsonProcessingException e) {
             log.warn("Failed to deserialize notification payload", e);
@@ -41,13 +42,5 @@ public class RedisNotificationSubscriber {
             return null;
         }
         return channel.substring(CHANNEL_PREFIX.length());
-    }
-
-    private String maskUserId(String userId) {
-        int atIndex = userId.indexOf('@');
-        if (atIndex <= 1) {
-            return "***";
-        }
-        return userId.charAt(0) + "***" + userId.substring(atIndex);
     }
 }
