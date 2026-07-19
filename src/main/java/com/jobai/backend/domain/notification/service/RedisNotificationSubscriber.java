@@ -4,9 +4,12 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jobai.backend.domain.notification.dto.RealtimeNotificationPayload;
 import com.jobai.backend.domain.notification.util.NotificationLogUtils;
+import java.nio.charset.StandardCharsets;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Profile;
+import org.springframework.data.redis.connection.Message;
+import org.springframework.data.redis.connection.MessageListener;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
@@ -14,12 +17,19 @@ import org.springframework.util.StringUtils;
 @Service
 @RequiredArgsConstructor
 @Profile("!classify & !export & !collect & !local & !test")
-public class RedisNotificationSubscriber {
+public class RedisNotificationSubscriber implements MessageListener {
 
     private static final String CHANNEL_PREFIX = "notification:";
 
     private final ObjectMapper objectMapper;
     private final WebSocketNotificationService webSocketNotificationService;
+
+    @Override
+    public void onMessage(Message message, byte[] pattern) {
+        String body = new String(message.getBody(), StandardCharsets.UTF_8);
+        String channel = new String(message.getChannel(), StandardCharsets.UTF_8);
+        handleMessage(body, channel);
+    }
 
     public void handleMessage(String message, String channel) {
         String userId = extractUserId(channel);

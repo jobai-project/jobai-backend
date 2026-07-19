@@ -11,8 +11,6 @@ import org.springframework.data.redis.connection.lettuce.LettuceConnectionFactor
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.listener.PatternTopic;
 import org.springframework.data.redis.listener.RedisMessageListenerContainer;
-import org.springframework.data.redis.listener.adapter.MessageListenerAdapter;
-import org.springframework.data.redis.serializer.StringRedisSerializer;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 import org.springframework.util.StringUtils;
 
@@ -39,23 +37,16 @@ public class RedisNotificationConfig {
     }
 
     @Bean
-    public MessageListenerAdapter notificationListenerAdapter(RedisNotificationSubscriber subscriber) {
-        MessageListenerAdapter adapter = new MessageListenerAdapter(subscriber, "handleMessage");
-        adapter.setSerializer(new StringRedisSerializer());
-        return adapter;
-    }
-
-    @Bean
     public RedisMessageListenerContainer redisMessageListenerContainer(
             RedisConnectionFactory redisConnectionFactory,
-            MessageListenerAdapter notificationListenerAdapter,
+            RedisNotificationSubscriber redisNotificationSubscriber,
             ThreadPoolTaskExecutor notificationRedisTaskExecutor
     ) {
         RedisMessageListenerContainer container = new RedisMessageListenerContainer();
         container.setConnectionFactory(redisConnectionFactory);
         container.setTaskExecutor(notificationRedisTaskExecutor);
         container.setSubscriptionExecutor(notificationRedisTaskExecutor);
-        container.addMessageListener(notificationListenerAdapter, new PatternTopic("notification:*"));
+        container.addMessageListener(redisNotificationSubscriber, new PatternTopic("notification:*"));
         return container;
     }
 
