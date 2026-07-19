@@ -10,11 +10,11 @@ import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.reactive.function.client.WebClientResponseException;
 import reactor.util.retry.Retry;
 
-import java.net.URI;
 import java.util.LinkedHashMap;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Pattern;
 
 @Slf4j
 @Service
@@ -22,6 +22,8 @@ import java.util.Map;
 public class WebhookNotificationService {
 
     private final WebClient webClient;
+
+    private static final Pattern ABSOLUTE_URL_PATTERN = Pattern.compile("^[a-zA-Z][a-zA-Z0-9+.-]*://.+");
 
     @Value("${app.frontend-base-url:}")
     private String frontendBaseUrl;
@@ -106,12 +108,7 @@ public class WebhookNotificationService {
     }
 
     private boolean isAbsoluteUrl(String linkUrl) {
-        try {
-            URI uri = URI.create(linkUrl);
-            return uri.isAbsolute();
-        } catch (IllegalArgumentException e) {
-            return false;
-        }
+        return ABSOLUTE_URL_PATTERN.matcher(linkUrl).matches();
     }
 
     private String nullToEmpty(String value) {
