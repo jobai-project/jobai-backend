@@ -2,6 +2,11 @@ spring:
   application:
     name: backend
 
+  task:
+    scheduling:
+      pool:
+        size: 4
+
   servlet:
     multipart:
       max-file-size: 10MB
