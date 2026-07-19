@@ -7,6 +7,8 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.ResponseEntity;
 
+import java.util.Map;
+
 @Tag(name = "Trigger", description = "테스트용 수동 실행")
 public interface DailyJobSchedulerControllerDocs {
 
@@ -199,4 +201,26 @@ public interface DailyJobSchedulerControllerDocs {
             )
     })
     ResponseEntity<String> triggerNotifyTest();
+
+    @Operation(
+            summary = "비동기 작업 상태 조회",
+            description = """
+                    백그라운드로 실행 중인 작업들의 현재 상태를 조회합니다.
+                    상태값: RUNNING(실행 중), COMPLETED(완료), FAILED(실패).
+                    한 번도 실행되지 않은 작업은 목록에 나타나지 않습니다.
+                    """
+    )
+    @ApiResponses(value = {
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "200",
+                    description = "작업 상태 목록",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = @ExampleObject(value = """
+                                    {"daily-pipeline":"RUNNING","embedding":"COMPLETED","scoring":"FAILED"}
+                                    """)
+                    )
+            )
+    })
+    ResponseEntity<Map<String, String>> getTaskStatus();
 }

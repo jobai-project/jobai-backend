@@ -115,6 +115,9 @@ public class EmbeddingBatchService {
      * @return "성공/전체" 형태의 결과 문자열
      */
     public String generateMissingResumeEmbeddings() {
+        if (!embeddingEnabled) {
+            return "임베딩 비활성화 상태 — 처리 건너뜀";
+        }
         List<Resumes> targets = resumesRepository.findActiveWithoutEmbedding();
         if (targets.isEmpty()) {
             return "임베딩 대상 이력서가 없습니다";

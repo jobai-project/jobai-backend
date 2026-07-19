@@ -40,6 +40,10 @@ public class DailyJobScheduler {
     private final PrivateMatchBatchService privateMatchBatchService;
     private final PublicMatchBatchService publicMatchBatchService;
 
+    /**
+     * 7단계 파이프라인을 순차 실행한다.
+     * 각 단계는 독립된 try-catch로 감싸져 있어, 하나가 실패해도 나머지 단계는 계속 실행된다.
+     */
     @Scheduled(cron = "${scheduler.daily.cron:0 0 2 * * *}", zone = "Asia/Seoul")
     public void runDailyPipeline() {
         log.info("[DailyPipeline] ===== 새벽 파이프라인 시작 =====");
