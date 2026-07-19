@@ -41,16 +41,16 @@ class HomeJobCandidateRepositoryTest {
     }
 
     @Test
-    @DisplayName("민간 점수 후보는 실제 점수, 임계값, 공통 유효 카테고리를 모두 조건으로 조회한다")
+    @DisplayName("민간 점수 후보는 실제 점수와 공통 유효 카테고리를 조건으로 조회하고 적합도 기준은 적용하지 않는다")
     void countsOnlyPersistedPrivateScoresInValidCategories() {
-        repository.countScoredPrivateCandidates(10L, List.of("서울"), List.of("신입"), 70);
+        repository.countScoredPrivateCandidates(10L, List.of("서울"), List.of("신입"));
 
         ArgumentCaptor<String> jpql = ArgumentCaptor.forClass(String.class);
         verify(entityManager).createQuery(jpql.capture(), eq(Long.class));
         assertThat(jpql.getValue())
                 .contains("FROM PrivateMatchScore s JOIN s.privateJobPosting p")
                 .contains("s.resume.id = :resumeId")
-                .contains("s.score >= :threshold")
+                .doesNotContain("s.score >= :threshold")
                 .contains("p.jobCategory IN :validCategories")
                 .contains("LOWER(p.location) LIKE :loc0")
                 .contains("LOWER(p.employmentType) LIKE :empKw0");
@@ -76,7 +76,7 @@ class HomeJobCandidateRepositoryTest {
     @Test
     @DisplayName("점수 후보 조회는 점수, 생성시각, ID 순으로 정렬하고 요청 범위만 조회한다")
     void ordersScoredCandidatesDeterministically() {
-        repository.findScoredPrivateCandidates(10L, null, null, 70, 1_018);
+        repository.findScoredPrivateCandidates(10L, null, null, 1_018);
 
         ArgumentCaptor<String> jpql = ArgumentCaptor.forClass(String.class);
         verify(entityManager).createQuery(jpql.capture(), eq(Object[].class));

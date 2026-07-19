@@ -11,8 +11,6 @@ import com.jobai.backend.domain.member.entity.PreferredRegion;
 import com.jobai.backend.domain.member.entity.Resumes;
 import com.jobai.backend.domain.member.repository.MemberRepository;
 import com.jobai.backend.domain.member.repository.ResumesRepository;
-import com.jobai.backend.domain.notification.entity.Notification;
-import com.jobai.backend.domain.notification.repository.NotificationRepository;
 import com.jobai.backend.global.apiPayload.code.GeneralErrorCode;
 import com.jobai.backend.global.apiPayload.exception.GeneralException;
 import lombok.RequiredArgsConstructor;
@@ -33,12 +31,8 @@ public class HomeRecommendationService {
     private static final int MAX_PAGE_SIZE = 100;
     private static final int MAX_OFFSET = 10_000;
 
-    // Notification.createDefault()의 기본값과 동일. 온보딩 전이라 설정 행이 없는 회원에게 적용.
-    private static final int DEFAULT_MATCH_SCORE_THRESHOLD = 70;
-
     private final MemberRepository memberRepository;
     private final HomeJobCandidateRepository candidateRepository;
-    private final NotificationRepository notificationRepository;
     private final ResumesRepository resumesRepository;
 
     public HomeRecommendationResponse getRecommendedJobs(
@@ -65,7 +59,7 @@ public class HomeRecommendationService {
             Optional<Resumes> activeResume = resumesRepository.findByMemberEmailAndIsActiveTrue(email);
             if (activeResume.isPresent()) {
                 return buildScoredResponse(
-                        email, activeResume.get(), includePublic, includePrivate,
+                        activeResume.get(), includePublic, includePrivate,
                         locations, employmentTypes, offset, size
                 );
             }
@@ -105,9 +99,9 @@ public class HomeRecommendationService {
                 && (!member.getPrefJobs().isEmpty() || !member.getPrefLocations().isEmpty());
     }
 
-    // 매칭 근거가 있는 회원: 적합도 기준 이상만 남기고 매칭점수 내림차순 정렬
+    // 매칭 근거가 있는 회원: 적합도 기준과 무관하게 매칭점수 내림차순으로 전부 정렬
+    // (적합도 기준은 알림 발송 여부 판단에만 쓰이고, 이 목록에는 적용하지 않는다)
     private HomeRecommendationResponse buildScoredResponse(
-            String email,
             Resumes activeResume,
             boolean includePublic,
             boolean includePrivate,
@@ -116,15 +110,14 @@ public class HomeRecommendationService {
             int offset,
             int size
     ) {
-        int matchScoreThreshold = resolveMatchScoreThreshold(email);
         int fetchLimit = calculateFetchLimit(offset, size);
         List<ScoredJobCandidate> publicCandidates = includePublic
                 ? candidateRepository.findScoredPublicCandidates(
-                        activeResume.getId(), locations, employmentTypes, matchScoreThreshold, fetchLimit)
+                        activeResume.getId(), locations, employmentTypes, fetchLimit)
                 : List.of();
         List<ScoredJobCandidate> privateCandidates = includePrivate
                 ? candidateRepository.findScoredPrivateCandidates(
-                        activeResume.getId(), locations, employmentTypes, matchScoreThreshold, fetchLimit)
+                        activeResume.getId(), locations, employmentTypes, fetchLimit)
                 : List.of();
 
         List<ScoredJobCandidate> scoredCandidates = Stream.concat(
@@ -140,11 +133,11 @@ public class HomeRecommendationService {
         long totalCount = 0;
         if (includePublic) {
             totalCount += candidateRepository.countScoredPublicCandidates(
-                    activeResume.getId(), locations, employmentTypes, matchScoreThreshold);
+                    activeResume.getId(), locations, employmentTypes);
         }
         if (includePrivate) {
             totalCount += candidateRepository.countScoredPrivateCandidates(
-                    activeResume.getId(), locations, employmentTypes, matchScoreThreshold);
+                    activeResume.getId(), locations, employmentTypes);
         }
         List<RecommendedJob> jobs = scoredCandidates.stream()
                 .skip(offset)
@@ -187,12 +180,6 @@ public class HomeRecommendationService {
                 .toList();
 
         return new HomeRecommendationResponse(totalCount, (long) offset + size < totalCount, jobs);
-    }
-
-    private int resolveMatchScoreThreshold(String email) {
-        return notificationRepository.findByMemberEmail(email)
-                .map(Notification::getMatchScoreThreshold)
-                .orElse(DEFAULT_MATCH_SCORE_THRESHOLD);
     }
 
     private RecommendedJob toRecommendedJob(JobCandidate candidate, Integer score) {

@@ -11,8 +11,6 @@ import com.jobai.backend.domain.member.entity.PreferredRegion;
 import com.jobai.backend.domain.member.entity.Resumes;
 import com.jobai.backend.domain.member.repository.MemberRepository;
 import com.jobai.backend.domain.member.repository.ResumesRepository;
-import com.jobai.backend.domain.notification.entity.Notification;
-import com.jobai.backend.domain.notification.repository.NotificationRepository;
 import com.jobai.backend.global.apiPayload.exception.GeneralException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -41,7 +39,6 @@ class HomeRecommendationServiceTest {
 
     private MemberRepository memberRepository;
     private HomeJobCandidateRepository candidateRepository;
-    private NotificationRepository notificationRepository;
     private ResumesRepository resumesRepository;
     private HomeRecommendationService service;
 
@@ -49,21 +46,18 @@ class HomeRecommendationServiceTest {
     void setUp() {
         memberRepository = Mockito.mock(MemberRepository.class);
         candidateRepository = Mockito.mock(HomeJobCandidateRepository.class);
-        notificationRepository = Mockito.mock(NotificationRepository.class);
         resumesRepository = Mockito.mock(ResumesRepository.class);
         service = new HomeRecommendationService(
-                memberRepository, candidateRepository, notificationRepository, resumesRepository
+                memberRepository, candidateRepository, resumesRepository
         );
 
         Member member = memberWithPreferences();
         when(memberRepository.findByEmail(EMAIL)).thenReturn(Optional.of(member));
         when(resumesRepository.findByMemberEmailAndIsActiveTrue(EMAIL))
                 .thenReturn(Optional.of(Resumes.builder().id(10L).isActive(true).build()));
-        when(notificationRepository.findByMemberEmail(EMAIL))
-                .thenReturn(Optional.of(Notification.builder().matchScoreThreshold(70).build()));
-        when(candidateRepository.findScoredPublicCandidates(any(), any(), any(), anyInt(), anyInt()))
+        when(candidateRepository.findScoredPublicCandidates(any(), any(), any(), anyInt()))
                 .thenReturn(List.of());
-        when(candidateRepository.findScoredPrivateCandidates(any(), any(), any(), anyInt(), anyInt()))
+        when(candidateRepository.findScoredPrivateCandidates(any(), any(), any(), anyInt()))
                 .thenReturn(List.of());
         when(candidateRepository.findPublicCandidates(any(), any(), anyInt())).thenReturn(List.of());
         when(candidateRepository.findPrivateCandidates(any(), any(), anyInt())).thenReturn(List.of());
@@ -87,12 +81,12 @@ class HomeRecommendationServiceTest {
     @Test
     @DisplayName("저장된 공기업과 민간 매칭점수를 하나의 점수순 목록으로 병합한다")
     void mergesPersistedScores() {
-        when(candidateRepository.findScoredPublicCandidates(10L, null, null, 70, 10))
+        when(candidateRepository.findScoredPublicCandidates(10L, null, null, 10))
                 .thenReturn(List.of(scored(1L, "PUBLIC", 91), scored(2L, "PUBLIC", 75)));
-        when(candidateRepository.findScoredPrivateCandidates(10L, null, null, 70, 10))
+        when(candidateRepository.findScoredPrivateCandidates(10L, null, null, 10))
                 .thenReturn(List.of(scored(10L, "PRIVATE", 95), scored(20L, "PRIVATE", 80)));
-        when(candidateRepository.countScoredPublicCandidates(10L, null, null, 70)).thenReturn(2L);
-        when(candidateRepository.countScoredPrivateCandidates(10L, null, null, 70)).thenReturn(2L);
+        when(candidateRepository.countScoredPublicCandidates(10L, null, null)).thenReturn(2L);
+        when(candidateRepository.countScoredPrivateCandidates(10L, null, null)).thenReturn(2L);
 
         HomeRecommendationResponse response = service.getRecommendedJobs(EMAIL, null, null, null, 0, 10);
 
@@ -111,7 +105,7 @@ class HomeRecommendationServiceTest {
 
         assertThat(response.jobs()).isEmpty();
         assertThat(response.totalCount()).isZero();
-        verify(candidateRepository).findScoredPublicCandidates(10L, null, null, 70, 18);
+        verify(candidateRepository).findScoredPublicCandidates(10L, null, null, 18);
         verify(candidateRepository, never())
                 .findLatestPublicCandidates(any(), any(), any(), any(), anyInt());
     }
@@ -119,15 +113,15 @@ class HomeRecommendationServiceTest {
     @Test
     @DisplayName("점수 추천은 최근 공고 1000건 조회를 거치지 않고 저장 점수에서 직접 페이지를 조회한다")
     void scoredRecommendationDoesNotUseCandidateCap() {
-        when(candidateRepository.findScoredPublicCandidates(10L, null, null, 70, 1_018))
+        when(candidateRepository.findScoredPublicCandidates(10L, null, null, 1_018))
                 .thenReturn(List.of(scored(5L, "PUBLIC", 99)));
-        when(candidateRepository.countScoredPublicCandidates(10L, null, null, 70)).thenReturn(2_000L);
+        when(candidateRepository.countScoredPublicCandidates(10L, null, null)).thenReturn(2_000L);
 
         HomeRecommendationResponse response = service.getRecommendedJobs(
                 EMAIL, List.of("PUBLIC"), null, null, 1_000, 18
         );
 
-        verify(candidateRepository).findScoredPublicCandidates(10L, null, null, 70, 1_018);
+        verify(candidateRepository).findScoredPublicCandidates(10L, null, null, 1_018);
         verify(candidateRepository, never())
                 .findLatestPublicCandidates(any(), any(), any(), any(), anyInt());
         assertThat(response.totalCount()).isEqualTo(2_000);
@@ -139,24 +133,27 @@ class HomeRecommendationServiceTest {
     void publicOnly() {
         service.getRecommendedJobs(EMAIL, List.of("PUBLIC"), null, null, 0, 18);
 
-        verify(candidateRepository).findScoredPublicCandidates(10L, null, null, 70, 18);
+        verify(candidateRepository).findScoredPublicCandidates(10L, null, null, 18);
         verify(candidateRepository, never())
-                .findScoredPrivateCandidates(any(), any(), any(), anyInt(), anyInt());
+                .findScoredPrivateCandidates(any(), any(), any(), anyInt());
         verify(candidateRepository, never())
-                .countScoredPrivateCandidates(any(), any(), any(), anyInt());
+                .countScoredPrivateCandidates(any(), any(), any());
     }
 
     @Test
-    @DisplayName("알림 설정이 없으면 실제 점수 조회에 기본 임계값 70을 사용한다")
-    void defaultThreshold() {
-        when(notificationRepository.findByMemberEmail(EMAIL)).thenReturn(Optional.empty());
+    @DisplayName("사용자가 설정한 적합도 기준보다 낮은 점수의 공고도 결과에 포함된다")
+    void includesPostingsBelowMatchScoreThreshold() {
+        when(candidateRepository.findScoredPrivateCandidates(10L, List.of("서울"), List.of("신입"), 20))
+                .thenReturn(List.of(scored(1L, "PRIVATE", 40)));
+        when(candidateRepository.countScoredPrivateCandidates(10L, List.of("서울"), List.of("신입")))
+                .thenReturn(1L);
 
-        service.getRecommendedJobs(EMAIL, List.of("PRIVATE"), List.of("서울"), List.of("신입"), 0, 20);
+        HomeRecommendationResponse response = service.getRecommendedJobs(
+                EMAIL, List.of("PRIVATE"), List.of("서울"), List.of("신입"), 0, 20
+        );
 
-        verify(candidateRepository).findScoredPrivateCandidates(
-                eq(10L), eq(List.of("서울")), eq(List.of("신입")), eq(70), eq(20));
-        verify(candidateRepository).countScoredPrivateCandidates(
-                eq(10L), eq(List.of("서울")), eq(List.of("신입")), eq(70));
+        assertThat(response.jobs()).extracting(RecommendedJob::matchScore).containsExactly(40);
+        assertThat(response.totalCount()).isEqualTo(1);
     }
 
     @Test
@@ -180,7 +177,6 @@ class HomeRecommendationServiceTest {
 
         assertThat(response.jobs()).extracting(RecommendedJob::id).containsExactly(1L);
         assertThat(response.jobs().get(0).matchScore()).isNull();
-        verifyNoInteractions(notificationRepository);
     }
 
     @Test
@@ -220,14 +216,14 @@ class HomeRecommendationServiceTest {
     @Test
     @DisplayName("최대 offset은 허용하고 제한된 범위로 조회한다")
     void acceptsMaximumOffset() {
-        when(candidateRepository.countScoredPublicCandidates(10L, null, null, 70))
+        when(candidateRepository.countScoredPublicCandidates(10L, null, null))
                 .thenReturn(10_101L);
 
         HomeRecommendationResponse response = service.getRecommendedJobs(
                 EMAIL, List.of("PUBLIC"), null, null, 10_000, 100
         );
 
-        verify(candidateRepository).findScoredPublicCandidates(10L, null, null, 70, 10_100);
+        verify(candidateRepository).findScoredPublicCandidates(10L, null, null, 10_100);
         assertThat(response.hasMore()).isTrue();
     }
 
@@ -243,12 +239,12 @@ class HomeRecommendationServiceTest {
                 scored(1L, "PRIVATE", 90, sameCreatedAt),
                 scored(2L, "PRIVATE", 90, sameCreatedAt)
         );
-        when(candidateRepository.findScoredPublicCandidates(eq(10L), any(), any(), eq(70), anyInt()))
+        when(candidateRepository.findScoredPublicCandidates(eq(10L), any(), any(), anyInt()))
                 .thenReturn(publicScores);
-        when(candidateRepository.findScoredPrivateCandidates(eq(10L), any(), any(), eq(70), anyInt()))
+        when(candidateRepository.findScoredPrivateCandidates(eq(10L), any(), any(), anyInt()))
                 .thenReturn(privateScores);
-        when(candidateRepository.countScoredPublicCandidates(10L, null, null, 70)).thenReturn(2L);
-        when(candidateRepository.countScoredPrivateCandidates(10L, null, null, 70)).thenReturn(2L);
+        when(candidateRepository.countScoredPublicCandidates(10L, null, null)).thenReturn(2L);
+        when(candidateRepository.countScoredPrivateCandidates(10L, null, null)).thenReturn(2L);
 
         HomeRecommendationResponse first = service.getRecommendedJobs(EMAIL, null, null, null, 0, 2);
         HomeRecommendationResponse second = service.getRecommendedJobs(EMAIL, null, null, null, 2, 2);
