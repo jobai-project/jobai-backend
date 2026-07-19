@@ -33,11 +33,12 @@ public class PrivateJobBatchCollectService {
      * resources/specs/ 디렉토리의 모든 YAML 스펙을 스캔하여 회사별로 수집한다.
      * 한 회사가 실패해도 나머지는 계속 진행한다.
      */
-    public void collectAll() {
+    /** @return 신규 수집된 공고 건수 */
+    public int collectAll() {
         List<String> companies = discoverCompanies();
         if (companies.isEmpty()) {
             log.warn("[배치수집] specs 디렉토리에 수집할 회사가 없습니다");
-            return;
+            return 0;
         }
 
         log.info("[배치수집] 시작 — 대상 회사 {}개: {}", companies.size(), companies);
@@ -65,6 +66,7 @@ public class PrivateJobBatchCollectService {
 
         log.info("[배치수집] 완료 — 회사 성공 {}/실패 {}, 전체 신규 {}, 변경 {}, 마감 {}",
                 successCount, failCount, totalInserted, totalUpdated, totalClosed);
+        return totalInserted;
     }
 
     /**

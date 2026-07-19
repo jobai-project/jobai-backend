@@ -48,7 +48,8 @@ public class JobDataSyncService {
         }
     }
 
-    public void syncPublicJobOpenings() {
+    /** @return 수집된 공기업 공고 건수 */
+    public int syncPublicJobOpenings() {
         // 1. 공공데이터 서비스키 중복 인코딩 방지를 위한 URI 팩토리 설정 (WebClient 재생성 대신 속성만 변경하여 사용)
         DefaultUriBuilderFactory factory = new DefaultUriBuilderFactory(baseUrl);
         factory.setEncodingMode(DefaultUriBuilderFactory.EncodingMode.NONE);
@@ -78,7 +79,7 @@ public class JobDataSyncService {
 
         if (apiResponse == null || apiResponse.result() == null) {
             log.error("공공데이터 API 호출 실패 혹은 데이터 파싱 불가능");
-            return;
+            return 0;
         }
 
         List<PublicJobListResponse.Item> apiItems = apiResponse.result();
@@ -99,5 +100,6 @@ public class JobDataSyncService {
                 .block(); // 전체 배치 완료를 대기
 
         log.info("공공기관 채용 공고 DB 동기화가 성공적으로 완료되었습니다.");
+        return apiItems.size();
     }
 }

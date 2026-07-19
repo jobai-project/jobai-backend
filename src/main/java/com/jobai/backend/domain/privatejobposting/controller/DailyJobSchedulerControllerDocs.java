@@ -211,7 +211,7 @@ public interface DailyJobSchedulerControllerDocs {
     @Operation(
             summary = "비동기 작업 상태 조회",
             description = """
-                    백그라운드로 실행 중인 작업들의 현재 상태를 조회합니다.
+                    백그라운드로 실행 중인 작업들의 현재 상태와 결과를 조회합니다.
                     상태값: RUNNING(실행 중), COMPLETED(완료), FAILED(실패).
                     한 번도 실행되지 않은 작업은 목록에 나타나지 않습니다.
                     """
@@ -223,10 +223,10 @@ public interface DailyJobSchedulerControllerDocs {
                     content = @Content(
                             mediaType = "application/json",
                             examples = @ExampleObject(value = """
-                                    {"daily-pipeline":"RUNNING","embedding":"COMPLETED","scoring":"FAILED"}
+                                    {"daily-pipeline":{"status":"COMPLETED","result":"수집: 사기업 32건, 공기업 5건 | 분류: 10건 | 이력서임베딩: 완료 | 소요: 12345ms"}}
                                     """)
                     )
             )
     })
-    ResponseEntity<Map<String, String>> getTaskStatus();
+    ResponseEntity<Map<String, Map<String, String>>> getTaskStatus();
 }

@@ -45,8 +45,8 @@ public class DailyJobSchedulerController implements DailyJobSchedulerControllerD
     private final BatchNotificationHelper batchNotificationHelper;
     private final Executor schedulerTaskExecutor;
 
-    /** 비동기 작업 상태 추적용. key: 작업명, value: RUNNING / COMPLETED / FAILED */
-    private final Map<String, String> taskStatus = new ConcurrentHashMap<>();
+    /** 비동기 작업 상태 추적용. key: 작업명, value: {status, result} */
+    private final Map<String, Map<String, String>> taskStatus = new ConcurrentHashMap<>();
 
     public DailyJobSchedulerController(
             DailyJobScheduler dailyJobScheduler,
@@ -71,13 +71,13 @@ public class DailyJobSchedulerController implements DailyJobSchedulerControllerD
     @Override
     @PostMapping("/daily-pipeline")
     public ResponseEntity<String> triggerDailyPipeline() {
-        taskStatus.put("daily-pipeline", "RUNNING");
+        taskStatus.put("daily-pipeline", Map.of("status", "RUNNING"));
         schedulerTaskExecutor.execute(() -> {
             try {
-                dailyJobScheduler.runDailyPipeline();
-                taskStatus.put("daily-pipeline", "COMPLETED");
+                String result = dailyJobScheduler.runDailyPipeline();
+                taskStatus.put("daily-pipeline", Map.of("status", "COMPLETED", "result", result));
             } catch (Exception e) {
-                taskStatus.put("daily-pipeline", "FAILED");
+                taskStatus.put("daily-pipeline", Map.of("status", "FAILED", "result", e.getMessage()));
                 log.error("[수동트리거] 새벽 파이프라인 실행 실패: {}", e.getMessage(), e);
             }
         });
@@ -108,13 +108,13 @@ public class DailyJobSchedulerController implements DailyJobSchedulerControllerD
     @Override
     @PostMapping("/embedding")
     public ResponseEntity<String> generateEmbeddings() {
-        taskStatus.put("embedding", "RUNNING");
+        taskStatus.put("embedding", Map.of("status", "RUNNING"));
         schedulerTaskExecutor.execute(() -> {
             try {
                 embeddingBatchService.generateAllMissingEmbeddings();
-                taskStatus.put("embedding", "COMPLETED");
+                taskStatus.put("embedding", Map.of("status", "COMPLETED"));
             } catch (Exception e) {
-                taskStatus.put("embedding", "FAILED");
+                taskStatus.put("embedding", Map.of("status", "FAILED", "result", e.getMessage()));
                 log.error("[수동트리거] 임베딩 생성 실패: {}", e.getMessage(), e);
             }
         });
@@ -124,13 +124,13 @@ public class DailyJobSchedulerController implements DailyJobSchedulerControllerD
     @Override
     @PostMapping("/scoring")
     public ResponseEntity<String> scorePostings() {
-        taskStatus.put("scoring", "RUNNING");
+        taskStatus.put("scoring", Map.of("status", "RUNNING"));
         schedulerTaskExecutor.execute(() -> {
             try {
                 privateMatchBatchService.scoreNewAndUpdatedPostings();
-                taskStatus.put("scoring", "COMPLETED");
+                taskStatus.put("scoring", Map.of("status", "COMPLETED"));
             } catch (Exception e) {
-                taskStatus.put("scoring", "FAILED");
+                taskStatus.put("scoring", Map.of("status", "FAILED", "result", e.getMessage()));
                 log.error("[수동트리거] 사기업 매칭 점수 산출 실패: {}", e.getMessage(), e);
             }
         });
@@ -140,13 +140,13 @@ public class DailyJobSchedulerController implements DailyJobSchedulerControllerD
     @Override
     @PostMapping("/scoring-public")
     public ResponseEntity<String> scorePublicPostings() {
-        taskStatus.put("scoring-public", "RUNNING");
+        taskStatus.put("scoring-public", Map.of("status", "RUNNING"));
         schedulerTaskExecutor.execute(() -> {
             try {
                 publicMatchBatchService.scoreNewAndUpdatedPostings();
-                taskStatus.put("scoring-public", "COMPLETED");
+                taskStatus.put("scoring-public", Map.of("status", "COMPLETED"));
             } catch (Exception e) {
-                taskStatus.put("scoring-public", "FAILED");
+                taskStatus.put("scoring-public", Map.of("status", "FAILED", "result", e.getMessage()));
                 log.error("[수동트리거] 공기업 매칭 점수 산출 실패: {}", e.getMessage(), e);
             }
         });
@@ -163,13 +163,13 @@ public class DailyJobSchedulerController implements DailyJobSchedulerControllerD
     @Override
     @PostMapping("/tech-cards")
     public ResponseEntity<String> collectTechCards() {
-        taskStatus.put("tech-cards", "RUNNING");
+        taskStatus.put("tech-cards", Map.of("status", "RUNNING"));
         schedulerTaskExecutor.execute(() -> {
             try {
                 techCardCollectService.collectAndSummarize();
-                taskStatus.put("tech-cards", "COMPLETED");
+                taskStatus.put("tech-cards", Map.of("status", "COMPLETED"));
             } catch (Exception e) {
-                taskStatus.put("tech-cards", "FAILED");
+                taskStatus.put("tech-cards", Map.of("status", "FAILED", "result", e.getMessage()));
                 log.error("[수동트리거] IT 뉴스 카드 수집 실패: {}", e.getMessage(), e);
             }
         });
@@ -190,7 +190,7 @@ public class DailyJobSchedulerController implements DailyJobSchedulerControllerD
 
     @Override
     @GetMapping("/status")
-    public ResponseEntity<Map<String, String>> getTaskStatus() {
+    public ResponseEntity<Map<String, Map<String, String>>> getTaskStatus() {
         return ResponseEntity.ok(taskStatus);
     }
 }
