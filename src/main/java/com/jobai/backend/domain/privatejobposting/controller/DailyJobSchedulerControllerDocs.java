@@ -16,7 +16,7 @@ public interface DailyJobSchedulerControllerDocs {
             summary = "새벽 파이프라인 수동 실행",
             description = """
                     전체 파이프라인을 백그라운드로 즉시 실행합니다.
-                    202 Accepted를 즉시 반환하며, 실제 처리는 비동기로 ��행됩니다.
+                    202 Accepted를 즉시 반환하며, 실제 처리는 비동기로 실행행됩니다.
                     """
     )
     @ApiResponses(value = {
@@ -148,8 +148,8 @@ public interface DailyJobSchedulerControllerDocs {
     @Operation(
             summary = "이력서 임베딩 생성",
             description = """
-                    활성 이력서 중 ��베딩이 없는 이력서에 대해 AI 서버를 호출하여 임베딩을 생성합니다.
-                    동기 ���행(완료 후 응답)합니다.
+                    활성 이력서 중 임베딩이 없는 이력서에 대해 AI 서버를 호출하여 임베딩을 생성합니다.
+                    동기 실행(완료 후 응답)합니다.
                     """
     )
     @ApiResponses(value = {
