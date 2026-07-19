@@ -45,11 +45,8 @@ public class TechCardService {
     public TechCardResponse getTechCards(String email) {
         List<CardItem> cards = new ArrayList<>();
 
-        // 1. 신규 공고 카드
-        CardItem newJobsCard = generateNewJobsCard(email);
-        if (newJobsCard != null) {
-            cards.add(newJobsCard);
-        }
+        // 1. 신규 공고 카드 (0건이어도 항상 포함)
+        cards.add(generateNewJobsCard(email));
 
         // 2, 3. 테크 뉴스 카드 (오늘 수집분에서 랜덤 2건)
         List<TechCard> newsCards = techCardRepository.findTodayNewsCardsRandom();
@@ -99,7 +96,17 @@ public class TechCardService {
                 .getResultList();
 
         if (jobResults.isEmpty()) {
-            return null;
+            return new CardItem(
+                    null,
+                    ContentSource.INTERNAL.name(),
+                    "신규 공고",
+                    "오늘 새로 올라온 공고가 0건 있어요",
+                    "새로운 채용 기회를 확인해보세요",
+                    null,
+                    null,
+                    LocalDateTime.now(),
+                    null
+            );
         }
 
         // 매칭 점수 로딩
