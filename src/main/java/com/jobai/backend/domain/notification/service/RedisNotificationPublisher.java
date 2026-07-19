@@ -30,9 +30,19 @@ public class RedisNotificationPublisher {
         }
 
         try {
-            redisTemplate.convertAndSend(CHANNEL_PREFIX + userId, objectMapper.writeValueAsString(payload));
+            String channel = CHANNEL_PREFIX + userId;
+            Long receiverCount = redisTemplate.convertAndSend(channel, objectMapper.writeValueAsString(payload));
+            log.info("[실시간알림] Redis 발행 완료: user={}, receivers={}", maskUserId(userId), receiverCount);
         } catch (JsonProcessingException e) {
             throw new IllegalStateException("Failed to serialize notification payload", e);
         }
+    }
+
+    private String maskUserId(String userId) {
+        int atIndex = userId.indexOf('@');
+        if (atIndex <= 1) {
+            return "***";
+        }
+        return userId.charAt(0) + "***" + userId.substring(atIndex);
     }
 }

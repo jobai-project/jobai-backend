@@ -29,6 +29,7 @@ public class RedisNotificationSubscriber {
 
         try {
             RealtimeNotificationPayload payload = objectMapper.readValue(message, RealtimeNotificationPayload.class);
+            log.info("[실시간알림] Redis 구독 수신: user={}", maskUserId(userId));
             webSocketNotificationService.sendToUser(userId, payload);
         } catch (JsonProcessingException e) {
             log.warn("Failed to deserialize notification payload", e);
@@ -40,5 +41,13 @@ public class RedisNotificationSubscriber {
             return null;
         }
         return channel.substring(CHANNEL_PREFIX.length());
+    }
+
+    private String maskUserId(String userId) {
+        int atIndex = userId.indexOf('@');
+        if (atIndex <= 1) {
+            return "***";
+        }
+        return userId.charAt(0) + "***" + userId.substring(atIndex);
     }
 }

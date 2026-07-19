@@ -20,7 +20,12 @@ public class NotificationDispatchService {
     private final WebhookNotificationService webhookNotificationService;
 
     public void notifyUser(String userId, RealtimeNotificationPayload payload) {
-        redisNotificationPublisher.ifAvailable(publisher -> publishRealtimeNotification(publisher, userId, payload));
+        RedisNotificationPublisher publisher = redisNotificationPublisher.getIfAvailable();
+        if (publisher == null) {
+            log.warn("[실시간알림] Redis publisher bean is not available");
+        } else {
+            publishRealtimeNotification(publisher, userId, payload);
+        }
 
         notificationRepository.findByMemberEmail(userId)
                 .ifPresent(notification -> {
