@@ -38,10 +38,8 @@ public class OAuth2SuccessHandler implements AuthenticationSuccessHandler {
                         .findFirst()
                         .orElse(null)
         );
-        ResponseCookie accessTokenCookie = cookieProvider.createAccessTokenCookie(
-                accessToken,
-                frontendRedirectUriResolver.isLocalDevelopmentRedirect(frontendRedirectUrl)
-        );
+        boolean crossSiteFrontend = !frontendRedirectUriResolver.isLocalDevelopmentRedirect(frontendRedirectUrl);
+        ResponseCookie accessTokenCookie = cookieProvider.createAccessTokenCookie(accessToken, crossSiteFrontend);
 
         response.addHeader(HttpHeaders.SET_COOKIE, accessTokenCookie.toString());
         response.addHeader(HttpHeaders.SET_COOKIE, cookieProvider.createEmptyOAuthFrontendRedirectCookie().toString());
