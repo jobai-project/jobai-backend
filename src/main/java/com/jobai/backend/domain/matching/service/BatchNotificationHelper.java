@@ -77,13 +77,19 @@ public class BatchNotificationHelper {
         }
     }
 
+    /** 전체 대상으로 알림 발송. */
+    public int sendNotificationsForExistingScores() {
+        return sendNotificationsForExistingScores(null);
+    }
+
     /**
      * 기존 DB에 저장된 점수를 기반으로 임계값 이상 공고에 대해 알림을 발송한다.
      * 점수 산출은 하지 않으며, 알림 파이프라인만 테스트한다.
      *
+     * @param targetEmail 특정 사용자에게만 발송할 이메일. null이면 전체 대상.
      * @return 알림 발송된 공고 건수
      */
-    public int sendNotificationsForExistingScores() {
+    public int sendNotificationsForExistingScores(String targetEmail) {
         List<Resumes> resumes = resumesRepository.findAllActiveWithEmbedding();
         if (resumes.isEmpty()) {
             return -1;
@@ -93,6 +99,7 @@ public class BatchNotificationHelper {
         for (Resumes resume : resumes) {
             Member member = resume.getMember();
             if (!member.isOnboardingCompleted()) continue;
+            if (targetEmail != null && !targetEmail.equals(member.getEmail())) continue;
 
             String email = member.getEmail();
             int threshold = notificationRepository.findByMemberEmail(email)

@@ -15,6 +15,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.Map;
@@ -177,8 +178,10 @@ public class DailyJobSchedulerController implements DailyJobSchedulerControllerD
 
     @Override
     @PostMapping("/notify-test")
-    public ResponseEntity<String> triggerNotifyTest() {
-        int result = batchNotificationHelper.sendNotificationsForExistingScores();
+    public ResponseEntity<String> triggerNotifyTest(
+            @RequestParam(required = false) String email
+    ) {
+        int result = batchNotificationHelper.sendNotificationsForExistingScores(email);
         if (result < 0) {
             return ResponseEntity.ok("활성 이력서가 없어 알림 테스트 불가");
         }

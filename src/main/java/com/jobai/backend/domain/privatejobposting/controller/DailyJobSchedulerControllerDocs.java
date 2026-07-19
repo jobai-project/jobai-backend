@@ -188,7 +188,13 @@ public interface DailyJobSchedulerControllerDocs {
             description = """
                     기존 DB에 저장된 점수를 기반으로 임계값 이상 공고에 대해 알림을 발송합니다.
                     점수 산출은 하지 않으며, 알림 파이프라인(WebSocket·Slack·Discord)만 테스트합니다.
-                    """
+                    email 파라미터를 지정하면 해당 사용자에게만 발송하고, 생략하면 전체 대상입니다.
+                    """,
+            parameters = @io.swagger.v3.oas.annotations.Parameter(
+                    name = "email",
+                    description = "알림을 받을 특정 사용자 이메일 (생략 시 전체 발송)",
+                    required = false
+            )
     )
     @ApiResponses(value = {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(
@@ -200,7 +206,7 @@ public interface DailyJobSchedulerControllerDocs {
                     )
             )
     })
-    ResponseEntity<String> triggerNotifyTest();
+    ResponseEntity<String> triggerNotifyTest(@io.swagger.v3.oas.annotations.Parameter(hidden = true) String email);
 
     @Operation(
             summary = "비동기 작업 상태 조회",
