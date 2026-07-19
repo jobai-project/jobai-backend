@@ -46,7 +46,7 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
     @Override
     public void registerStompEndpoints(StompEndpointRegistry registry) {
         registry.addEndpoint("/ws")
-                .setAllowedOriginPatterns(allowedOrigins.split(","))
+                .setAllowedOriginPatterns(parseAllowedOrigins())
                 .addInterceptors(jwtCookieHandshakeInterceptor())
                 .setHandshakeHandler(jwtCookieHandshakeHandler())
                 .withSockJS();
@@ -161,5 +161,12 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
                 .map(Cookie::getValue)
                 .findFirst()
                 .orElse(null);
+    }
+
+    private String[] parseAllowedOrigins() {
+        return Arrays.stream(allowedOrigins.split(","))
+                .map(String::trim)
+                .filter(StringUtils::hasText)
+                .toArray(String[]::new);
     }
 }
