@@ -67,6 +67,13 @@ public class TechCardService {
         return new TechCardResponse(cards);
     }
 
+    private LocalDate toLocalDate(Object obj) {
+        if (obj == null) return null;
+        if (obj instanceof LocalDate ld) return ld;
+        if (obj instanceof java.sql.Date d) return d.toLocalDate();
+        return null;
+    }
+
     /**
      * 오늘 수집된 신규 공고를 집계하여 카드를 생성한다.
      * <p>민간 공고와 공공 공고를 모두 포함하며, 비대상/미분류 카테고리를 제외한다.</p>
@@ -156,7 +163,7 @@ public class TechCardService {
                     Integer score = "PRIVATE".equals(source)
                             ? finalPrivateScores.get(id)
                             : finalPublicScores.get(id);
-                    LocalDate deadline = row.get("deadline", LocalDate.class);
+                    LocalDate deadline = toLocalDate(row.get("deadline"));
                     return new RelatedJob(
                             id,
                             source,
