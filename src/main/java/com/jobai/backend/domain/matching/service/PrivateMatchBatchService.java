@@ -27,6 +27,7 @@ import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -168,6 +169,9 @@ public class PrivateMatchBatchService {
         int updatedCount = 0;
         int failCount = 0;
         List<BatchNotificationHelper.ScoredPosting> aboveThreshold = new ArrayList<>();
+        // AI 통신 블로킹 대기로 루프 소요 시간이 길어질 수 있으므로,
+        // 기준 시간을 루프 진입 전에 한 번만 계산하여 공고별 평가 시점 차이로 인한 누락을 방지한다.
+        LocalDateTime recentThreshold = LocalDateTime.now().minusHours(24);
 
         for (PrivateJobPosting posting : activePostingMap.values()) {
             PrivateMatchScore existing = scoreByPostingId.get(posting.getId());
@@ -177,7 +181,11 @@ public class PrivateMatchBatchService {
                 try {
                     int score = calculateAndSave(resume, posting, resumeVec, resumeSkills, experienceYears);
                     newCount++;
-                    if (score >= threshold) {
+                    // 공고 자체가 최근 24시간 내에 수집된 경우에만 알림 대상에 포함한다.
+                    // 새 사용자의 첫 배치 실행 시 기존 공고 전체에 대한 알림 발송을 방지한다.
+                    boolean isRecentlyCollected = posting.getCreatedAt() != null
+                            && posting.getCreatedAt().isAfter(recentThreshold);
+                    if (score >= threshold && isRecentlyCollected) {
                         aboveThreshold.add(new BatchNotificationHelper.ScoredPosting(
                                 posting.getTitle(), posting.getCompany(), score, posting.getId(), "/jobs/private/"));
                     }
