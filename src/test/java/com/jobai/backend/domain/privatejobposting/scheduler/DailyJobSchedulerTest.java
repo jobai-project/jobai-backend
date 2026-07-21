@@ -2,6 +2,7 @@ package com.jobai.backend.domain.privatejobposting.scheduler;
 
 import com.jobai.backend.domain.privatejobposting.service.PrivateJobBatchCollectService;
 import com.jobai.backend.domain.privatejobposting.service.PrivateJobPostingService;
+import com.jobai.backend.domain.matching.service.BatchNotificationHelper;
 import com.jobai.backend.domain.matching.service.PrivateMatchBatchService;
 import com.jobai.backend.domain.matching.service.PublicMatchBatchService;
 import com.jobai.backend.domain.publicInstitution.service.JobDataSyncService;
@@ -23,6 +24,7 @@ DailyJobSchedulerTest {
     private EmbeddingBatchService embeddingBatchService;
     private PrivateMatchBatchService privateMatchBatchService;
     private PublicMatchBatchService publicMatchBatchService;
+    private BatchNotificationHelper batchNotificationHelper;
 
     private DailyJobScheduler scheduler;
 
@@ -34,6 +36,12 @@ DailyJobSchedulerTest {
         embeddingBatchService = Mockito.mock(EmbeddingBatchService.class);
         privateMatchBatchService = Mockito.mock(PrivateMatchBatchService.class);
         publicMatchBatchService = Mockito.mock(PublicMatchBatchService.class);
+        batchNotificationHelper = Mockito.mock(BatchNotificationHelper.class);
+
+        Mockito.when(privateMatchBatchService.scoreNewAndUpdatedPostings())
+                .thenReturn(new BatchNotificationHelper.BatchScoringResult("", java.util.Map.of()));
+        Mockito.when(publicMatchBatchService.scoreNewAndUpdatedPostings())
+                .thenReturn(new BatchNotificationHelper.BatchScoringResult("", java.util.Map.of()));
 
         scheduler = new DailyJobScheduler(
                 privateJobBatchCollectService,
@@ -41,7 +49,8 @@ DailyJobSchedulerTest {
                 jobDataSyncService,
                 embeddingBatchService,
                 privateMatchBatchService,
-                publicMatchBatchService
+                publicMatchBatchService,
+                batchNotificationHelper
         );
     }
 
