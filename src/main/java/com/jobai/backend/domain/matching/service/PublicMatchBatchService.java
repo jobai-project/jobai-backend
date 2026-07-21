@@ -26,6 +26,7 @@ import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -164,7 +165,11 @@ public class PublicMatchBatchService {
                 try {
                     int score = calculateAndSave(resume, posting, resumePayload, resumeVec);
                     newCount++;
-                    if (score >= threshold) {
+                    // 공고 자체가 최근 24시간 내에 수집된 경우에만 알림 대상에 포함한다.
+                    // 새 사용자의 첫 배치 실행 시 기존 공고 전체에 대한 알림 발송을 방지한다.
+                    boolean isRecentlyCollected = posting.getCreatedAt() != null
+                            && posting.getCreatedAt().isAfter(LocalDateTime.now().minusHours(24));
+                    if (score >= threshold && isRecentlyCollected) {
                         aboveThreshold.add(new BatchNotificationHelper.ScoredPosting(
                                 posting.getTitle(), posting.getCompanyName(), score, posting.getId(), "/jobs/public/"));
                     }
