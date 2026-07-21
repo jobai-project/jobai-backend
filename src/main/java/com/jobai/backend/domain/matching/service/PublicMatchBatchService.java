@@ -157,6 +157,9 @@ public class PublicMatchBatchService {
         int updatedCount = 0;
         int failCount = 0;
         List<BatchNotificationHelper.ScoredPosting> aboveThreshold = new ArrayList<>();
+        // AI 통신 블로킹 대기로 루프 소요 시간이 길어질 수 있으므로,
+        // 기준 시간을 루프 진입 전에 한 번만 계산하여 공고별 평가 시점 차이로 인한 누락을 방지한다.
+        LocalDateTime recentThreshold = LocalDateTime.now().minusHours(24);
 
         for (PublicJobPosting posting : activePostingMap.values()) {
             PublicMatchScore existing = scoreByPostingId.get(posting.getId());
@@ -168,7 +171,7 @@ public class PublicMatchBatchService {
                     // 공고 자체가 최근 24시간 내에 수집된 경우에만 알림 대상에 포함한다.
                     // 새 사용자의 첫 배치 실행 시 기존 공고 전체에 대한 알림 발송을 방지한다.
                     boolean isRecentlyCollected = posting.getCreatedAt() != null
-                            && posting.getCreatedAt().isAfter(LocalDateTime.now().minusHours(24));
+                            && posting.getCreatedAt().isAfter(recentThreshold);
                     if (score >= threshold && isRecentlyCollected) {
                         aboveThreshold.add(new BatchNotificationHelper.ScoredPosting(
                                 posting.getTitle(), posting.getCompanyName(), score, posting.getId(), "/jobs/public/"));
