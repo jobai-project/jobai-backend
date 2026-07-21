@@ -30,6 +30,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
+import java.util.LinkedHashMap;
 
 /**
  * 새벽 배치용 점수 산출 서비스.
@@ -70,19 +71,20 @@ public class PrivateMatchBatchService {
      *
      * <p>이력서별 try-catch로 한 이력서 처리 실패 시에도 나머지는 계속 진행한다.</p>
      */
-    /** @return 결과 요약 문자열 */
-    public String scoreNewAndUpdatedPostings() {
+    /** @return 점수 산출 요약 및 사용자별 알림 대상 공고 데이터 */
+    public BatchNotificationHelper.BatchScoringResult scoreNewAndUpdatedPostings() {
         List<Resumes> activeResumes = resumesRepository.findAllActiveWithEmbedding();
         if (activeResumes.isEmpty()) {
             log.info("[배치점수] 활성 이력서가 없어 점수 산출 건너뜀");
-            return "활성 이력서 0건 — 건너뜀";
+            return new BatchNotificationHelper.BatchScoringResult("활성 이력서 0건 — 건너뜀", Map.of());
         }
 
         List<PrivateJobPosting> activePostings =
                 privateJobPostingRepository.findActiveByValidCategories(JobCategory.matchTargetLabels());
         if (activePostings.isEmpty()) {
             log.info("[배치점수] 활성 공고가 없어 점수 산출 건너뜀");
-            return "이력서 " + activeResumes.size() + "건, 활성 공고 0건 — 건너뜀";
+            return new BatchNotificationHelper.BatchScoringResult(
+                    "이력서 " + activeResumes.size() + "건, 활성 공고 0건 — 건너뜀", Map.of());
         }
 
         Map<Long, PrivateJobPosting> postingMap = activePostings.stream()
@@ -95,6 +97,8 @@ public class PrivateMatchBatchService {
         int totalFail = 0;
         int resumeError = 0;
         String lastError = "";
+        // 알림 발송은 호출자(스케줄러)에서 사기업·공기업 결과를 합산 후 1회 처리한다.
+        Map<String, BatchNotificationHelper.MemberNotifications> notifications = new LinkedHashMap<>();
 
         for (Resumes resume : activeResumes) {
             try {
@@ -103,8 +107,11 @@ public class PrivateMatchBatchService {
                 totalUpdated += result.updatedCount();
                 totalFail += result.failCount();
 
-                batchNotificationHelper.sendIfNeeded(
-                        resume.getMember(), result.aboveThresholdPostings(), "새 추천 공고");
+                if (!result.aboveThresholdPostings().isEmpty()) {
+                    notifications.put(resume.getMember().getEmail(),
+                            new BatchNotificationHelper.MemberNotifications(
+                                    resume.getMember(), result.aboveThresholdPostings()));
+                }
             } catch (Exception e) {
                 resumeError++;
                 lastError = e.getMessage();
@@ -119,7 +126,7 @@ public class PrivateMatchBatchService {
         if (resumeError > 0) {
             summary += " | 이력서오류 " + resumeError + "건: " + lastError;
         }
-        return summary;
+        return new BatchNotificationHelper.BatchScoringResult(summary, notifications);
     }
 
     /** 이력서별 점수 산출 결과. 알림 대상 공고 목록을 포함한다. */

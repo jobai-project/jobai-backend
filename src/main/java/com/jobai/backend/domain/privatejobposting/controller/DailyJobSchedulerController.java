@@ -127,8 +127,11 @@ public class DailyJobSchedulerController implements DailyJobSchedulerControllerD
         taskStatus.put("scoring", Map.of("status", "RUNNING"));
         schedulerTaskExecutor.execute(() -> {
             try {
-                String result = privateMatchBatchService.scoreNewAndUpdatedPostings();
-                taskStatus.put("scoring", Map.of("status", "COMPLETED", "result", result));
+                BatchNotificationHelper.BatchScoringResult result =
+                        privateMatchBatchService.scoreNewAndUpdatedPostings();
+                result.notifications().forEach((email, data) ->
+                        batchNotificationHelper.sendIfNeeded(data.member(), data.postings(), "새 추천 공고"));
+                taskStatus.put("scoring", Map.of("status", "COMPLETED", "result", result.summary()));
             } catch (Exception e) {
                 taskStatus.put("scoring", Map.of("status", "FAILED", "result", e.getMessage()));
                 log.error("[수동트리거] 사기업 매칭 점수 산출 실패: {}", e.getMessage(), e);
@@ -143,8 +146,11 @@ public class DailyJobSchedulerController implements DailyJobSchedulerControllerD
         taskStatus.put("scoring-public", Map.of("status", "RUNNING"));
         schedulerTaskExecutor.execute(() -> {
             try {
-                String result = publicMatchBatchService.scoreNewAndUpdatedPostings();
-                taskStatus.put("scoring-public", Map.of("status", "COMPLETED", "result", result));
+                BatchNotificationHelper.BatchScoringResult result =
+                        publicMatchBatchService.scoreNewAndUpdatedPostings();
+                result.notifications().forEach((email, data) ->
+                        batchNotificationHelper.sendIfNeeded(data.member(), data.postings(), "새 추천 공고"));
+                taskStatus.put("scoring-public", Map.of("status", "COMPLETED", "result", result.summary()));
             } catch (Exception e) {
                 taskStatus.put("scoring-public", Map.of("status", "FAILED", "result", e.getMessage()));
                 log.error("[수동트리거] 공기업 매칭 점수 산출 실패: {}", e.getMessage(), e);

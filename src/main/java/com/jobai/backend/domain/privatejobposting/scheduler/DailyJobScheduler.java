@@ -2,6 +2,7 @@ package com.jobai.backend.domain.privatejobposting.scheduler;
 
 import com.jobai.backend.domain.privatejobposting.service.PrivateJobBatchCollectService;
 import com.jobai.backend.domain.privatejobposting.service.PrivateJobPostingService;
+import com.jobai.backend.domain.matching.service.BatchNotificationHelper;
 import com.jobai.backend.domain.matching.service.PrivateMatchBatchService;
 import com.jobai.backend.domain.matching.service.PublicMatchBatchService;
 import com.jobai.backend.domain.publicInstitution.service.JobDataSyncService;
@@ -12,8 +13,13 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+
 /**
- * 새벽 2시(KST) 전체 파이프라인�� 순차 실행하는 스케줄러.
+ * 새벽 2시(KST) 전체 파이프라인을 순차 실행하는 스케줄러.
  *
  * <pre>
  * Step 1: 사기업 공고 수집
@@ -39,6 +45,7 @@ public class DailyJobScheduler {
     private final EmbeddingBatchService embeddingBatchService;
     private final PrivateMatchBatchService privateMatchBatchService;
     private final PublicMatchBatchService publicMatchBatchService;
+    private final BatchNotificationHelper batchNotificationHelper;
 
     /**
      * 7단계 파이프라인을 순차 실행한다.
@@ -112,10 +119,19 @@ public class DailyJobScheduler {
             log.error("[DailyPipeline] Step 6/7 — 공고 임베딩 생성 실패: {}", e.getMessage(), e);
         }
 
-        // Step 7: 매칭 점수 산출 (신규/변경 공고만, 사기업/공기업 각각 독립 실행)
+        // Step 7: 매칭 점수 산출 (신규/변경 공고만, 사기업·공기업 결과를 합산 후 알림 1회 발송)
+        Map<String, BatchNotificationHelper.MemberNotifications> combinedNotifications = new LinkedHashMap<>();
+
         try {
             log.info("[DailyPipeline] Step 7/7 — 사기업 매칭 점수 산출 시작");
-            privateMatchBatchService.scoreNewAndUpdatedPostings();
+            BatchNotificationHelper.BatchScoringResult privateResult =
+                    privateMatchBatchService.scoreNewAndUpdatedPostings();
+            privateResult.notifications().forEach((email, data) ->
+                    combinedNotifications.merge(email, data, (existing, incoming) -> {
+                        List<BatchNotificationHelper.ScoredPosting> merged = new ArrayList<>(existing.postings());
+                        merged.addAll(incoming.postings());
+                        return new BatchNotificationHelper.MemberNotifications(existing.member(), merged);
+                    }));
             log.info("[DailyPipeline] Step 7/7 — 사기업 매칭 점수 산출 완료");
         } catch (Exception e) {
             log.error("[DailyPipeline] Step 7/7 — 사기업 매칭 점수 산출 실패: {}", e.getMessage(), e);
@@ -123,11 +139,21 @@ public class DailyJobScheduler {
 
         try {
             log.info("[DailyPipeline] Step 7/7 — 공기업 매칭 점수 산출 시작");
-            publicMatchBatchService.scoreNewAndUpdatedPostings();
+            BatchNotificationHelper.BatchScoringResult publicResult =
+                    publicMatchBatchService.scoreNewAndUpdatedPostings();
+            publicResult.notifications().forEach((email, data) ->
+                    combinedNotifications.merge(email, data, (existing, incoming) -> {
+                        List<BatchNotificationHelper.ScoredPosting> merged = new ArrayList<>(existing.postings());
+                        merged.addAll(incoming.postings());
+                        return new BatchNotificationHelper.MemberNotifications(existing.member(), merged);
+                    }));
             log.info("[DailyPipeline] Step 7/7 — 공기업 매칭 점수 산출 완료");
         } catch (Exception e) {
             log.error("[DailyPipeline] Step 7/7 — 공기업 매칭 점수 산출 실패: {}", e.getMessage(), e);
         }
+
+        combinedNotifications.forEach((email, data) ->
+                batchNotificationHelper.sendIfNeeded(data.member(), data.postings(), "새 추천 공고"));
 
         long elapsed = System.currentTimeMillis() - start;
         log.info("[DailyPipeline] ===== 새벽 파이프라인 종료 ({}ms) =====", elapsed);

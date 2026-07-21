@@ -15,9 +15,11 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
 
 /**
  * 배치 점수 산출 후 임계값 이상 공고에 대한 알림 발송을 담당하는 공통 헬퍼.
@@ -38,6 +40,14 @@ public class BatchNotificationHelper {
 
     /** 임계값 이상 점수를 받은 공고 정보. 알림 메시지 구성에 사용된다. */
     public record ScoredPosting(String title, String company, int score, Long postingId, String linkPrefix) {
+    }
+
+    /** 한 사용자에게 발송할 알림 대상 공고 묶음. 사기업/공기업 구분 없이 통합하여 사용한다. */
+    public record MemberNotifications(Member member, List<ScoredPosting> postings) {
+    }
+
+    /** 배치 점수 산출 결과. 요약 문자열과 사용자별 알림 데이터를 포함한다. */
+    public record BatchScoringResult(String summary, Map<String, MemberNotifications> notifications) {
     }
 
     /**
@@ -95,6 +105,9 @@ public class BatchNotificationHelper {
             return -1;
         }
 
+        // 루프 진입 전 기준 시간을 한 번만 계산한다.
+        LocalDateTime recentThreshold = LocalDateTime.now().minusHours(24);
+
         int totalNotified = 0;
         for (Resumes resume : resumes) {
             Member member = resume.getMember();
@@ -106,32 +119,32 @@ public class BatchNotificationHelper {
                     .map(Notification::getMatchScoreThreshold)
                     .orElse(70);
 
-            List<ScoredPosting> aboveThreshold = new ArrayList<>();
+            // 사기업·공기업 결과를 하나의 리스트로 합쳐 알림 1건으로 발송한다.
+            List<ScoredPosting> allAbove = new ArrayList<>();
             for (PrivateMatchScore s : privateMatchScoreRepository.findByResumeId(resume.getId())) {
-                if (s.getScore() >= threshold) {
-                    aboveThreshold.add(new ScoredPosting(
+                if (s.getScore() >= threshold
+                        && s.getPrivateJobPosting().getCreatedAt() != null
+                        && s.getPrivateJobPosting().getCreatedAt().isAfter(recentThreshold)) {
+                    allAbove.add(new ScoredPosting(
                             s.getPrivateJobPosting().getTitle(),
                             s.getPrivateJobPosting().getCompany(),
                             s.getScore(), s.getPrivateJobPosting().getId(), "/jobs/private/"));
                 }
             }
-            if (!aboveThreshold.isEmpty()) {
-                sendIfNeeded(resume.getMember(), aboveThreshold, "새 추천 공고");
-                totalNotified += aboveThreshold.size();
-            }
-
-            List<ScoredPosting> publicAbove = new ArrayList<>();
             for (PublicMatchScore s : publicMatchScoreRepository.findByResumeId(resume.getId())) {
-                if (s.getScore() >= threshold) {
-                    publicAbove.add(new ScoredPosting(
+                if (s.getScore() >= threshold
+                        && s.getPublicJobPosting().getCreatedAt() != null
+                        && s.getPublicJobPosting().getCreatedAt().isAfter(recentThreshold)) {
+                    allAbove.add(new ScoredPosting(
                             s.getPublicJobPosting().getTitle(),
                             s.getPublicJobPosting().getCompanyName(),
                             s.getScore(), s.getPublicJobPosting().getId(), "/jobs/public/"));
                 }
             }
-            if (!publicAbove.isEmpty()) {
-                sendIfNeeded(resume.getMember(), publicAbove, "새 추천 공고 (공기업)");
-                totalNotified += publicAbove.size();
+
+            if (!allAbove.isEmpty()) {
+                sendIfNeeded(resume.getMember(), allAbove, "새 추천 공고");
+                totalNotified += allAbove.size();
             }
         }
         return totalNotified;
