@@ -87,16 +87,16 @@ public class TechCardService {
                     SELECT id, 'PRIVATE' AS source, company AS company_name, title, created_at,
                            deadline, employment_type
                     FROM private_job_postings
-                    WHERE created_at >= CURRENT_DATE
-                      AND created_at < CURRENT_DATE + 1
+                    WHERE created_at >= CURRENT_DATE - INTERVAL '9 hours'
+                      AND created_at < CURRENT_DATE + INTERVAL '15 hours'
                       AND (job_category IS NULL OR job_category NOT IN ('비대상', '미분류'))
                     UNION ALL
                     SELECT jp.id, 'PUBLIC' AS source, jp.company_name, jp.title, jp.created_at,
                            jp.end_date AS deadline, jp.recrut_type AS employment_type
                     FROM public_job_postings pjp
                     JOIN job_postings jp ON pjp.id = jp.id
-                    WHERE jp.created_at >= CURRENT_DATE
-                      AND jp.created_at < CURRENT_DATE + 1
+                    WHERE jp.created_at >= CURRENT_DATE - INTERVAL '9 hours'
+                      AND jp.created_at < CURRENT_DATE + INTERVAL '15 hours'
                 ) AS all_jobs
                 ORDER BY created_at DESC
                 """, Tuple.class)
