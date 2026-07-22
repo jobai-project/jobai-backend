@@ -183,7 +183,15 @@ public class PublicMatchBatchService {
                             && posting.getCreatedAt().isAfter(recentThreshold);
                     if (score >= threshold && isRecentlyCollected) {
                         aboveThreshold.add(new BatchNotificationHelper.ScoredPosting(
-                                posting.getTitle(), posting.getCompanyName(), score, posting.getId(), "/jobs/public/"));
+                                "PUBLIC",
+                                posting.getTitle(),
+                                posting.getCompanyName(),
+                                score,
+                                posting.getId(),
+                                "/jobs/public/",
+                                posting.getWorkRegion(),
+                                posting.getRecrutType(),
+                                posting.getEndDate()));
                     }
                 } catch (Exception e) {
                     log.warn("[공기업 배치점수] 신규 점수 산출 실패: resumeId={}, postingId={}, error={}",
