@@ -9,7 +9,7 @@ import org.springframework.stereotype.Component;
 
 /**
  * IT 뉴스 카드 자동 수집 스케줄러.
- * <p>매일 오전 4시(KST)에 외부 소스에서 기사를 수집하고 LLM 요약을 수행한다.
+ * <p>매일 오전 7시(KST)에 외부 소스에서 기사를 수집하고 LLM 요약을 수행한다.
  * {@code scheduler.techcard.enabled=false}로 비활성화할 수 있다.</p>
  */
 @Slf4j
@@ -20,7 +20,7 @@ public class TechCardScheduler {
 
     private final TechCardCollectService techCardCollectService;
 
-    @Scheduled(cron = "${scheduler.techcard.cron:0 0 4 * * *}", zone = "Asia/Seoul")
+    @Scheduled(cron = "${scheduler.techcard.cron:0 0 7 * * *}", zone = "Asia/Seoul")
     public void collectTechCards() {
         log.info("[TechCardScheduler] ===== IT 뉴스 카드 수집 시작 =====");
         long start = System.currentTimeMillis();
