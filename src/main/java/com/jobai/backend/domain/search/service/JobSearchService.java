@@ -368,6 +368,11 @@ public class JobSearchService {
         try {
             List<JobSummary> result = new ArrayList<>();
             for (CandidateGroup group : groups) {
+                // rankByVector는 matchType을 "EXACT"로 하드코딩하므로 원본 배지를 미리 보존
+                Map<String, String> originalMatchTypes = group.jobs().stream()
+                        .collect(Collectors.toMap(
+                                JobSearchService::uniqueId, JobSummary::matchType, (a, b) -> a));
+
                 List<Long> privateIds = group.jobs().stream()
                         .filter(j -> "PRIVATE".equals(j.source())).map(JobSummary::id).toList();
                 List<Long> publicIds = group.jobs().stream()
@@ -381,6 +386,11 @@ public class JobSearchService {
                 ).sorted(Comparator.comparingDouble(ScoredJob::distance))
                         .map(ScoredJob::job)
                         .map(j -> j.withMatchLevel(group.matchLevel().name()))
+                        .map(j -> {
+                            // 원본 matchType 복원 (예: 미확인 공고의 SIMILAR 배지 유지)
+                            String orig = originalMatchTypes.get(uniqueId(j));
+                            return orig != null ? j.withMatchType(orig) : j;
+                        })
                         .toList();
 
                 // 그룹 내부에서만 rerank 적용 → 그룹 순서(STRICT > RELAXED) 보장
@@ -435,10 +445,10 @@ public class JobSearchService {
      * UNKNOWN_STRUCTURAL 그룹용 SearchCondition.
      * 경력 목록에 "미확인"을 추가하여 경력 미확인 공고를 포함한다.
      *
-     * <p>"신입" 쿼리: STRICT = ["신입", "무관", "미확인"] (deriveExperienceLevels에서 이미 포함)
-     *                → UNKNOWN_STRUCTURAL 조건이 동일해지므로 seenIds 필터에 의해 빈 그룹이 되어 스킵됨
-     * <p>"경력" 쿼리: STRICT = ["경력", "무관"], UNKNOWN_STRUCTURAL = ["경력", "무관", "미확인"]
-     *                → '미확인' 공고가 보충 그룹으로 추가됨
+     * <p>현재 deriveExperienceLevels가 "신입"/"경력" 모두 "미확인"을 포함하므로,
+     * STRICT 조건에 이미 "미확인"이 포함되어 있다.
+     * seenIds 필터에 의해 UNKNOWN_STRUCTURAL 그룹은 항상 빈 그룹이 되어 스킵된다.
+     * 향후 deriveExperienceLevels 정책 변경 시 이 그룹이 다시 활성화될 수 있다.
      */
     private SearchCondition buildUnknownStructuralCondition(MatchResult match,
                                                              List<RequirementGroup> exactGroups,

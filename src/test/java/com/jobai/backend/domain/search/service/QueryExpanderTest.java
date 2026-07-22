@@ -32,13 +32,13 @@ class QueryExpanderTest {
     @DisplayName("unmatched 토큰이 있으면 LLM으로 확장 키워드 생성")
     void 쿼리확장_성공() {
         when(anthropicClient.complete(anyString(), anyString(), anyInt()))
-                .thenReturn("원격근무, 리모트워크, 재택, WFH");
+                .thenReturn("SEMANTIC_PREFERRED[REMOTE]: 원격근무, 리모트워크, 재택, wfh");
 
         QueryExpansionResult result = queryExpander.expand(
                 "재택근무 가능한 백엔드", List.of("재택근무", "가능한"));
 
         assertThat(result.wasExpanded()).isTrue();
-        assertThat(result.expandedKeywords()).containsExactly("원격근무", "리모트워크", "재택", "WFH");
+        assertThat(result.expandedKeywords()).containsExactly("원격근무", "리모트워크", "재택", "wfh");
         assertThat(result.expandedText()).contains("재택근무 가능한 백엔드");
         assertThat(result.expandedText()).contains("원격근무");
     }
@@ -94,7 +94,7 @@ class QueryExpanderTest {
     @DisplayName("중복 키워드는 제거된다")
     void 중복키워드_제거() {
         when(anthropicClient.complete(anyString(), anyString(), anyInt()))
-                .thenReturn("원격근무, 재택, 원격근무, 재택");
+                .thenReturn("SEMANTIC_PREFERRED[REMOTE]: 원격근무, 재택, 원격근무, 재택");
 
         QueryExpansionResult result = queryExpander.expand(
                 "재택근무 백엔드", List.of("재택근무"));
@@ -103,10 +103,11 @@ class QueryExpanderTest {
     }
 
     @Test
-    @DisplayName("20자 초과 키워드는 무시된다")
+    @DisplayName("30자 초과 키워드는 무시된다")
     void 긴키워드_무시() {
+        // MAX_TERM_LENGTH = 30; 31자 이상은 필터링
         when(anthropicClient.complete(anyString(), anyString(), anyInt()))
-                .thenReturn("원격근무, 이것은스무자를초과하는매우긴키워드입니다절대안됩니다");
+                .thenReturn("SEMANTIC_PREFERRED[REMOTE]: 원격근무, thisisaverylongkeywordthatexceedsthemaximumlengthallowed");
 
         QueryExpansionResult result = queryExpander.expand(
                 "재택근무 백엔드", List.of("재택근무"));
@@ -115,14 +116,15 @@ class QueryExpanderTest {
     }
 
     @Test
-    @DisplayName("최대 10개까지만 키워드를 반환한다")
+    @DisplayName("그룹당 최대 8개까지만 키워드를 반환한다")
     void 최대개수_제한() {
+        // MAX_TERMS_PER_GROUP = 8; 한 그룹에 12개 제공 → 8개만 반환
         when(anthropicClient.complete(anyString(), anyString(), anyInt()))
-                .thenReturn("a, b, c, d, e, f, g, h, i, j, k, l");
+                .thenReturn("SEMANTIC_PREFERRED[TEST]: aa, bb, cc, dd, ee, ff, gg, hh, ii, jj, kk, ll");
 
         QueryExpansionResult result = queryExpander.expand(
                 "재택근무 백엔드", List.of("재택근무"));
 
-        assertThat(result.expandedKeywords()).hasSize(10);
+        assertThat(result.expandedKeywords()).hasSize(8);
     }
 }

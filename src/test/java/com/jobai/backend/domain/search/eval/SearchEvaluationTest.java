@@ -61,7 +61,7 @@ import static com.jobai.backend.domain.search.eval.SearchMetrics.*;
 @SpringBootTest
 @ActiveProfiles("test")
 @Tag("evaluation")
-// @Disabled("수동 실행 전용 — @Disabled 제거 후 실제 DB/AI 서비스 환경에서 실행")
+@Disabled("수동 실행 전용 — @Disabled 제거 후 실제 DB/AI 서비스 환경에서 실행")
 @TestPropertySource(properties = {
         // test resources/application.yaml 의 jobai_test DB 설정을 실 데이터 DB로 덮어쓴다
         "spring.datasource.url=jdbc:postgresql://localhost:5432/jobai",
@@ -167,7 +167,7 @@ class SearchEvaluationTest {
             entry("프론트엔드 경력",
                   "프론트엔드 경력",
                   privateWhere("p.jobCategory = '프론트엔드' " +
-                               "AND p.experienceLevel IN ('경력', '무관') " +
+                               "AND p.experienceLevel IN ('경력', '무관', '미확인') " +
                                "AND p.isClosed = false")),
 
             entry("데이터 엔지니어",
@@ -183,7 +183,7 @@ class SearchEvaluationTest {
             entry("DevOps 경력",
                   "DevOps 경력 채용",
                   privateWhere("p.jobCategory = 'DevOps/인프라' " +
-                               "AND p.experienceLevel IN ('경력', '무관') " +
+                               "AND p.experienceLevel IN ('경력', '무관', '미확인') " +
                                "AND p.isClosed = false")),
 
             // ── 자연어 쿼리 ─────────────────────────────────────────────────────────────

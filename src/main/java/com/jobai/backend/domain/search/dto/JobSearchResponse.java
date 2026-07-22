@@ -42,7 +42,7 @@ public record JobSearchResponse(
             String matchType,
             @Schema(description = "AI 매칭 점수 (비로그인/이력서 미업로드 시 null)", example = "92", nullable = true)
             Integer matchScore,
-            @Schema(description = "조건 일치 수준. STRICT/UNKNOWN_EXPERIENCE/RELAXED_SEMANTIC/RELAXED_EXACT (null=단순 키워드 검색)", nullable = true)
+            @Schema(description = "조건 일치 수준. STRICT/UNKNOWN_STRUCTURAL/RELAXED_SEMANTIC/RELAXED_EXACT (null=단순 키워드 검색)", nullable = true)
             String matchLevel
     ) {
         /** matchScore/matchLevel 없이 생성하는 팩토리 메서드 (레포지토리에서 사용). */
@@ -63,6 +63,13 @@ public record JobSearchResponse(
 
         /** matchLevel을 채워서 새 인스턴스를 반환한다. */
         public JobSummary withMatchLevel(String matchLevel) {
+            return new JobSummary(id, source, title, company, location, jobCategory,
+                    employmentType, experienceLevel, applyUrl, deadline, createdAt,
+                    matchType, matchScore, matchLevel);
+        }
+
+        /** matchType을 덮어써서 새 인스턴스를 반환한다 (벡터 재정렬 후 원본 배지 복원용). */
+        public JobSummary withMatchType(String matchType) {
             return new JobSummary(id, source, title, company, location, jobCategory,
                     employmentType, experienceLevel, applyUrl, deadline, createdAt,
                     matchType, matchScore, matchLevel);

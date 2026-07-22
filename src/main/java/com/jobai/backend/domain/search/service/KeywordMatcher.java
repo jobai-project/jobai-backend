@@ -219,7 +219,7 @@ public class KeywordMatcher {
             // '미확인' = 크롤링 시 경력 구분을 파악하지 못한 공고.
             // 신입 검색 결과에 포함하되 determineMatchType에서 SIMILAR 배지를 부여한다.
             case "신입" -> List.of("신입", "무관", "미확인");
-            case "경력" -> List.of("경력", "무관");
+            case "경력" -> List.of("경력", "무관", "미확인");
             default -> List.of();
         };
     }

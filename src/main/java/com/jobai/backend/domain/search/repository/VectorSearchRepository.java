@@ -362,7 +362,9 @@ public class VectorSearchRepository {
             return "SIMILAR";
         }
         boolean hasExpFilter = condition.experienceLevels() != null && !condition.experienceLevels().isEmpty();
-        if (hasExpFilter && (actualExpLevel == null || !condition.experienceLevels().contains(actualExpLevel))) {
+        if (hasExpFilter && (actualExpLevel == null
+                || "미확인".equals(actualExpLevel)  // 경력 미확인 공고 → SIMILAR 배지 (JobSearchRepository와 동일)
+                || !condition.experienceLevels().contains(actualExpLevel))) {
             return "SIMILAR";
         }
         boolean hasEmpFilter = condition.employmentTypes() != null && !condition.employmentTypes().isEmpty();
