@@ -23,11 +23,24 @@ public interface JobSearchControllerDocs {
                     **인증 선택적**: 로그인 없이도 사용 가능하며, 로그인 시 추가 기능을 제공합니다.
 
                     **동작 방식 (3단계 파이프라인)**:
-                    1. **Query Expansion** — 쿼리에서 인식되지 않는 자연어 표현을 LLM으로 분석하여 관련 키워드를 확장합니다.
-                    2. **검색 라우팅** — 모든 토큰이 인식되면 구조화 검색(`KEYWORD`), 하이브리드 모드가 활성화되면 키워드+벡터 검색을 RRF로 병합(`HYBRID`), 그 외 미인식 표현이 있으면 벡터 검색(`VECTOR`)을 수행합니다.
-                    3. **Rerank** — Cross-Encoder 모델로 상위 후보를 쿼리 의도에 맞게 재정렬합니다.
+                    1. **키워드 분석 (KeywordMatcher)** — 형태소 분석으로 쿼리를 카테고리·지역·경력 등 구조화된 조건으로 파싱합니다. 인식되지 않은 토큰은 다음 단계로 전달됩니다.
+                    2. **Query Expansion** — 인식되지 않은 토큰이 있으면 LLM으로 분석하여 `EXACT_REQUIRED`(특정 기술명 필터) 또는 `SEMANTIC_PREFERRED`(의미 유사 키워드) 그룹으로 확장합니다.
+                    3. **검색 라우팅 (4-path)** — 분석 결과에 따라 아래 경로 중 하나로 처리됩니다.
+                       - **Path A (KEYWORD)**: 모든 토큰이 구조화 조건으로 인식된 경우 — DB 필터 검색
+                       - **Path B (HYBRID)**: 구조화 조건 + 확장 키워드가 있는 경우 — DB 필터 + 벡터 검색 후 RRF 병합
+                       - **Path C (VECTOR)**: 순수 자연어 쿼리 — 벡터 유사도 검색
+                       - **Path D (EXACT-FIRST)**: `EXACT_REQUIRED` 토큰이 있는 경우 — 필수 키워드 포함 공고 우선, 미포함 공고 후순위 병합
+                    4. **Rerank** — Cross-Encoder 모델로 그룹 순서(STRICT > RELAXED)를 유지하며 그룹 내 결과를 재정렬합니다.
 
                     각 단계는 서버 설정으로 독립 on/off 가능하며, 프론트 입장에서는 동일한 요청/응답 형식을 사용합니다.
+
+                    **matchType 값 설명**:
+                    - `STRICT`: 카테고리·지역·경력 조건 모두 일치
+                    - `UNKNOWN_STRUCTURAL`: 경력 표기가 '미확인'인 공고 (크롤링 시 경력 구분 불가)
+                    - `RELAXED_SEMANTIC`: 의미 유사도 기반으로 매칭된 공고
+                    - `RELAXED_EXACT`: 필수 키워드 포함 공고 (EXACT_REQUIRED 기반)
+                    - `SIMILAR`: 조건 불일치 공고 (참고용으로 하단 노출)
+                    - `null`: 단순 키워드 검색(Path A) 결과
 
                     **예시 쿼리**: `"서울 신입 백엔드"`, `"재택근무 가능한 백엔드"`, `"Java 경험이 있는 백엔드 개발자"`
                     """
@@ -62,7 +75,7 @@ public interface JobSearchControllerDocs {
                                             "applyUrl": "https://careers.kakao.com/jobs/P-14472",
                                             "deadline": null,
                                             "createdAt": "2026-06-17T15:23:06.828455",
-                                            "matchType": "EXACT",
+                                            "matchType": "STRICT",
                                             "matchScore": 92
                                           },
                                           {
@@ -108,7 +121,7 @@ public interface JobSearchControllerDocs {
             ),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(
                     responseCode = "401",
-                    description = "인증되지 않은 사용자 (로그인 필요)",
+                    description = "인증 토큰이 유효하지 않은 경우 (비로그인 사용자는 정상 응답)",
                     content = @Content(
                             mediaType = "application/json",
                             examples = @ExampleObject(value = """

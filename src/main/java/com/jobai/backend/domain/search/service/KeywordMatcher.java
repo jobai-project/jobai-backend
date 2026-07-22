@@ -247,19 +247,26 @@ public class KeywordMatcher {
 
     private void initCategorySynonyms() {
         addSynonyms(JobCategory.BACKEND,
-                "백엔드", "backend", "서버", "server", "자바", "java", "스프링", "spring", "노드", "node");
+                "백엔드", "backend", "서버", "server");
+        // java, spring, node 제거: 특정 언어/프레임워크명 → unmatched → EXACT_REQUIRED 필터로 처리
+        // "spring 백엔드" 검색 시 Node.js 공고가 위로 올라오는 문제 방지
         addSynonyms(JobCategory.FRONTEND,
-                "프론트엔드", "frontend", "프론트", "react", "리액트", "vue", "뷰", "웹개발");
+                "프론트엔드", "frontend", "프론트", "웹개발");
+        // react, vue 제거: 특정 프레임워크명 → unmatched → EXACT_REQUIRED 필터로 처리
         addSynonyms(JobCategory.FULLSTACK,
                 "풀스택", "fullstack", "full-stack");
         addSynonyms(JobCategory.MOBILE,
-                "모바일", "mobile", "안드로이드", "android", "ios", "아이폰", "앱개발", "flutter", "플러터");
+                "모바일", "mobile", "앱개발");
+        // android, ios, flutter 제거: 플랫폼/프레임워크명 → unmatched → EXACT_REQUIRED 필터로 처리
+        // "Flutter 앱"이 Android/iOS 공고까지 노출되는 문제 방지
         addSynonyms(JobCategory.AI_ML,
                 "ai", "ml", "머신러닝", "딥러닝", "인공지능");
         addSynonyms(JobCategory.DATA_ENGINEERING,
                 "데이터", "data", "데이터엔지니어", "빅데이터");
         addSynonyms(JobCategory.DEVOPS,
-                "devops", "데브옵스", "인프라", "infra", "sre", "클라우드", "cloud", "aws", "kubernetes");
+                "devops", "데브옵스", "인프라", "infra", "sre", "클라우드", "cloud");
+        // aws, kubernetes 제거: 특정 기술명 → unmatched → EXACT_REQUIRED 필터로 처리
+        // "Kubernetes 운영하는 DevOps"가 물류설비 공고를 반환하는 문제 방지
         addSynonyms(JobCategory.SECURITY,
                 "보안", "security", "정보보안");
         addSynonyms(JobCategory.QA,

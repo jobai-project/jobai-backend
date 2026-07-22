@@ -32,12 +32,13 @@ class KeywordMatcherTest {
     }
 
     @Test
-    @DisplayName("영문 키워드 매칭 - 'react' → 프론트엔드")
+    @DisplayName("영문 키워드 매칭 - 'react' → 카테고리 미매칭 (unmatched token, EXACT_REQUIRED 대상)")
     void matchEnglishKeyword() {
+        // react는 특정 프레임워크명이므로 카테고리 동의어에서 제거됨
+        // → unmatched token → 쿼리 확장 시 EXACT_REQUIRED[REACT]로 분류
         Optional<SearchCondition> result = matcher.match("react");
 
-        assertThat(result).isPresent();
-        assertThat(result.get().categories()).containsExactly("프론트엔드");
+        assertThat(result).isEmpty();
     }
 
     @Test
@@ -53,21 +54,22 @@ class KeywordMatcherTest {
     }
 
     @Test
-    @DisplayName("대소문자 무시 - 'JAVA Spring' → 백엔드")
+    @DisplayName("대소문자 무시 - 'JAVA Spring' → 카테고리 미매칭 (unmatched token, EXACT_REQUIRED 대상)")
     void matchCaseInsensitive() {
+        // java, spring은 특정 언어/프레임워크명이므로 카테고리 동의어에서 제거됨
+        // → unmatched token → 쿼리 확장 시 EXACT_REQUIRED로 분류
         Optional<SearchCondition> result = matcher.match("JAVA Spring");
 
-        assertThat(result).isPresent();
-        assertThat(result.get().categories()).containsExactly("백엔드");
+        assertThat(result).isEmpty();
     }
 
     @Test
-    @DisplayName("여러 카테고리 매칭 - 'react node' → 프론트엔드 + 백엔드")
+    @DisplayName("여러 카테고리 매칭 - 'react node' → 카테고리 미매칭 (둘 다 unmatched)")
     void matchMultipleCategories() {
+        // react, node 모두 특정 기술명이므로 unmatched token
         Optional<SearchCondition> result = matcher.match("react node");
 
-        assertThat(result).isPresent();
-        assertThat(result.get().categories()).containsExactlyInAnyOrder("프론트엔드", "백엔드");
+        assertThat(result).isEmpty();
     }
 
     @Test
@@ -326,11 +328,13 @@ class KeywordMatcherTest {
     }
 
     @Test
-    @DisplayName("영문 혼합 자연어: 'react spring 백엔드' → 프론트엔드 + 백엔드")
+    @DisplayName("영문 혼합 자연어: 'react spring 백엔드' → 백엔드, react/spring은 unmatched")
     void extract_영문혼합_자연어() {
+        // 백엔드 → BACKEND 카테고리, react/spring → unmatched token (EXACT_REQUIRED 대상)
         MatchResult result = matcher.extract("react spring 백엔드");
 
-        assertThat(result.categories()).contains("프론트엔드", "백엔드");
+        assertThat(result.categories()).containsExactly("백엔드");
+        assertThat(result.unmatchedTokens()).contains("react", "spring");
     }
 
     // --- 회사명 매칭 ---
