@@ -208,12 +208,9 @@ public class PrivateMatchBatchService {
                 // try-catch 없음: 실패 시 예외가 트랜잭션 경계까지 전파되어 delete도 함께 롤백된다.
                 privateMatchScoreRepository.delete(existing);
                 privateMatchScoreRepository.flush();
-                int score = calculateAndSave(resume, posting, resumeVec, resumeSkills, experienceYears);
+                calculateAndSave(resume, posting, resumeVec, resumeSkills, experienceYears);
                 updatedCount++;
-                if (score >= threshold) {
-                    aboveThreshold.add(new BatchNotificationHelper.ScoredPosting(
-                            posting.getTitle(), posting.getCompany(), score, posting.getId(), "/jobs/private/"));
-                }
+                // 변경 공고는 알림 제외 — 내용 변경 감지가 CSS 순서 등 비의미적 차이로 오탐될 수 있어 신규 공고만 알림 발송
             }
             // else: 기존 점수 존재 + 변경 없음 → skip
         }

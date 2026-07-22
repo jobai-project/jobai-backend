@@ -195,12 +195,9 @@ public class PublicMatchBatchService {
                     && posting.getUpdatedAt().isAfter(existing.getCreatedAt())) {
                 publicMatchScoreRepository.delete(existing);
                 publicMatchScoreRepository.flush();
-                int score = calculateAndSave(resume, posting, resumePayload, resumeVec);
+                calculateAndSave(resume, posting, resumePayload, resumeVec);
                 updatedCount++;
-                if (score >= threshold) {
-                    aboveThreshold.add(new BatchNotificationHelper.ScoredPosting(
-                            posting.getTitle(), posting.getCompanyName(), score, posting.getId(), "/jobs/public/"));
-                }
+                // 변경 공고는 알림 제외 — 내용 변경 감지가 CSS 순서 등 비의미적 차이로 오탐될 수 있어 신규 공고만 알림 발송
             }
             // else: 기존 점수 존재 + 변경 없음 → skip
         }
