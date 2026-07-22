@@ -41,26 +41,43 @@ public record JobSearchResponse(
             @Schema(description = "매칭 유형. EXACT=모든 필터 충족, SIMILAR=일부 필터 미충족(null 포함)", example = "EXACT")
             String matchType,
             @Schema(description = "AI 매칭 점수 (비로그인/이력서 미업로드 시 null)", example = "92", nullable = true)
-            Integer matchScore
+            Integer matchScore,
+            @Schema(description = "조건 일치 수준. STRICT/UNKNOWN_STRUCTURAL/RELAXED_SEMANTIC/RELAXED_EXACT (null=단순 키워드 검색)", nullable = true)
+            String matchLevel
     ) {
-        /** matchScore 없이 생성하는 팩토리 메서드 (레포지토리에서 사용). */
+        /** matchScore/matchLevel 없이 생성하는 팩토리 메서드 (레포지토리에서 사용). */
         public static JobSummary of(Long id, String source, String title, String company,
                                      String location, String jobCategory, String employmentType,
                                      String experienceLevel, String applyUrl, LocalDate deadline,
                                      LocalDateTime createdAt, String matchType) {
             return new JobSummary(id, source, title, company, location, jobCategory,
-                    employmentType, experienceLevel, applyUrl, deadline, createdAt, matchType, null);
+                    employmentType, experienceLevel, applyUrl, deadline, createdAt, matchType, null, null);
         }
 
         /** matchScore를 채워서 새 인스턴스를 반환한다. */
         public JobSummary withMatchScore(Integer matchScore) {
             return new JobSummary(id, source, title, company, location, jobCategory,
-                    employmentType, experienceLevel, applyUrl, deadline, createdAt, matchType, matchScore);
+                    employmentType, experienceLevel, applyUrl, deadline, createdAt,
+                    matchType, matchScore, matchLevel);
+        }
+
+        /** matchLevel을 채워서 새 인스턴스를 반환한다. */
+        public JobSummary withMatchLevel(String matchLevel) {
+            return new JobSummary(id, source, title, company, location, jobCategory,
+                    employmentType, experienceLevel, applyUrl, deadline, createdAt,
+                    matchType, matchScore, matchLevel);
+        }
+
+        /** matchType을 덮어써서 새 인스턴스를 반환한다 (벡터 재정렬 후 원본 배지 복원용). */
+        public JobSummary withMatchType(String matchType) {
+            return new JobSummary(id, source, title, company, location, jobCategory,
+                    employmentType, experienceLevel, applyUrl, deadline, createdAt,
+                    matchType, matchScore, matchLevel);
         }
     }
 
     public record SearchInfo(
-            @Schema(description = "검색 방식. KEYWORD(구조화), VECTOR(벡터), HYBRID(키워드+벡터 RRF 융합)", example = "KEYWORD")
+            @Schema(description = "검색 방식. KEYWORD(구조화), VECTOR(벡터), HYBRID(필터+벡터 재정렬)", example = "KEYWORD")
             String method,
             @Schema(description = "쿼리에서 인식된 직무 카테고리 목록", example = "[\"백엔드\"]")
             List<String> matchedCategories,

@@ -6,6 +6,7 @@ import com.jobai.backend.domain.member.repository.ResumesRepository;
 import com.jobai.backend.domain.search.dto.JobSearchResponse;
 import com.jobai.backend.domain.search.dto.JobSearchResponse.JobSummary;
 import com.jobai.backend.domain.search.dto.QueryExpansionResult;
+import com.jobai.backend.domain.search.dto.RequirementGroup;
 import com.jobai.backend.domain.search.dto.SearchCondition;
 import com.jobai.backend.domain.search.repository.JobSearchRepository;
 import com.jobai.backend.domain.search.repository.VectorSearchRepository;
@@ -61,18 +62,19 @@ class JobSearchServiceTest {
         ReflectionTestUtils.setField(jobSearchService, "embeddingEnabled", true);
         ReflectionTestUtils.setField(jobSearchService, "hybridEnabled", false);
 
-        // 기본: 쿼리 확장 미적용, 리랭킹 미적용 (원본 그대로 반환)
         when(queryExpander.expand(anyString(), anyList()))
                 .thenAnswer(inv -> QueryExpansionResult.unchanged(inv.getArgument(0)));
+
+        // rerank 기본 동작: 입력 리스트를 그대로 반환 (disabled 상태와 동일)
         when(searchReranker.rerank(anyString(), anyList()))
                 .thenAnswer(inv -> inv.getArgument(1));
     }
 
-    // --- 경로 A: 미매칭 토큰 없음 → 기존 검색 ---
+    // ─── Path A: unmatchedTokens 없음 → 키워드 검색 ───────────────────────────
 
     @Test
-    @DisplayName("미매칭 토큰 없으면 기존 검색, 벡터 안 씀")
-    void 미매칭없으면_기존검색() {
+    @DisplayName("미매칭 토큰 없으면 키워드 검색, 벡터 미사용")
+    void 미매칭없으면_키워드검색() {
         when(keywordMatcher.extract(anyString()))
                 .thenReturn(new MatchResult(List.of("백엔드"), null, "서울", null, List.of(), List.of(), null, List.of()));
 
@@ -88,10 +90,10 @@ class JobSearchServiceTest {
         verifyNoInteractions(vectorSearchRepository);
     }
 
-    // --- 경로 B: 미매칭 토큰 있음 → 벡터 검색 ---
+    // ─── Path C: unmatchedTokens 있음, hybridEnabled=false → 순수 벡터 검색 ──
 
     @Test
-    @DisplayName("미매칭 토큰 있으면 벡터 검색 실행")
+    @DisplayName("미매칭 토큰 있으면 벡터 검색 실행 (Path C)")
     void 미매칭있으면_벡터검색() {
         when(keywordMatcher.extract(anyString()))
                 .thenReturn(new MatchResult(List.of("백엔드"), null, "서울", null, List.of(), List.of(), null, List.of("혼자", "일하기")));
@@ -119,7 +121,7 @@ class JobSearchServiceTest {
     @DisplayName("벡터 검색에 카테고리/지역/경력 pre-filter가 전달된다")
     void 벡터검색_필터전달() {
         when(keywordMatcher.extract(anyString()))
-                .thenReturn(new MatchResult(List.of("백엔드"), null, "판교", "경력", List.of("경력", "무관", "미확인"), List.of(), null, List.of("혼자")));
+                .thenReturn(new MatchResult(List.of("백엔드"), null, "판교", "경력", List.of("경력", "무관"), List.of(), null, List.of("혼자")));
 
         when(embeddingService.embedQuery(anyString())).thenReturn(new float[]{0.1f});
         when(vectorSearchRepository.searchPrivateByVector(any(), anyDouble(), any(), anyInt(), anyInt()))
@@ -138,8 +140,6 @@ class JobSearchServiceTest {
                         && "경력".equals(cond.experience())),
                 anyInt(), anyInt());
     }
-
-    // --- 벡터 결과 0건 → 빈 결과 반환 ---
 
     @Test
     @DisplayName("벡터 검색 결과 0건이면 빈 결과 반환 (폴백 없음)")
@@ -163,10 +163,8 @@ class JobSearchServiceTest {
         verifyNoInteractions(jobSearchRepository);
     }
 
-    // --- ai-server 장애 → 기존 검색 폴백 ---
-
     @Test
-    @DisplayName("임베딩 실패 시 기존 검색으로 폴백")
+    @DisplayName("임베딩 실패 시 키워드 검색으로 폴백, method=KEYWORD")
     void 임베딩실패시_폴백() {
         when(keywordMatcher.extract(anyString()))
                 .thenReturn(new MatchResult(List.of("백엔드"), null, null, null, List.of(), List.of(), null, List.of("혼자")));
@@ -185,8 +183,6 @@ class JobSearchServiceTest {
         verifyNoInteractions(vectorSearchRepository);
     }
 
-    // --- 유사도순 정렬 ---
-
     @Test
     @DisplayName("사기업/공기업 유사도순(distance 오름차순) 합산 정렬")
     void 소스무관_유사도순정렬() {
@@ -198,16 +194,11 @@ class JobSearchServiceTest {
         JobSummary prv1 = createJobSummary(1L, "PRIVATE", "사기업A", LocalDateTime.of(2025, 6, 5, 10, 0));
         JobSummary prv2 = createJobSummary(2L, "PRIVATE", "사기업B", LocalDateTime.of(2025, 6, 3, 10, 0));
         when(vectorSearchRepository.searchPrivateByVector(any(), anyDouble(), any(), anyInt(), anyInt()))
-                .thenReturn(List.of(
-                        new ScoredJob(prv1, 0.20),
-                        new ScoredJob(prv2, 0.35)
-                ));
+                .thenReturn(List.of(new ScoredJob(prv1, 0.20), new ScoredJob(prv2, 0.35)));
 
         JobSummary pub1 = createJobSummary(101L, "PUBLIC", "공기업A", LocalDateTime.of(2025, 6, 4, 10, 0));
         when(vectorSearchRepository.searchPublicByVector(any(), anyDouble(), any(), anyInt(), anyInt()))
-                .thenReturn(List.of(
-                        new ScoredJob(pub1, 0.10)
-                ));
+                .thenReturn(List.of(new ScoredJob(pub1, 0.10)));
 
         when(vectorSearchRepository.countPrivateByVector(any(), anyDouble(), any())).thenReturn(2L);
         when(vectorSearchRepository.countPublicByVector(any(), anyDouble(), any())).thenReturn(1L);
@@ -218,10 +209,8 @@ class JobSearchServiceTest {
                 .containsExactly("공기업A", "사기업A", "사기업B");
     }
 
-    // --- embeddingEnabled = false ---
-
     @Test
-    @DisplayName("벡터 비활성화 시 미매칭 있어도 기존 검색")
+    @DisplayName("embeddingEnabled=false 이면 미매칭 있어도 키워드 검색")
     void 벡터비활성화() {
         ReflectionTestUtils.setField(jobSearchService, "embeddingEnabled", false);
 
@@ -240,90 +229,78 @@ class JobSearchServiceTest {
         verifyNoInteractions(vectorSearchRepository);
     }
 
-    // --- 하이브리드 검색 ---
+    // ─── Path B: hybridEnabled=true → 필터 후 그룹 인식 벡터 재정렬 ──────────
 
     @Test
-    @DisplayName("hybridEnabled 시 키워드+벡터 동시 실행 후 RRF 병합")
-    void 하이브리드_검색() {
+    @DisplayName("hybridEnabled 시 필터+벡터 재정렬 실행, 벡터 유사도 순 반환 (Path B)")
+    void 하이브리드_필터후벡터재정렬() {
         ReflectionTestUtils.setField(jobSearchService, "hybridEnabled", true);
 
         when(keywordMatcher.extract(anyString()))
                 .thenReturn(new MatchResult(List.of("백엔드"), null, null, null, List.of(), List.of(), null, List.of("혼자")));
 
-        // 키워드와 벡터에 서로 다른 문서 반환
-        JobSummary keywordJob = createJobSummary(1L, "PRIVATE", "키워드결과", LocalDateTime.now());
-        JobSummary vectorJob = createJobSummary(2L, "PRIVATE", "벡터결과", LocalDateTime.now());
+        JobSummary job1 = createJobSummary(1L, "PRIVATE", "백엔드A", LocalDateTime.now());
+        JobSummary job2 = createJobSummary(2L, "PRIVATE", "백엔드B", LocalDateTime.now());
 
-        when(jobSearchRepository.searchPrivate(any(), anyInt(), anyInt())).thenReturn(List.of(keywordJob));
+        when(jobSearchRepository.searchPrivate(any(), anyInt(), anyInt())).thenReturn(List.of(job1, job2));
         when(jobSearchRepository.searchPublic(any(), anyInt(), anyInt())).thenReturn(List.of());
-        when(jobSearchRepository.countPrivate(any())).thenReturn(1L);
-        when(jobSearchRepository.countPublic(any())).thenReturn(0L);
 
         when(embeddingService.embedQuery(anyString())).thenReturn(new float[]{0.1f});
-        when(vectorSearchRepository.searchPrivateByVector(any(), anyDouble(), any(), anyInt(), anyInt()))
-                .thenReturn(List.of(new ScoredJob(vectorJob, 0.15)));
-        when(vectorSearchRepository.searchPublicByVector(any(), anyDouble(), any(), anyInt(), anyInt()))
-                .thenReturn(List.of());
-
-        // merge에 전달된 인자를 캡처하여 실제 데이터 검증
-        when(hybridSearchMerger.merge(anyList(), anyList()))
-                .thenAnswer(inv -> {
-                    List<JobSummary> kw = inv.getArgument(0);
-                    List<JobSummary> vec = inv.getArgument(1);
-                    // 키워드/벡터 결과가 실제로 전달되었는지 검증
-                    assertThat(kw).extracting(JobSummary::title).contains("키워드결과");
-                    assertThat(vec).extracting(JobSummary::title).contains("벡터결과");
-                    return List.of(keywordJob, vectorJob);
-                });
+        // job2가 더 가까운 벡터 거리
+        when(vectorSearchRepository.rankPrivateByVector(any(), anyList()))
+                .thenReturn(List.of(new ScoredJob(job2, 0.10), new ScoredJob(job1, 0.20)));
+        when(vectorSearchRepository.rankPublicByVector(any(), anyList())).thenReturn(List.of());
 
         JobSearchResponse response = jobSearchService.search("혼자 일하기 좋은 백엔드", 0, 20, null);
 
         assertThat(response.searchInfo().method()).isEqualTo("HYBRID");
         assertThat(response.jobs()).hasSize(2);
-        Mockito.verify(hybridSearchMerger).merge(anyList(), anyList());
+        assertThat(response.jobs().get(0).title()).isEqualTo("백엔드B");
+        assertThat(response.jobs().get(1).title()).isEqualTo("백엔드A");
+        assertThat(response.jobs()).allMatch(j -> "STRICT".equals(j.matchLevel()));
+        verifyNoInteractions(hybridSearchMerger);
     }
 
     @Test
-    @DisplayName("하이브리드 중 벡터 실패 시 키워드 결과만으로 RRF")
-    void 하이브리드_벡터실패() {
+    @DisplayName("임베딩 실패 시 matchLevel 순 폴백 정렬 (Path B)")
+    void 하이브리드_임베딩실패시_폴백정렬() {
         ReflectionTestUtils.setField(jobSearchService, "hybridEnabled", true);
 
         when(keywordMatcher.extract(anyString()))
                 .thenReturn(new MatchResult(List.of("백엔드"), null, null, null, List.of(), List.of(), null, List.of("혼자")));
 
-        JobSummary keywordJob = createJobSummary(1L, "PRIVATE", "키워드결과", LocalDateTime.now());
-        when(jobSearchRepository.searchPrivate(any(), anyInt(), anyInt())).thenReturn(List.of(keywordJob));
+        JobSummary job1 = createJobSummary(1L, "PRIVATE", "백엔드A", LocalDateTime.now());
+        when(jobSearchRepository.searchPrivate(any(), anyInt(), anyInt())).thenReturn(List.of(job1));
         when(jobSearchRepository.searchPublic(any(), anyInt(), anyInt())).thenReturn(List.of());
-        when(jobSearchRepository.countPrivate(any())).thenReturn(1L);
-        when(jobSearchRepository.countPublic(any())).thenReturn(0L);
 
-        when(embeddingService.embedQuery(anyString()))
-                .thenThrow(new RuntimeException("ai-server 장애"));
-
-        when(hybridSearchMerger.merge(anyList(), anyList()))
-                .thenReturn(List.of(keywordJob));
+        when(embeddingService.embedQuery(anyString())).thenThrow(new RuntimeException("임베딩 실패"));
 
         JobSearchResponse response = jobSearchService.search("혼자 일하기 좋은 백엔드", 0, 20, null);
 
         assertThat(response.searchInfo().method()).isEqualTo("HYBRID");
-        // 벡터 결과는 빈 리스트로 merge에 전달됨
-        Mockito.verify(hybridSearchMerger).merge(
-                argThat((List<JobSummary> kw) -> !kw.isEmpty()),
-                eq(List.of()));
+        assertThat(response.jobs()).hasSize(1);
+        assertThat(response.jobs().get(0).matchLevel()).isEqualTo("STRICT");
+        verifyNoInteractions(hybridSearchMerger);
     }
 
-    // --- 쿼리 확장 키워드가 SearchInfo에 반영 ---
+    // ─── 쿼리 확장 ────────────────────────────────────────────────────────────
 
     @Test
-    @DisplayName("쿼리 확장 시 expandedKeywords가 SearchInfo에 반영되고 확장된 텍스트로 임베딩")
+    @DisplayName("쿼리 확장 시 expandedKeywords가 SearchInfo에 반영되고 확장 텍스트로 임베딩")
     void 확장키워드_SearchInfo_반영() {
         when(keywordMatcher.extract(anyString()))
                 .thenReturn(new MatchResult(List.of("백엔드"), null, null, null, List.of(), List.of(), null, List.of("재택근무")));
 
         String expandedText = "재택근무 백엔드 원격근무 리모트워크";
         when(queryExpander.expand(anyString(), anyList()))
-                .thenReturn(new QueryExpansionResult(expandedText,
-                        List.of("원격근무", "리모트워크")));
+                .thenReturn(new QueryExpansionResult(
+                        expandedText,
+                        List.of("원격근무", "리모트워크"),
+                        List.of(),  // exactRequired (List<RequirementGroup>)
+                        List.of(),  // exactPreferred
+                        List.of(),  // semanticRequired
+                        List.of()   // semanticPreferred
+                ));
 
         when(embeddingService.embedQuery(anyString())).thenReturn(new float[]{0.1f});
         when(vectorSearchRepository.searchPrivateByVector(any(), anyDouble(), any(), anyInt(), anyInt()))
@@ -337,11 +314,41 @@ class JobSearchServiceTest {
 
         assertThat(response.searchInfo().expandedKeywords())
                 .containsExactly("원격근무", "리모트워크");
-        // 확장된 텍스트가 임베딩에 사용되었는지 검증
         Mockito.verify(embeddingService).embedQuery(eq(expandedText));
     }
 
-    // --- 헬퍼 ---
+    @Test
+    @DisplayName("exactRequired 있으면 Path B에서 STRICT 후보 필터에 exactGroups 전달")
+    void exactRequired_있으면_필터에전달() {
+        ReflectionTestUtils.setField(jobSearchService, "hybridEnabled", true);
+
+        when(keywordMatcher.extract(anyString()))
+                .thenReturn(new MatchResult(List.of("백엔드"), null, null, null, List.of(), List.of(), null, List.of("kafka")));
+
+        RequirementGroup kafkaGroup = new RequirementGroup("KAFKA", List.of("kafka", "apache kafka"));
+        when(queryExpander.expand(anyString(), anyList()))
+                .thenReturn(new QueryExpansionResult(
+                        "백엔드 kafka",
+                        List.of(),
+                        List.of(kafkaGroup),  // exactRequired
+                        List.of(),
+                        List.of(),
+                        List.of()
+                ));
+
+        when(jobSearchRepository.searchPrivate(any(), anyInt(), anyInt())).thenReturn(List.of());
+        when(jobSearchRepository.searchPublic(any(), anyInt(), anyInt())).thenReturn(List.of());
+        when(embeddingService.embedQuery(anyString())).thenReturn(new float[]{0.1f});
+
+        jobSearchService.search("kafka 쓰는 백엔드", 0, 20, null);
+
+        // STRICT 조건으로 searchPrivate 호출 시 exactGroups가 포함되어야 함
+        Mockito.verify(jobSearchRepository, Mockito.atLeastOnce()).searchPrivate(
+                argThat(cond -> cond.exactGroups() != null && !cond.exactGroups().isEmpty()),
+                anyInt(), anyInt());
+    }
+
+    // ─── 헬퍼 ──────────────────────────────────────────────────────────────────
 
     private static JobSummary createJobSummary(Long id, String source, String title,
                                                 LocalDateTime createdAt) {
