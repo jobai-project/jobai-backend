@@ -208,15 +208,18 @@ public class KeywordMatcher {
                 result.experienceLevels(),
                 result.employmentTypes(),
                 SearchCondition.METHOD_KEYWORD,
-                result.sourceType()
+                result.sourceType(),
+                List.of(), List.of()
         ));
     }
 
     private List<String> deriveExperienceLevels(String experience) {
         if (experience == null) return List.of();
         return switch (experience) {
+            // '미확인' = 크롤링 시 경력 구분을 파악하지 못한 공고.
+            // 신입 검색 결과에 포함하되 determineMatchType에서 SIMILAR 배지를 부여한다.
             case "신입" -> List.of("신입", "무관", "미확인");
-            case "경력" -> List.of("경력", "무관", "미확인");
+            case "경력" -> List.of("경력", "무관");
             default -> List.of();
         };
     }
@@ -264,7 +267,9 @@ public class KeywordMatcher {
         addSynonyms(JobCategory.EMBEDDED,
                 "임베디드", "embedded", "펌웨어", "firmware", "iot");
         addSynonyms(JobCategory.ETC_DEV,
-                "개발", "developer", "엔지니어", "engineer", "프로그래머");
+                "developer", "프로그래머");
+        // "개발", "엔지니어", "engineer" 제거: 너무 generic하여 카테고리 고정보다
+        // unmatched → 벡터 검색으로 처리하는 것이 적합
         addSynonyms(JobCategory.UX_RESEARCHER,
                 "ux리서처", "ux리서치", "사용자리서치", "유저리서처", "유저리서치");
         addSynonyms(JobCategory.UXUI_DESIGNER,

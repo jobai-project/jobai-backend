@@ -53,11 +53,13 @@ public class VectorSearchRepository {
         }
         boolean hasExpLevels = condition.experienceLevels() != null && !condition.experienceLevels().isEmpty();
         if (hasExpLevels) {
-            sql.append(" AND (p.experience_level IN (:expLevels) OR p.experience_level IS NULL)");
+            // 경력은 null 없이 '미확인' 문자열로 저장됨 → strict IN
+            sql.append(" AND p.experience_level IN (:expLevels)");
         }
         boolean hasEmpTypes = condition.employmentTypes() != null && !condition.employmentTypes().isEmpty();
         if (hasEmpTypes) {
-            sql.append(" AND (p.employment_type IN (:empTypes) OR p.employment_type IS NULL)");
+            // 고용형태는 null/미확인 없음 → strict IN
+            sql.append(" AND p.employment_type IN (:empTypes)");
         }
 
         sql.append(" ORDER BY distance LIMIT :limit OFFSET :offset");
@@ -166,6 +168,98 @@ public class VectorSearchRepository {
                 .toList();
     }
 
+    /**
+     * 주어진 ID 목록 안에서 쿼리 벡터와의 코사인 거리를 계산해 오름차순으로 반환한다.
+     * 키워드 검색으로 추린 후보를 벡터 유사도 기준으로 재정렬할 때 사용한다.
+     */
+    public List<ScoredJob> rankPrivateByVector(float[] queryEmbedding, List<Long> ids) {
+        if (ids == null || ids.isEmpty()) return List.of();
+
+        String sql = """
+            SELECT p.id, p.title, p.company, p.location, p.job_category,
+                   p.employment_type, p.apply_url, p.deadline, p.created_at,
+                   (e.embedding <=> cast(:queryEmbedding as vector)) AS distance,
+                   p.experience_level
+            FROM private_job_postings p
+            JOIN job_embeddings e ON e.source = 'PRIVATE' AND e.source_id = p.id
+            WHERE p.id = ANY(:ids)
+            ORDER BY distance ASC
+            """;
+
+        Query query = em.createNativeQuery(sql);
+        query.setParameter("queryEmbedding", toVectorString(queryEmbedding));
+        query.setParameter("ids", ids.stream().mapToLong(Long::longValue).toArray());
+
+        @SuppressWarnings("unchecked")
+        List<Object[]> results = query.getResultList();
+
+        return results.stream()
+                .map(row -> new ScoredJob(
+                        JobSummary.of(
+                                ((Number) row[0]).longValue(),
+                                "PRIVATE",
+                                (String) row[1],
+                                (String) row[2],
+                                (String) row[3],
+                                (String) row[4],
+                                (String) row[5],
+                                (String) row[10],
+                                (String) row[6],
+                                row[7] != null ? ((java.sql.Date) row[7]).toLocalDate() : null,
+                                row[8] != null ? ((java.sql.Timestamp) row[8]).toLocalDateTime() : null,
+                                "EXACT"
+                        ),
+                        ((Number) row[9]).doubleValue()
+                ))
+                .toList();
+    }
+
+    /**
+     * 주어진 ID 목록 안에서 쿼리 벡터와의 코사인 거리를 계산해 오름차순으로 반환한다.
+     * 공기업 공고 대상.
+     */
+    public List<ScoredJob> rankPublicByVector(float[] queryEmbedding, List<Long> ids) {
+        if (ids == null || ids.isEmpty()) return List.of();
+
+        String sql = """
+            SELECT jp.id, jp.title, jp.company_name, jp.work_region,
+                   jp.recrut_type, p.apply_link, jp.end_date, jp.created_at,
+                   (e.embedding <=> cast(:queryEmbedding as vector)) AS distance
+            FROM public_job_postings p
+            JOIN job_postings jp ON jp.id = p.id
+            JOIN job_embeddings e ON e.source = 'PUBLIC' AND e.source_id = p.id
+            WHERE p.id = ANY(:ids)
+            ORDER BY distance ASC
+            """;
+
+        Query query = em.createNativeQuery(sql);
+        query.setParameter("queryEmbedding", toVectorString(queryEmbedding));
+        query.setParameter("ids", ids.stream().mapToLong(Long::longValue).toArray());
+
+        @SuppressWarnings("unchecked")
+        List<Object[]> results = query.getResultList();
+
+        return results.stream()
+                .map(row -> new ScoredJob(
+                        JobSummary.of(
+                                ((Number) row[0]).longValue(),
+                                "PUBLIC",
+                                (String) row[1],
+                                (String) row[2],
+                                (String) row[3],
+                                null,
+                                (String) row[4],
+                                null,
+                                (String) row[5],
+                                row[6] != null ? ((java.sql.Date) row[6]).toLocalDate() : null,
+                                row[7] != null ? ((java.sql.Timestamp) row[7]).toLocalDateTime() : null,
+                                "EXACT"
+                        ),
+                        ((Number) row[8]).doubleValue()
+                ))
+                .toList();
+    }
+
     /** 벡터 유사도 threshold를 만족하는 사기업 공고 수를 반환한다. */
     public long countPrivateByVector(float[] queryEmbedding, double threshold, SearchCondition condition) {
         StringBuilder sql = new StringBuilder("""
@@ -190,11 +284,11 @@ public class VectorSearchRepository {
         }
         boolean hasExpLevels = condition.experienceLevels() != null && !condition.experienceLevels().isEmpty();
         if (hasExpLevels) {
-            sql.append(" AND (p.experience_level IN (:expLevels) OR p.experience_level IS NULL)");
+            sql.append(" AND p.experience_level IN (:expLevels)");
         }
         boolean hasEmpTypes = condition.employmentTypes() != null && !condition.employmentTypes().isEmpty();
         if (hasEmpTypes) {
-            sql.append(" AND (p.employment_type IN (:empTypes) OR p.employment_type IS NULL)");
+            sql.append(" AND p.employment_type IN (:empTypes)");
         }
 
         Query query = em.createNativeQuery(sql.toString());
@@ -268,15 +362,11 @@ public class VectorSearchRepository {
             return "SIMILAR";
         }
         boolean hasExpFilter = condition.experienceLevels() != null && !condition.experienceLevels().isEmpty();
-        if (hasExpFilter && (actualExpLevel == null
-                || "미확인".equals(actualExpLevel)
-                || !condition.experienceLevels().contains(actualExpLevel))) {
+        if (hasExpFilter && (actualExpLevel == null || !condition.experienceLevels().contains(actualExpLevel))) {
             return "SIMILAR";
         }
         boolean hasEmpFilter = condition.employmentTypes() != null && !condition.employmentTypes().isEmpty();
-        if (hasEmpFilter && (actualEmpType == null
-                || "미확인".equals(actualEmpType)
-                || !condition.employmentTypes().contains(actualEmpType))) {
+        if (hasEmpFilter && (actualEmpType == null || !condition.employmentTypes().contains(actualEmpType))) {
             return "SIMILAR";
         }
         return "EXACT";
