@@ -11,6 +11,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
 import java.util.List;
 
 @Service
@@ -49,13 +50,17 @@ public class NotificationMatchBatchService {
     @Transactional(readOnly = true)
     public NotificationMatchBatchResponse getMatchBatch(String email, Long batchId) {
         NotificationMatchBatch batch = notificationMatchBatchRepository.findWithItemsById(batchId)
-                .orElseThrow(() -> new GeneralException(GeneralErrorCode.NOT_FOUND, "추천 알림 묶음을 찾을 수 없습니다."));
+                .orElseThrow(this::matchBatchNotFound);
 
         if (!batch.getMember().getEmail().equals(email)) {
-            throw new GeneralException(GeneralErrorCode.FORBIDDEN, "해당 추천 알림 묶음을 조회할 권한이 없습니다.");
+            throw matchBatchNotFound();
         }
 
         return NotificationMatchBatchResponse.from(batch);
+    }
+
+    private GeneralException matchBatchNotFound() {
+        return new GeneralException(GeneralErrorCode.NOT_FOUND, "추천 알림 묶음을 찾을 수 없습니다.");
     }
 
     public record BatchItemCommand(
@@ -65,7 +70,7 @@ public class NotificationMatchBatchService {
             String companyName,
             String location,
             String employmentType,
-            java.time.LocalDate deadline,
+            LocalDate deadline,
             Integer matchScore,
             String detailLinkUrl
     ) {
