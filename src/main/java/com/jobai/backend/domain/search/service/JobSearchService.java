@@ -166,7 +166,8 @@ public class JobSearchService {
     private JobSearchResponse executeKeywordSearch(SearchCondition condition) {
         List<JobSummary> privateResults = "PUBLIC".equals(condition.sourceType()) ? List.of()
                 : jobSearchRepository.searchPrivate(condition, 0, HYBRID_CANDIDATE_DEPTH);
-        List<JobSummary> publicResults = "PRIVATE".equals(condition.sourceType()) ? List.of()
+        // company 필터가 있으면 공기업 공고는 제외 (PublicJobPosting에 company 컬럼 없음)
+        List<JobSummary> publicResults = "PRIVATE".equals(condition.sourceType()) || (condition.company() != null && !condition.company().isBlank()) ? List.of()
                 : jobSearchRepository.searchPublic(condition, 0, HYBRID_CANDIDATE_DEPTH);
 
         List<JobSummary> allResults = Stream.concat(privateResults.stream(), publicResults.stream())
@@ -176,7 +177,7 @@ public class JobSearchService {
                 .toList();
 
         long totalCount = ("PUBLIC".equals(condition.sourceType()) ? 0 : jobSearchRepository.countPrivate(condition))
-                + ("PRIVATE".equals(condition.sourceType()) ? 0 : jobSearchRepository.countPublic(condition));
+                + ("PRIVATE".equals(condition.sourceType()) || (condition.company() != null && !condition.company().isBlank()) ? 0 : jobSearchRepository.countPublic(condition));
 
         return new JobSearchResponse(totalCount, allResults,
                 new SearchInfo(condition.method(), condition.categories(), List.of()));

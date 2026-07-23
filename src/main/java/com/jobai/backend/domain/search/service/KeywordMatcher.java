@@ -384,22 +384,27 @@ public class KeywordMatcher {
         addCompany("kakaopay", "카카오페이");
         addCompany("naver", "네이버");
         addCompany("coupang", "쿠팡");
-        addCompany("woowahan", "우아한형제들");
+        addCompany("woowahan", "우아한형제들", "배달의민족", "배민");
         addCompany("toss", "토스");
-        addCompany("daangn", "당근마켓");
+        addCompany("daangn", "당근마켓", "당근");
         addCompany("socar", "쏘카");
-        addCompany("kurly", "컬리");
+        addCompany("kurly", "컬리", "마켓컬리");
         addCompany("zigbang", "직방");
         addCompany("wrtn", "뤼튼");
         addCompany("nhn", "NHN");
         addCompany("upstage", "업스테이지");
         addCompany("doodlin", "두들린");
         addCompany("gccompany", "여기어때");
+        addCompany("ably", "에이블리");
+        addCompany("musinsa", "무신사");
     }
 
-    private void addCompany(String companyId, String displayName) {
+    private void addCompany(String companyId, String displayName, String... aliases) {
         companyKeywords.put(companyId.toLowerCase(), companyId);
         companyKeywords.put(displayName.toLowerCase(), companyId);
+        for (String alias : aliases) {
+            companyKeywords.put(alias.toLowerCase(), companyId);
+        }
         companyDisplayNames.put(companyId, displayName);
     }
 
