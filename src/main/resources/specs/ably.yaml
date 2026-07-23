@@ -1,0 +1,31 @@
+# 수동 수정: _next/data 해시 URL → embedded_json 방식으로 변경
+# __NEXT_DATA__ 에 공고 전체가 박혀 있고 별도 안정 API 없음
+company: ably
+source_type: embedded_json
+crawler: declarative
+list:
+  url: https://ably.team/recruit
+  script_id: __NEXT_DATA__
+  response_path: props.pageProps.recruits
+pagination:
+  type: none
+filter:
+  field: is_closed
+  in:
+    - in_progress
+required:
+- job_id
+- title
+fields:
+  job_id: id
+  title: title
+  updated_at: createdAt
+  deadline: deadline
+  location: jobLocations[].name
+  apply_url: applyUrl
+  is_closed: status
+detail:
+  enabled: true
+  source_type: html
+  url_from: apply_url
+  body_selector: "[class*='PostingHTMLContent__Content']"
