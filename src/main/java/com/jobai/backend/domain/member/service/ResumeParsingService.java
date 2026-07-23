@@ -44,25 +44,43 @@ public class ResumeParsingService {
             "react", "vue", "vue.js", "angular", "svelte", "next.js", "nextjs",
             "nuxt", "nuxt.js", "html", "css", "sass", "scss", "tailwind",
             "tailwindcss", "bootstrap", "jquery", "webpack", "vite",
+            "redux", "zustand", "recoil", "mobx", "storybook", "electron",
+            // 모바일
+            "flutter", "react native", "swiftui",
             // 백엔드
             "spring", "spring boot", "springboot", "django", "flask", "fastapi",
             "express", "express.js", "nestjs", "nest.js", "node.js", "nodejs",
             "rails", "ruby on rails", "asp.net", "gin", "fiber",
+            "spring security", "spring mvc", "spring batch", "spring cloud",
+            // ORM / 빌드
+            "jpa", "spring data jpa", "hibernate", "mybatis", "querydsl",
+            "lombok", "gradle", "maven",
             // 데이터베이스
             "mysql", "postgresql", "postgres", "mariadb", "oracle", "mssql",
             "mongodb", "redis", "elasticsearch", "cassandra", "dynamodb",
-            "sqlite", "neo4j", "influxdb",
+            "sqlite", "neo4j", "influxdb", "tibero", "altibase",
+            "snowflake", "bigquery",
             // 클라우드 / 인프라
             "aws", "gcp", "azure", "docker", "kubernetes", "k8s",
+            "ec2", "eks", "cloudformation",
             "terraform", "ansible", "jenkins", "github actions", "gitlab ci",
             "circleci", "nginx", "apache", "linux",
+            "openstack", "ceph", "glusterfs", "minio", "vmware", "kvm",
+            "helm", "argocd", "podman",
+            // CI/CD / 모니터링
+            "sonarqube", "gitlab runner",
+            "prometheus", "grafana", "pinpoint", "datadog",
+            "kibana", "logstash", "elk", "opentelemetry", "jaeger",
             // 데이터 / ML
-            "kafka", "rabbitmq", "spark", "hadoop", "airflow",
-            "tensorflow", "pytorch", "pandas", "numpy", "scikit-learn",
-            // 기타
+            "kafka", "rabbitmq", "spark", "hadoop", "airflow", "flink",
+            "dbt", "trino", "databricks",
+            "tensorflow", "pytorch", "keras", "pandas", "numpy", "scikit-learn",
+            "xgboost", "lightgbm", "mlflow", "hugging face", "langchain",
+            // 테스트 / 협업
             "git", "github", "gitlab", "bitbucket", "jira", "confluence",
             "figma", "graphql", "rest", "restful", "grpc", "swagger",
-            "junit", "jest", "cypress", "selenium"
+            "junit", "jest", "cypress", "selenium",
+            "playwright", "pytest", "mockito", "testng", "vitest", "k6"
     );
 
     /**
@@ -145,6 +163,7 @@ public class ResumeParsingService {
 
     private String canonicalize(String tech) {
         return switch (tech.toLowerCase()) {
+            // 언어
             case "java" -> "Java";
             case "python" -> "Python";
             case "javascript" -> "JavaScript";
@@ -162,6 +181,7 @@ public class ResumeParsingService {
             case "perl" -> "Perl";
             case "lua" -> "Lua";
             case "groovy" -> "Groovy";
+            // 프론트엔드
             case "react" -> "React";
             case "vue", "vue.js" -> "Vue.js";
             case "angular" -> "Angular";
@@ -177,8 +197,23 @@ public class ResumeParsingService {
             case "jquery" -> "jQuery";
             case "webpack" -> "Webpack";
             case "vite" -> "Vite";
+            case "redux" -> "Redux";
+            case "zustand" -> "Zustand";
+            case "recoil" -> "Recoil";
+            case "mobx" -> "MobX";
+            case "storybook" -> "Storybook";
+            case "electron" -> "Electron";
+            // 모바일
+            case "flutter" -> "Flutter";
+            case "react native" -> "React Native";
+            case "swiftui" -> "SwiftUI";
+            // 백엔드
             case "spring" -> "Spring";
             case "spring boot", "springboot" -> "Spring Boot";
+            case "spring security" -> "Spring Security";
+            case "spring mvc" -> "Spring MVC";
+            case "spring batch" -> "Spring Batch";
+            case "spring cloud" -> "Spring Cloud";
             case "django" -> "Django";
             case "flask" -> "Flask";
             case "fastapi" -> "FastAPI";
@@ -189,6 +224,15 @@ public class ResumeParsingService {
             case "asp.net" -> "ASP.NET";
             case "gin" -> "Gin";
             case "fiber" -> "Fiber";
+            // ORM / 빌드
+            case "jpa", "spring data jpa" -> "JPA";
+            case "hibernate" -> "Hibernate";
+            case "mybatis" -> "MyBatis";
+            case "querydsl" -> "QueryDSL";
+            case "lombok" -> "Lombok";
+            case "gradle" -> "Gradle";
+            case "maven" -> "Maven";
+            // 데이터베이스
             case "mysql" -> "MySQL";
             case "postgresql", "postgres" -> "PostgreSQL";
             case "mariadb" -> "MariaDB";
@@ -202,11 +246,19 @@ public class ResumeParsingService {
             case "sqlite" -> "SQLite";
             case "neo4j" -> "Neo4j";
             case "influxdb" -> "InfluxDB";
+            case "tibero" -> "Tibero";
+            case "altibase" -> "Altibase";
+            case "snowflake" -> "Snowflake";
+            case "bigquery" -> "BigQuery";
+            // 클라우드 / 인프라
             case "aws" -> "AWS";
             case "gcp" -> "GCP";
             case "azure" -> "Azure";
             case "docker" -> "Docker";
             case "kubernetes", "k8s" -> "Kubernetes";
+            case "ec2" -> "EC2";
+            case "eks" -> "EKS";
+            case "cloudformation" -> "CloudFormation";
             case "terraform" -> "Terraform";
             case "ansible" -> "Ansible";
             case "jenkins" -> "Jenkins";
@@ -216,16 +268,49 @@ public class ResumeParsingService {
             case "nginx" -> "Nginx";
             case "apache" -> "Apache";
             case "linux" -> "Linux";
+            case "openstack" -> "OpenStack";
+            case "ceph" -> "Ceph";
+            case "glusterfs" -> "GlusterFS";
+            case "minio" -> "MinIO";
+            case "vmware" -> "VMware";
+            case "kvm" -> "KVM";
+            case "helm" -> "Helm";
+            case "argocd" -> "ArgoCD";
+            case "podman" -> "Podman";
+            // CI/CD / 모니터링
+            case "sonarqube" -> "SonarQube";
+            case "gitlab runner" -> "GitLab Runner";
+            case "prometheus" -> "Prometheus";
+            case "grafana" -> "Grafana";
+            case "pinpoint" -> "Pinpoint";
+            case "datadog" -> "Datadog";
+            case "kibana" -> "Kibana";
+            case "logstash" -> "Logstash";
+            case "elk" -> "ELK";
+            case "opentelemetry" -> "OpenTelemetry";
+            case "jaeger" -> "Jaeger";
+            // 데이터 / ML
             case "kafka" -> "Kafka";
             case "rabbitmq" -> "RabbitMQ";
             case "spark" -> "Spark";
             case "hadoop" -> "Hadoop";
             case "airflow" -> "Airflow";
+            case "flink" -> "Flink";
+            case "dbt" -> "dbt";
+            case "trino" -> "Trino";
+            case "databricks" -> "Databricks";
             case "tensorflow" -> "TensorFlow";
             case "pytorch" -> "PyTorch";
+            case "keras" -> "Keras";
             case "pandas" -> "Pandas";
             case "numpy" -> "NumPy";
             case "scikit-learn" -> "scikit-learn";
+            case "xgboost" -> "XGBoost";
+            case "lightgbm" -> "LightGBM";
+            case "mlflow" -> "MLflow";
+            case "hugging face" -> "Hugging Face";
+            case "langchain" -> "LangChain";
+            // 협업 / API
             case "git" -> "Git";
             case "github" -> "GitHub";
             case "gitlab" -> "GitLab";
@@ -237,10 +322,17 @@ public class ResumeParsingService {
             case "rest", "restful" -> "REST";
             case "grpc" -> "gRPC";
             case "swagger" -> "Swagger";
+            // 테스트
             case "junit" -> "JUnit";
             case "jest" -> "Jest";
             case "cypress" -> "Cypress";
             case "selenium" -> "Selenium";
+            case "playwright" -> "Playwright";
+            case "pytest" -> "Pytest";
+            case "mockito" -> "Mockito";
+            case "testng" -> "TestNG";
+            case "vitest" -> "Vitest";
+            case "k6" -> "k6";
             default -> tech;
         };
     }
