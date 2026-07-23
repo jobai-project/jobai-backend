@@ -397,6 +397,7 @@ public class KeywordMatcher {
         addCompany("gccompany", "여기어때");
         addCompany("ably", "에이블리");
         addCompany("musinsa", "무신사");
+        addCompany("bucketplace", "오늘의집");
     }
 
     private void addCompany(String companyId, String displayName, String... aliases) {
