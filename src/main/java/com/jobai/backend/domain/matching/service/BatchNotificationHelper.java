@@ -11,71 +11,73 @@ import com.jobai.backend.domain.notification.dto.RealtimeNotificationPayload;
 import com.jobai.backend.domain.notification.entity.Notification;
 import com.jobai.backend.domain.notification.repository.NotificationRepository;
 import com.jobai.backend.domain.notification.service.NotificationDispatchService;
+import com.jobai.backend.domain.notification.service.NotificationMatchBatchService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 
-/**
- * 배치 점수 산출 후 임계값 이상 공고에 대한 알림 발송을 담당하는 공통 헬퍼.
- *
- * <p>Private/Public 배치 서비스에서 동일하게 사용하여 메시지 포맷팅·예외 처리 정책의 중복을 방지한다.
- * 알림 발송 실패 시에도 점수 산출에는 영향을 주지 않는다.</p>
- */
 @Slf4j
 @Component
 @RequiredArgsConstructor
 public class BatchNotificationHelper {
+
+    private static final String MATCH_NOTIFICATION_LINK_PREFIX = "/notifications/matches/";
 
     private final NotificationDispatchService notificationDispatchService;
     private final ResumesRepository resumesRepository;
     private final PrivateMatchScoreRepository privateMatchScoreRepository;
     private final PublicMatchScoreRepository publicMatchScoreRepository;
     private final NotificationRepository notificationRepository;
+    private final NotificationMatchBatchService notificationMatchBatchService;
 
-    /** 임계값 이상 점수를 받은 공고 정보. 알림 메시지 구성에 사용된다. */
-    public record ScoredPosting(String title, String company, int score, Long postingId, String linkPrefix) {
+    public record ScoredPosting(
+            String source,
+            String title,
+            String company,
+            int score,
+            Long postingId,
+            String linkPrefix,
+            String location,
+            String employmentType,
+            LocalDate deadline
+    ) {
     }
 
-    /** 한 사용자에게 발송할 알림 대상 공고 묶음. 사기업/공기업 구분 없이 통합하여 사용한다. */
     public record MemberNotifications(Member member, List<ScoredPosting> postings) {
     }
 
-    /** 배치 점수 산출 결과. 요약 문자열과 사용자별 알림 데이터를 포함한다. */
     public record BatchScoringResult(String summary, Map<String, MemberNotifications> notifications) {
     }
 
-    /**
-     * 임계값 이상 공고가 있으면 사용자에게 묶음 알림을 발송한다.
-     * 1건이면 해당 공고 제목·점수를 표시하고, 여러 건이면 최고 점수 공고 + 나머지 건수로 요약한다.
-     *
-     * @param member         알림 수신 대상 회원
-     * @param aboveThreshold 임계값 이상 공고 목록
-     * @param notificationType 알림 제목 (예: "새 추천 공고", "새 추천 공고 (공기업)")
-     */
     public void sendIfNeeded(Member member, List<ScoredPosting> aboveThreshold, String notificationType) {
         if (aboveThreshold.isEmpty()) return;
 
         try {
-            String message;
-            String linkUrl;
-            if (aboveThreshold.size() == 1) {
-                ScoredPosting top = aboveThreshold.get(0);
-                message = String.format("[%s] %s (매칭 %d점)", top.company(), top.title(), top.score());
-                linkUrl = top.linkPrefix() + top.postingId();
-            } else {
-                ScoredPosting top = aboveThreshold.stream()
-                        .max(Comparator.comparingInt(ScoredPosting::score))
-                        .orElse(aboveThreshold.get(0));
-                message = String.format("[%s] %s 외 %d건 (최고 %d점)",
-                        top.company(), top.title(), aboveThreshold.size() - 1, top.score());
-                linkUrl = "/jobs";
-            }
+            List<ScoredPosting> sortedPostings = aboveThreshold.stream()
+                    .sorted(Comparator.comparingInt(ScoredPosting::score).reversed())
+                    .toList();
+
+            Long batchId = notificationMatchBatchService.create(
+                    member,
+                    notificationType,
+                    sortedPostings.stream()
+                            .map(this::toBatchItemCommand)
+                            .toList()
+            );
+
+            ScoredPosting top = sortedPostings.get(0);
+            String message = sortedPostings.size() == 1
+                    ? String.format("[%s] %s (매칭 %d점)", top.company(), top.title(), top.score())
+                    : String.format("[%s] %s 외 %d건 (최고 %d점)",
+                            top.company(), top.title(), sortedPostings.size() - 1, top.score());
+            String linkUrl = MATCH_NOTIFICATION_LINK_PREFIX + batchId;
 
             notificationDispatchService.notifyUser(
                     member.getEmail(),
@@ -87,25 +89,30 @@ public class BatchNotificationHelper {
         }
     }
 
-    /** 전체 대상으로 알림 발송. */
+    private NotificationMatchBatchService.BatchItemCommand toBatchItemCommand(ScoredPosting posting) {
+        return new NotificationMatchBatchService.BatchItemCommand(
+                posting.source(),
+                posting.postingId(),
+                posting.title(),
+                posting.company(),
+                posting.location(),
+                posting.employmentType(),
+                posting.deadline(),
+                posting.score(),
+                posting.linkPrefix() + posting.postingId()
+        );
+    }
+
     public int sendNotificationsForExistingScores() {
         return sendNotificationsForExistingScores(null);
     }
 
-    /**
-     * 기존 DB에 저장된 점수를 기반으로 임계값 이상 공고에 대해 알림을 발송한다.
-     * 점수 산출은 하지 않으며, 알림 파이프라인만 테스트한다.
-     *
-     * @param targetEmail 특정 사용자에게만 발송할 이메일. null이면 전체 대상.
-     * @return 알림 발송된 공고 건수
-     */
     public int sendNotificationsForExistingScores(String targetEmail) {
         List<Resumes> resumes = resumesRepository.findAllActiveWithEmbedding();
         if (resumes.isEmpty()) {
             return -1;
         }
 
-        // 루프 진입 전 기준 시간을 한 번만 계산한다.
         LocalDateTime recentThreshold = LocalDateTime.now().minusHours(24);
 
         int totalNotified = 0;
@@ -119,31 +126,45 @@ public class BatchNotificationHelper {
                     .map(Notification::getMatchScoreThreshold)
                     .orElse(70);
 
-            // 사기업·공기업 결과를 하나의 리스트로 합쳐 알림 1건으로 발송한다.
             List<ScoredPosting> allAbove = new ArrayList<>();
-            for (PrivateMatchScore s : privateMatchScoreRepository.findByResumeId(resume.getId())) {
-                if (s.getScore() >= threshold
-                        && s.getPrivateJobPosting().getCreatedAt() != null
-                        && s.getPrivateJobPosting().getCreatedAt().isAfter(recentThreshold)) {
+            for (PrivateMatchScore score : privateMatchScoreRepository.findByResumeId(resume.getId())) {
+                if (score.getScore() >= threshold
+                        && score.getPrivateJobPosting().getCreatedAt() != null
+                        && score.getPrivateJobPosting().getCreatedAt().isAfter(recentThreshold)) {
                     allAbove.add(new ScoredPosting(
-                            s.getPrivateJobPosting().getTitle(),
-                            s.getPrivateJobPosting().getCompany(),
-                            s.getScore(), s.getPrivateJobPosting().getId(), "/jobs/private/"));
+                            "PRIVATE",
+                            score.getPrivateJobPosting().getTitle(),
+                            score.getPrivateJobPosting().getCompany(),
+                            score.getScore(),
+                            score.getPrivateJobPosting().getId(),
+                            "/jobs/private/",
+                            score.getPrivateJobPosting().getLocation(),
+                            score.getPrivateJobPosting().getEmploymentType(),
+                            score.getPrivateJobPosting().getDeadline()
+                    ));
                 }
             }
-            for (PublicMatchScore s : publicMatchScoreRepository.findByResumeId(resume.getId())) {
-                if (s.getScore() >= threshold
-                        && s.getPublicJobPosting().getCreatedAt() != null
-                        && s.getPublicJobPosting().getCreatedAt().isAfter(recentThreshold)) {
+
+            for (PublicMatchScore score : publicMatchScoreRepository.findByResumeId(resume.getId())) {
+                if (score.getScore() >= threshold
+                        && score.getPublicJobPosting().getCreatedAt() != null
+                        && score.getPublicJobPosting().getCreatedAt().isAfter(recentThreshold)) {
                     allAbove.add(new ScoredPosting(
-                            s.getPublicJobPosting().getTitle(),
-                            s.getPublicJobPosting().getCompanyName(),
-                            s.getScore(), s.getPublicJobPosting().getId(), "/jobs/public/"));
+                            "PUBLIC",
+                            score.getPublicJobPosting().getTitle(),
+                            score.getPublicJobPosting().getCompanyName(),
+                            score.getScore(),
+                            score.getPublicJobPosting().getId(),
+                            "/jobs/public/",
+                            score.getPublicJobPosting().getWorkRegion(),
+                            score.getPublicJobPosting().getRecrutType(),
+                            score.getPublicJobPosting().getEndDate()
+                    ));
                 }
             }
 
             if (!allAbove.isEmpty()) {
-                sendIfNeeded(resume.getMember(), allAbove, "새 추천 공고");
+                sendIfNeeded(member, allAbove, "새 추천 공고");
                 totalNotified += allAbove.size();
             }
         }

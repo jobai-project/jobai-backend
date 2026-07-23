@@ -194,7 +194,15 @@ public class PrivateMatchBatchService {
                             && posting.getCreatedAt().isAfter(recentThreshold);
                     if (score >= threshold && isRecentlyCollected) {
                         aboveThreshold.add(new BatchNotificationHelper.ScoredPosting(
-                                posting.getTitle(), posting.getCompany(), score, posting.getId(), "/jobs/private/"));
+                                "PRIVATE",
+                                posting.getTitle(),
+                                posting.getCompany(),
+                                score,
+                                posting.getId(),
+                                "/jobs/private/",
+                                posting.getLocation(),
+                                posting.getEmploymentType(),
+                                posting.getDeadline()));
                     }
                 } catch (Exception e) {
                     log.warn("[배치점수] 신규 점수 산출 실패: resumeId={}, postingId={}, error={}",
