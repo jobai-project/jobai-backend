@@ -1,0 +1,27 @@
+package com.jobai.backend.domain.member.event;
+
+import com.jobai.backend.global.storage.FileStorageService;
+import org.junit.jupiter.api.Test;
+
+import java.util.List;
+
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
+
+class MemberWithdrawalFileCleanupListenerTest {
+
+    @Test
+    void continuesDeletingOtherFilesWhenOneDeletionFails() {
+        FileStorageService fileStorageService = mock(FileStorageService.class);
+        MemberWithdrawalFileCleanupListener listener = new MemberWithdrawalFileCleanupListener(fileStorageService);
+        doThrow(new RuntimeException("S3 unavailable")).when(fileStorageService).delete("https://bucket/first.pdf");
+
+        listener.deleteResumeFiles(new MemberWithdrawalCompletedEvent(List.of(
+                "https://bucket/first.pdf", "https://bucket/second.pdf"
+        )));
+
+        verify(fileStorageService).delete("https://bucket/first.pdf");
+        verify(fileStorageService).delete("https://bucket/second.pdf");
+    }
+}

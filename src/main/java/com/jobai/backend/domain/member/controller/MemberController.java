@@ -3,13 +3,17 @@ package com.jobai.backend.domain.member.controller;
 import com.jobai.backend.domain.member.dto.MemberRequestDTO;
 import com.jobai.backend.domain.member.dto.MemberResponseDTO;
 import com.jobai.backend.domain.member.service.MemberService;
+import com.jobai.backend.domain.member.service.MemberWithdrawalService;
 import com.jobai.backend.domain.notification.dto.NotificationRequestDTO;
 import com.jobai.backend.domain.notification.dto.NotificationResponseDTO;
 import com.jobai.backend.domain.notification.service.NotificationSettingsService;
 import com.jobai.backend.global.apiPayload.ApiResponse;
 import com.jobai.backend.global.apiPayload.code.GeneralSuccessCode;
+import com.jobai.backend.global.auth.CookieProvider;
+import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpHeaders;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
@@ -20,6 +24,8 @@ public class MemberController implements MemberControllerDocs {
 
     private final MemberService memberService;
     private final NotificationSettingsService notificationSettingsService;
+    private final MemberWithdrawalService memberWithdrawalService;
+    private final CookieProvider cookieProvider;
 
     @PutMapping("/me/job-preferences")
     public ApiResponse<String> updateJobPreferences(
@@ -89,5 +95,16 @@ public class MemberController implements MemberControllerDocs {
         notificationSettingsService.updateOnboardingNotificationSettings(email, request);
 
         return ApiResponse.onSuccess(GeneralSuccessCode.OK, "알림 설정이 저장되었습니다.");
+    }
+    @DeleteMapping("/me")
+    @Override
+    public ApiResponse<String> withdraw(
+            @AuthenticationPrincipal String email,
+            HttpServletResponse response
+    ) {
+        memberWithdrawalService.withdraw(email);
+        response.addHeader(HttpHeaders.SET_COOKIE, cookieProvider.createEmptyAccessTokenCookie().toString());
+
+        return ApiResponse.onSuccess(GeneralSuccessCode.OK, "회원 탈퇴가 완료되었습니다.");
     }
 }

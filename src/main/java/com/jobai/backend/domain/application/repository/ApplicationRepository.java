@@ -16,4 +16,6 @@ public interface ApplicationRepository extends JpaRepository<Application, Long> 
             String email,
             LocalDate today
     );
+
+    void deleteByMemberId(Long memberId);
 }
