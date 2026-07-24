@@ -228,6 +228,9 @@ public class JobSearchRepository {
             predicates.add("(" + String.join(" OR ", orClauses) + ")");
         }
 
+        if (hasText(condition.company())) {
+            predicates.add("p.companyName = :publicCompany");
+        }
         if (hasText(condition.location())) {
             predicates.add("LOWER(p.workRegion) LIKE :locationPattern");
         }
@@ -249,6 +252,9 @@ public class JobSearchRepository {
 
         for (int i = 0; i < categoryKeywords.size(); i++) {
             query.setParameter("pubKw" + i, "%" + categoryKeywords.get(i).toLowerCase() + "%");
+        }
+        if (hasText(condition.company())) {
+            query.setParameter("publicCompany", condition.company());
         }
         if (hasText(condition.location())) {
             query.setParameter("locationPattern", "%" + condition.location().trim().toLowerCase() + "%");

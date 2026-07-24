@@ -32,6 +32,8 @@ public class KeywordMatcher {
     private final Map<String, String> companyKeywords = new HashMap<>();
     private final Map<String, String> companyDisplayNames = new HashMap<>();
     private final Map<String, String> sourceTypeKeywords = new HashMap<>();
+    /** 공공기관 DB company_name 값 집합. 매칭 시 sourceType=PUBLIC 자동 설정에 사용. */
+    private final Set<String> publicInstitutionIds = new HashSet<>();
 
     /** Komoran POS 태그 중 키워드 매칭 대상이 되는 콘텐츠 형태소 */
     private static final Set<String> CONTENT_POS_TAGS = Set.of(
@@ -64,6 +66,7 @@ public class KeywordMatcher {
         initExperienceKeywords();
         initEmploymentTypeKeywords();
         initCompanyKeywords();
+        initPublicCompanyKeywords();
         initSourceTypeKeywords();
         this.komoran = initKomoran();
     }
@@ -123,6 +126,10 @@ public class KeywordMatcher {
             String company = companyKeywords.get(token);
             if (company != null) {
                 matchedCompany = company;
+                // 공공기관 이름이 매칭되면 sourceType=PUBLIC 자동 설정
+                if (matchedSourceType == null && publicInstitutionIds.contains(company)) {
+                    matchedSourceType = "PUBLIC";
+                }
                 continue;
             }
 
@@ -398,6 +405,48 @@ public class KeywordMatcher {
         addCompany("ably", "에이블리");
         addCompany("musinsa", "무신사");
         addCompany("bucketplace", "오늘의집");
+    }
+
+    private void initPublicCompanyKeywords() {
+        addPublicCompany("한국수자원공사", "수자원공사", "k-water", "kwater");
+        addPublicCompany("한전KDN", "kdн", "한전kdн");
+        addPublicCompany("서울올림픽기념국민체육진흥공단", "국민체육진흥공단", "체육진흥공단");
+        addPublicCompany("신용보증재단중앙회", "신보중앙회");
+        addPublicCompany("정보통신기획평가원", "iitp");
+        addPublicCompany("한국지능정보사회진흥원", "nia", "지능정보사회진흥원");
+        addPublicCompany("재단법인 한국자활복지개발원", "한국자활복지개발원", "자활복지개발원");
+        addPublicCompany("대한석탄공사", "석탄공사");
+        addPublicCompany("대한적십자사", "적십자사");
+        addPublicCompany("한국산업은행", "kdb", "산업은행");
+        addPublicCompany("한국남동발전(주)", "한국남동발전", "남동발전");
+        addPublicCompany("식품안전정보원");
+        addPublicCompany("태권도진흥재단");
+        addPublicCompany("한국발명진흥회");
+        addPublicCompany("한국수력원자력(주)", "한국수력원자력", "한수원");
+        addPublicCompany("한국사학진흥재단");
+        addPublicCompany("한국인터넷진흥원", "kisa");
+        addPublicCompany("경북대학교치과병원");
+        addPublicCompany("국방기술진흥연구소", "krit");
+        addPublicCompany("한국건강증진개발원");
+        addPublicCompany("한국교육과정평가원", "kice");
+        addPublicCompany("한국문화관광연구원");
+        addPublicCompany("한국사회보장정보원");
+        addPublicCompany("한국산업기술시험원", "ktl");
+        addPublicCompany("한국장애인고용공단", "kead");
+        addPublicCompany("한국해양수산연수원");
+        addPublicCompany("한국환경산업기술원", "keiti");
+        addPublicCompany("한국보훈복지의료공단");
+        addPublicCompany("한국의약품안전관리원", "kids");
+        addPublicCompany("한국해양교통안전공단", "komsa");
+    }
+
+    private void addPublicCompany(String dbName, String... aliases) {
+        companyKeywords.put(dbName.toLowerCase(), dbName);
+        publicInstitutionIds.add(dbName);
+        companyDisplayNames.put(dbName, dbName);
+        for (String alias : aliases) {
+            companyKeywords.put(alias.toLowerCase(), dbName);
+        }
     }
 
     private void addCompany(String companyId, String displayName, String... aliases) {
