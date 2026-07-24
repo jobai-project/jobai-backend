@@ -348,6 +348,35 @@ class JobSearchServiceTest {
                 anyInt(), anyInt());
     }
 
+    // ─── title LIKE fallback ──────────────────────────────────────────────────
+
+    @Test
+    @DisplayName("QueryExpander 미분류 시 unmatchedTokens가 exactRequired로 변환되어 title LIKE 필터 적용")
+    void QueryExpander미분류시_unmatchedTokens_exactRequired_변환() {
+        ReflectionTestUtils.setField(jobSearchService, "hybridEnabled", true);
+
+        // "커머스"는 구조화 조건 미인식 → unmatchedTokens
+        when(keywordMatcher.extract(anyString()))
+                .thenReturn(new MatchResult(List.of(), null, null, null, List.of(), List.of(), null, List.of("커머스")));
+
+        // QueryExpander가 아무것도 분류하지 않은 상태 (비활성 또는 실패)
+        when(queryExpander.expand(anyString(), anyList()))
+                .thenReturn(QueryExpansionResult.unchanged("커머스"));
+
+        when(jobSearchRepository.searchPrivate(any(), anyInt(), anyInt())).thenReturn(List.of());
+        when(jobSearchRepository.searchPublic(any(), anyInt(), anyInt())).thenReturn(List.of());
+        when(embeddingService.embedQuery(anyString())).thenReturn(new float[]{0.1f});
+
+        jobSearchService.search("커머스", 0, 20, null);
+
+        // exactGroups에 "커머스"가 포함된 조건으로 searchPrivate가 호출되어야 함
+        Mockito.verify(jobSearchRepository, Mockito.atLeastOnce()).searchPrivate(
+                argThat(cond -> cond.exactGroups() != null
+                        && !cond.exactGroups().isEmpty()
+                        && cond.exactGroups().get(0).terms().contains("커머스")),
+                anyInt(), anyInt());
+    }
+
     // ─── 헬퍼 ──────────────────────────────────────────────────────────────────
 
     private static JobSummary createJobSummary(Long id, String source, String title,
