@@ -117,7 +117,6 @@ public class JobSearchService {
                     expansion.expandedText(),
                     expansion.expandedKeywords(),
                     titleFallback,
-                    expansion.exactPreferred(),
                     expansion.semanticRequired(),
                     expansion.semanticPreferred()
             );
