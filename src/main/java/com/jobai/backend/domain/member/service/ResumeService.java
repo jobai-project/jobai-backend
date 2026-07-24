@@ -126,9 +126,6 @@ public class ResumeService {
 
         resumesRepository.deactivateOthersByMemberId(resume.getMember().getId(), resumeId);
         resume.activate();
-
-        // 활성 이력서 변경 시 매칭 점수 재계산
-        eventPublisher.publishEvent(new ResumeScoreCalculationRequestedEvent(resumeId));
     }
 
     @Transactional

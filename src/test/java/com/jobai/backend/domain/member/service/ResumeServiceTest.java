@@ -244,10 +244,7 @@ class ResumeServiceTest {
 
         verify(resumesRepository).deactivateOthersByMemberId(1L, 5L);
         assertThat(resume.getIsActive()).isTrue();
-        ArgumentCaptor<ResumeScoreCalculationRequestedEvent> eventCaptor =
-                ArgumentCaptor.forClass(ResumeScoreCalculationRequestedEvent.class);
-        verify(eventPublisher).publishEvent(eventCaptor.capture());
-        assertThat(eventCaptor.getValue().resumeId()).isEqualTo(5L);
+        verify(eventPublisher, never()).publishEvent(any(ResumeScoreCalculationRequestedEvent.class));
     }
 
     @Test
