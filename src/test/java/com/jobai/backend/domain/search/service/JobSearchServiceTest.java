@@ -296,8 +296,7 @@ class JobSearchServiceTest {
                 .thenReturn(new QueryExpansionResult(
                         expandedText,
                         List.of("원격근무", "리모트워크"),
-                        List.of(),  // exactRequired (List<RequirementGroup>)
-                        List.of(),  // exactPreferred
+                        List.of(),  // exactRequired
                         List.of(),  // semanticRequired
                         List.of()   // semanticPreferred
                 ));
@@ -331,9 +330,8 @@ class JobSearchServiceTest {
                         "백엔드 kafka",
                         List.of(),
                         List.of(kafkaGroup),  // exactRequired
-                        List.of(),
-                        List.of(),
-                        List.of()
+                        List.of(),            // semanticRequired
+                        List.of()             // semanticPreferred
                 ));
 
         when(jobSearchRepository.searchPrivate(any(), anyInt(), anyInt())).thenReturn(List.of());

@@ -18,11 +18,10 @@ import java.util.stream.Stream;
 /**
  * LLM 기반 쿼리 확장기.
  *
- * <p>unmatched 토큰을 4가지 유형의 RequirementGroup으로 분류한다.
+ * <p>unmatched 토큰을 3가지 유형의 RequirementGroup으로 분류한다.
  *
  * <ul>
  *   <li>EXACT_REQUIRED   — 공고에 반드시 등장해야 하는 기술 스택·도구명</li>
- *   <li>EXACT_PREFERRED  — 있으면 좋지만 필수 아닌 단어 (정렬 신호만)</li>
  *   <li>SEMANTIC_REQUIRED  — 필수 조건이지만 다양한 표현으로 등장하는 유의어 그룹</li>
  *   <li>SEMANTIC_PREFERRED — 선호 분위기·문화 표현의 유의어 그룹</li>
  * </ul>
@@ -47,21 +46,17 @@ public class QueryExpander {
      * 예: EXACT_REQUIRED[KAFKA]: kafka, apache kafka
      */
     private static final Pattern GROUP_LINE_PATTERN = Pattern.compile(
-            "^(EXACT_REQUIRED|EXACT_PREFERRED|SEMANTIC_REQUIRED|SEMANTIC_PREFERRED)\\[([A-Z0-9_]+)\\]:\\s*(.*)$"
+            "^(EXACT_REQUIRED|SEMANTIC_REQUIRED|SEMANTIC_PREFERRED)\\[([A-Z0-9_]+)\\]:\\s*(.*)$"
     );
 
     private static final String SYSTEM_PROMPT = """
             당신은 채용공고 검색 쿼리를 분석하는 전문가입니다.
-            사용자가 제공한 토큰을 다음 4가지 유형과 개념 그룹으로 분류하세요.
+            사용자가 제공한 토큰을 다음 3가지 유형과 개념 그룹으로 분류하세요.
 
             [유형 정의]
             EXACT_REQUIRED: 공고 제목·본문에 반드시 있어야 하는 기술 스택·도구명
               판단 기준: "사용하는", "기반", "필수", "개발자" 와 함께 명시된 표현
               예: Kafka 기반, Redis 사용, Spring Boot 개발자
-
-            EXACT_PREFERRED: 있으면 좋지만 필수는 아닌 단어
-              판단 기준: "우대", "선호", "가능하면", "있으면 좋은", "경험자 우대" 와 함께 나온 표현
-              예: Java 우대, AWS 경험 우대
 
             SEMANTIC_REQUIRED: 반드시 충족해야 하지만 다양한 표현으로 등장하는 조건의 유의어 그룹
               판단 기준: 근무 형태, 필수 환경 등 의미상 필수인 조건
@@ -78,7 +73,6 @@ public class QueryExpander {
 
             [출력 형식] 해당하는 줄만 출력, 없으면 생략
             EXACT_REQUIRED[개념명]: 유의어1, 유의어2
-            EXACT_PREFERRED[개념명]: 유의어1
             SEMANTIC_REQUIRED[개념명]: 유의어1, 유의어2, 유의어3
             SEMANTIC_PREFERRED[개념명]: 유의어1, 유의어2
 
@@ -97,7 +91,7 @@ public class QueryExpander {
      *
      * @param originalQuery   사용자 원본 쿼리
      * @param unmatchedTokens 키워드 매칭에 걸리지 않은 토큰 목록
-     * @return 확장 결과 (RequirementGroup 4분류 + 임베딩용 텍스트)
+     * @return 확장 결과 (RequirementGroup 3분류 + 임베딩용 텍스트)
      */
     public QueryExpansionResult expand(String originalQuery, List<String> unmatchedTokens) {
         if (!enabled || unmatchedTokens == null || unmatchedTokens.isEmpty()) {
@@ -109,10 +103,9 @@ public class QueryExpander {
             String response = anthropicClient.complete(SYSTEM_PROMPT, userPrompt, MAX_TOKENS);
             QueryExpansionResult result = parseResponse(originalQuery, response);
 
-            log.info("[쿼리확장] query={}, unmatched={}, exactRequired={}, exactPreferred={}, semanticRequired={}, semanticPreferred={}",
+            log.info("[쿼리확장] query={}, unmatched={}, exactRequired={}, semanticRequired={}, semanticPreferred={}",
                     originalQuery, unmatchedTokens,
-                    result.exactRequired(), result.exactPreferred(),
-                    result.semanticRequired(), result.semanticPreferred());
+                    result.exactRequired(), result.semanticRequired(), result.semanticPreferred());
             return result;
         } catch (Exception e) {
             log.warn("[쿼리확장] 실패, 원본 쿼리 사용: query={}, error={}", originalQuery, e.getMessage());
@@ -147,8 +140,7 @@ public class QueryExpander {
             return QueryExpansionResult.unchanged(originalQuery);
         }
 
-        List<RequirementGroup> exactRequired   = new ArrayList<>();
-        List<RequirementGroup> exactPreferred  = new ArrayList<>();
+        List<RequirementGroup> exactRequired    = new ArrayList<>();
         List<RequirementGroup> semanticRequired  = new ArrayList<>();
         List<RequirementGroup> semanticPreferred = new ArrayList<>();
 
@@ -163,20 +155,18 @@ public class QueryExpander {
 
             RequirementGroup group = new RequirementGroup(concept, terms);
             switch (type) {
-                case "EXACT_REQUIRED"     -> { if (exactRequired.size()   < MAX_GROUPS_PER_TYPE) exactRequired.add(group); }
-                case "EXACT_PREFERRED"    -> { if (exactPreferred.size()  < MAX_GROUPS_PER_TYPE) exactPreferred.add(group); }
+                case "EXACT_REQUIRED"     -> { if (exactRequired.size()    < MAX_GROUPS_PER_TYPE) exactRequired.add(group); }
                 case "SEMANTIC_REQUIRED"  -> { if (semanticRequired.size()  < MAX_GROUPS_PER_TYPE) semanticRequired.add(group); }
                 case "SEMANTIC_PREFERRED" -> { if (semanticPreferred.size() < MAX_GROUPS_PER_TYPE) semanticPreferred.add(group); }
             }
         }
 
-        if (exactRequired.isEmpty() && exactPreferred.isEmpty()
-                && semanticRequired.isEmpty() && semanticPreferred.isEmpty()) {
+        if (exactRequired.isEmpty() && semanticRequired.isEmpty() && semanticPreferred.isEmpty()) {
             log.warn("[쿼리확장] LLM 응답 형식 불량, 확장 건너뜀: response={}", response);
             return QueryExpansionResult.unchanged(originalQuery);
         }
 
-        // 임베딩 텍스트: 원본 쿼리 + semantic terms (exactPreferred는 이미 원본에 포함)
+        // 임베딩 텍스트: 원본 쿼리 + semantic terms
         List<String> allSemanticTerms = Stream.concat(
                 semanticRequired.stream().flatMap(g -> g.terms().stream()),
                 semanticPreferred.stream().flatMap(g -> g.terms().stream())
@@ -188,8 +178,7 @@ public class QueryExpander {
 
         return new QueryExpansionResult(
                 expandedText, allSemanticTerms,
-                exactRequired, exactPreferred,
-                semanticRequired, semanticPreferred);
+                exactRequired, semanticRequired, semanticPreferred);
     }
 
     private List<String> parseTerms(String csv) {
