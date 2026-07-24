@@ -54,6 +54,9 @@ public class NotificationMatchBatchItem {
     @Column(length = 255)
     private String employmentType;
 
+    @Column(length = 255)
+    private String jobCategory;
+
     private LocalDate deadline;
 
     @Column(nullable = false)

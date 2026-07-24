@@ -35,43 +35,43 @@ class NotificationMatchBatchServiceTest {
     }
 
     @Test
-    @DisplayName("추천 알림 묶음 저장 시 공고 표시 순서를 1부터 부여한다")
-    void create_공고표시순서_부여() {
+    @DisplayName("notification match batch items get display order from 1")
+    void create_assignsDisplayOrder() {
         Member member = member("owner@example.com");
         List<NotificationMatchBatchService.BatchItemCommand> items = List.of(
-                item("PRIVATE", 1L, "첫 번째 공고", 91),
-                item("PUBLIC", 2L, "두 번째 공고", 88)
+                item("PRIVATE", 1L, "First Job", 91),
+                item("PUBLIC", 2L, "Second Job", 88)
         );
         when(notificationMatchBatchRepository.save(any(NotificationMatchBatch.class)))
                 .thenAnswer(invocation -> invocation.getArgument(0));
 
-        notificationMatchBatchService.create(member, "새 추천 공고", items);
+        notificationMatchBatchService.create(member, "New Recommended Jobs", items);
 
         ArgumentCaptor<NotificationMatchBatch> captor = ArgumentCaptor.forClass(NotificationMatchBatch.class);
         verify(notificationMatchBatchRepository).save(captor.capture());
 
         NotificationMatchBatch saved = captor.getValue();
         assertThat(saved.getMember()).isEqualTo(member);
-        assertThat(saved.getNotificationType()).isEqualTo("새 추천 공고");
+        assertThat(saved.getNotificationType()).isEqualTo("New Recommended Jobs");
         assertThat(saved.getItemCount()).isEqualTo(2);
         assertThat(saved.getItems())
                 .extracting(NotificationMatchBatchItem::getDisplayOrder)
                 .containsExactly(1, 2);
         assertThat(saved.getItems())
-                .extracting(NotificationMatchBatchItem::getTitle)
-                .containsExactly("첫 번째 공고", "두 번째 공고");
+                .extracting(NotificationMatchBatchItem::getJobCategory)
+                .containsExactly("Backend", null);
     }
 
     @Test
-    @DisplayName("추천 알림 묶음 조회 시 표시 순서대로 공고를 반환한다")
-    void getMatchBatch_표시순서대로_조회() {
+    @DisplayName("get match batch returns jobs by display order")
+    void getMatchBatch_returnsItemsByDisplayOrder() {
         NotificationMatchBatch batch = NotificationMatchBatch.builder()
                 .member(member("owner@example.com"))
-                .notificationType("새 추천 공고")
+                .notificationType("New Recommended Jobs")
                 .itemCount(2)
                 .build();
-        batch.addItem(batchItem(2, "PRIVATE", 2L, "두 번째 공고", 82));
-        batch.addItem(batchItem(1, "PUBLIC", 1L, "첫 번째 공고", 93));
+        batch.addItem(batchItem(2, "PRIVATE", 2L, "Second Job", 82));
+        batch.addItem(batchItem(1, "PUBLIC", 1L, "First Job", 93));
 
         when(notificationMatchBatchRepository.findWithItemsById(10L)).thenReturn(Optional.of(batch));
 
@@ -80,15 +80,18 @@ class NotificationMatchBatchServiceTest {
         assertThat(response.count()).isEqualTo(2);
         assertThat(response.jobs())
                 .extracting(NotificationMatchBatchResponse.RecommendedJob::title)
-                .containsExactly("첫 번째 공고", "두 번째 공고");
+                .containsExactly("First Job", "Second Job");
+        assertThat(response.jobs())
+                .extracting(NotificationMatchBatchResponse.RecommendedJob::jobCategory)
+                .containsExactly(null, "Backend");
     }
 
     @Test
-    @DisplayName("타인 추천 알림 묶음 조회 시 존재하지 않는 것처럼 응답한다")
-    void getMatchBatch_타인소유_조회불가() {
+    @DisplayName("get match batch hides ownership mismatch as not found")
+    void getMatchBatch_ownershipMismatch_returnsNotFound() {
         NotificationMatchBatch batch = NotificationMatchBatch.builder()
                 .member(member("owner@example.com"))
-                .notificationType("새 추천 공고")
+                .notificationType("New Recommended Jobs")
                 .itemCount(1)
                 .build();
         when(notificationMatchBatchRepository.findWithItemsById(10L)).thenReturn(Optional.of(batch));
@@ -109,9 +112,10 @@ class NotificationMatchBatchServiceTest {
                 source,
                 jobId,
                 title,
-                "테스트 회사",
-                "서울",
-                "정규직",
+                "Test Company",
+                "Seoul",
+                "Full-time",
+                jobCategory(source),
                 LocalDate.of(2026, 8, 1),
                 score,
                 "/jobs/" + source.toLowerCase() + "/" + jobId
@@ -124,12 +128,17 @@ class NotificationMatchBatchServiceTest {
                 .source(source)
                 .jobId(jobId)
                 .title(title)
-                .companyName("테스트 회사")
-                .location("서울")
-                .employmentType("정규직")
+                .companyName("Test Company")
+                .location("Seoul")
+                .employmentType("Full-time")
+                .jobCategory(jobCategory(source))
                 .deadline(LocalDate.of(2026, 8, 1))
                 .matchScore(score)
                 .detailLinkUrl("/jobs/" + source.toLowerCase() + "/" + jobId)
                 .build();
+    }
+
+    private String jobCategory(String source) {
+        return "PRIVATE".equals(source) ? "Backend" : null;
     }
 }

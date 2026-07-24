@@ -202,6 +202,7 @@ public class PrivateMatchBatchService {
                                 "/jobs/private/",
                                 posting.getLocation(),
                                 posting.getEmploymentType(),
+                                posting.getJobCategory(),
                                 posting.getDeadline()));
                     }
                 } catch (Exception e) {

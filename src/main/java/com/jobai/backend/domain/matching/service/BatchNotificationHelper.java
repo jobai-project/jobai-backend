@@ -46,6 +46,7 @@ public class BatchNotificationHelper {
             String linkPrefix,
             String location,
             String employmentType,
+            String jobCategory,
             LocalDate deadline
     ) {
     }
@@ -97,6 +98,7 @@ public class BatchNotificationHelper {
                 posting.company(),
                 posting.location(),
                 posting.employmentType(),
+                posting.jobCategory(),
                 posting.deadline(),
                 posting.score(),
                 posting.linkPrefix() + posting.postingId()
@@ -140,6 +142,7 @@ public class BatchNotificationHelper {
                             "/jobs/private/",
                             score.getPrivateJobPosting().getLocation(),
                             score.getPrivateJobPosting().getEmploymentType(),
+                            score.getPrivateJobPosting().getJobCategory(),
                             score.getPrivateJobPosting().getDeadline()
                     ));
                 }
@@ -158,6 +161,7 @@ public class BatchNotificationHelper {
                             "/jobs/public/",
                             score.getPublicJobPosting().getWorkRegion(),
                             score.getPublicJobPosting().getRecrutType(),
+                            null,
                             score.getPublicJobPosting().getEndDate()
                     ));
                 }

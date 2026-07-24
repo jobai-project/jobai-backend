@@ -2,12 +2,14 @@ package com.jobai.backend.domain.notification.dto;
 
 import com.jobai.backend.domain.notification.entity.NotificationMatchBatch;
 import com.jobai.backend.domain.notification.entity.NotificationMatchBatchItem;
+import io.swagger.v3.oas.annotations.media.Schema;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.Comparator;
 import java.util.List;
 
+@Schema(name = "NotificationMatchBatchResponse")
 public record NotificationMatchBatchResponse(
         Long batchId,
         String notificationType,
@@ -30,6 +32,7 @@ public record NotificationMatchBatchResponse(
         );
     }
 
+    @Schema(name = "NotificationMatchBatchJob")
     public record RecommendedJob(
             String source,
             Long jobId,
@@ -37,6 +40,7 @@ public record NotificationMatchBatchResponse(
             String companyName,
             String location,
             String employmentType,
+            String jobCategory,
             LocalDate deadline,
             Integer matchScore,
             String detailLinkUrl
@@ -49,6 +53,7 @@ public record NotificationMatchBatchResponse(
                     item.getCompanyName(),
                     item.getLocation(),
                     item.getEmploymentType(),
+                    item.getJobCategory(),
                     item.getDeadline(),
                     item.getMatchScore(),
                     item.getDetailLinkUrl()

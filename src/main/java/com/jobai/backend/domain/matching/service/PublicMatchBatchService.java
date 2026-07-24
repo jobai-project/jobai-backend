@@ -191,6 +191,7 @@ public class PublicMatchBatchService {
                                 "/jobs/public/",
                                 posting.getWorkRegion(),
                                 posting.getRecrutType(),
+                                null,
                                 posting.getEndDate()));
                     }
                 } catch (Exception e) {
