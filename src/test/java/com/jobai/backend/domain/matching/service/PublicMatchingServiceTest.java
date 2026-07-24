@@ -276,10 +276,17 @@ class PublicMatchingServiceTest {
     }
 
     @Test
-    @DisplayName("경력직 회원은 experienceYears가 3으로 설정된다")
+    @DisplayName("이력서에 경력 연수가 있으면 experienceYears가 해당 값으로 설정된다")
     void calculateScores_경력회원_연수3() {
         Member member = createMember("경력직");
-        Resumes resume = createResume(member, dummyEmbedding(), "[\"Java\"]");
+        Resumes resume = Resumes.builder()
+                .member(member)
+                .extractedText("이력서 텍스트")
+                .ncsEmbedding(dummyEmbedding())
+                .resumeSkills("[\"Java\"]")
+                .experienceYears(3)
+                .isActive(true)
+                .build();
         when(resumesRepository.findById(1L)).thenReturn(Optional.of(resume));
 
         PublicJobPosting posting = createPosting("개발자", false);
@@ -301,7 +308,7 @@ class PublicMatchingServiceTest {
     }
 
     @Test
-    @DisplayName("신입 회원은 experienceYears가 0으로 설정된다")
+    @DisplayName("이력서에 경력 연수가 없으면 experienceYears가 0으로 설정된다")
     void calculateScores_신입회원_연수0() {
         Member member = createMember("신입");
         Resumes resume = createResume(member, dummyEmbedding(), "[\"Python\"]");
