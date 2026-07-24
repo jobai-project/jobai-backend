@@ -106,6 +106,23 @@ public class JobSearchService {
 
         QueryExpansionResult expansion = queryExpander.expand(query, match.unmatchedTokens());
 
+        // QueryExpander가 비활성이거나 required 분류 결과가 없을 때
+        // unmatchedTokens를 exactRequired로 변환해 title·description LIKE 필터를 보장한다.
+        // 예: "커머스 주니어" → "커머스"가 unmatched → exactRequired[커머스]: 커머스
+        if (!expansion.wasExpanded() && match.hasUnmatchedTokens()) {
+            List<RequirementGroup> titleFallback = match.unmatchedTokens().stream()
+                    .map(token -> new RequirementGroup(token.toUpperCase(), List.of(token)))
+                    .toList();
+            expansion = new QueryExpansionResult(
+                    expansion.expandedText(),
+                    expansion.expandedKeywords(),
+                    titleFallback,
+                    expansion.exactPreferred(),
+                    expansion.semanticRequired(),
+                    expansion.semanticPreferred()
+            );
+        }
+
         boolean hasStructuralFilters = !match.categories().isEmpty()
                 || match.experience() != null
                 || match.company() != null
