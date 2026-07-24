@@ -1,3 +1,0 @@
-[submodule "ai-server"]
-	path = ai-server
-	url = https://github.com/jobai-project/jobai-ai.git
