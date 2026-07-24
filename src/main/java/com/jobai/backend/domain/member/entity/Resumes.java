@@ -50,6 +50,9 @@ public class Resumes {
     @Column(name = "resume_skills", columnDefinition = "TEXT")
     private String resumeSkills;
 
+    @Column(name = "experience_years")
+    private Integer experienceYears;
+
     @JdbcTypeCode(SqlTypes.VECTOR)
     @Column(name = "embedding", columnDefinition = "vector(768)")
     private float[] embedding;
@@ -62,12 +65,14 @@ public class Resumes {
     /**
      * 이력서 파싱 결과를 업데이트한다.
      *
-     * @param extractedText PDF에서 추출한 원문 텍스트
-     * @param resumeSkills  추출된 기술스택 JSON 배열 문자열 (예: {@code ["Java","Spring"]})
+     * @param extractedText   PDF에서 추출한 원문 텍스트
+     * @param resumeSkills    추출된 기술스택 JSON 배열 문자열 (예: {@code ["Java","Spring"]})
+     * @param experienceYears 이력서에서 파싱된 경력 연수 (없으면 null)
      */
-    public void updateParsedData(String extractedText, String resumeSkills) {
+    public void updateParsedData(String extractedText, String resumeSkills, Integer experienceYears) {
         this.extractedText = extractedText;
         this.resumeSkills = resumeSkills;
+        this.experienceYears = experienceYears;
     }
 
     /**

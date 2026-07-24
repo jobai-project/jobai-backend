@@ -71,7 +71,7 @@ public class PrivateMatchingService {
 
         List<String> resumeSkills = parseSkills(resume.getResumeSkills());
         List<Double> resumeVec = toDoubleList(resume.getEmbedding());
-        int experienceYears = resolveExperienceYears(resume.getMember());
+        int experienceYears = resolveExperienceYears(resume);
 
         int successCount = 0;
         int failCount = 0;
@@ -157,9 +157,8 @@ public class PrivateMatchingService {
         return title + "\n" + desc;
     }
 
-    /** 온보딩 careerType을 experience_years 정수로 변환한다. 연수 입력 필드 추가 시 교체 예정. */
-    private int resolveExperienceYears(Member member) {
-        return member.getCareerTypes().contains("경력직") ? 3 : 0;
+    private int resolveExperienceYears(Resumes resume) {
+        return resume.getExperienceYears() != null ? resume.getExperienceYears() : 0;
     }
 
     private List<String> parseSkills(String skillsJson) {

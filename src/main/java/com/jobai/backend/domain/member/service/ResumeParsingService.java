@@ -11,6 +11,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.util.*;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
@@ -106,8 +107,9 @@ public class ResumeParsingService {
         }
 
         String skillsJson = toJson(skills);
-        resume.updateParsedData(extractedText, skillsJson);
-        log.info("이력서 파싱 완료: resumeId={}, skills={}", resume.getId(), skillsJson);
+        Integer experienceYears = extractExperienceYears(extractedText);
+        resume.updateParsedData(extractedText, skillsJson, experienceYears);
+        log.info("이력서 파싱 완료: resumeId={}, skills={}, experienceYears={}", resume.getId(), skillsJson, experienceYears);
     }
 
     /**
@@ -335,6 +337,25 @@ public class ResumeParsingService {
             case "k6" -> "k6";
             default -> tech;
         };
+    }
+
+    /**
+     * 이력서 텍스트에서 "경력 N년" 패턴으로 경력 연수를 추출한다.
+     * 여러 패턴이 있을 경우 가장 큰 값을 사용한다.
+     */
+    Integer extractExperienceYears(String text) {
+        // "경력 3년", "경력3년", "경력: 3년", "3년 경력" 등 커버
+        Pattern pattern = Pattern.compile("경력\\s*:?\\s*(\\d+)\\s*년|(?<![\\d])(\\d+)\\s*년\\s*경력");
+        Matcher matcher = pattern.matcher(text);
+        int max = -1;
+        while (matcher.find()) {
+            String numStr = matcher.group(1) != null ? matcher.group(1) : matcher.group(2);
+            int years = Integer.parseInt(numStr);
+            if (years > max) {
+                max = years;
+            }
+        }
+        return max >= 0 ? max : null;
     }
 
     /**

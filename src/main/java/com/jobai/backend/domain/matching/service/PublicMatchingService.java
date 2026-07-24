@@ -154,7 +154,7 @@ public class PublicMatchingService {
 
     private ScorePublicRequest.ResumePayload buildResumePayload(Resumes resume) {
         List<String> resumeSkills = parseSkills(resume.getResumeSkills());
-        int experienceYears = resolveExperienceYears(resume.getMember());
+        int experienceYears = resolveExperienceYears(resume);
         String summary = resume.getExtractedText() != null && resume.getExtractedText().length() > MAX_SUMMARY_LENGTH
                 ? resume.getExtractedText().substring(0, MAX_SUMMARY_LENGTH)
                 : resume.getExtractedText();
@@ -197,9 +197,8 @@ public class PublicMatchingService {
         }
     }
 
-    /** 온보딩 careerType을 경력 연수 정수로 변환한다. 연수 입력 필드 추가 시 교체 예정. */
-    private int resolveExperienceYears(Member member) {
-        return member.getCareerTypes().contains("경력직") ? 3 : 0;
+    private int resolveExperienceYears(Resumes resume) {
+        return resume.getExperienceYears() != null ? resume.getExperienceYears() : 0;
     }
 
     private List<String> parseSkills(String skillsJson) {
