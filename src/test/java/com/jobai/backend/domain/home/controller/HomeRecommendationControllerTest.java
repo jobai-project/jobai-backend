@@ -1,6 +1,7 @@
 package com.jobai.backend.domain.home.controller;
 
 import com.jobai.backend.domain.home.service.HomeRecommendationService;
+import com.jobai.backend.domain.member.repository.MemberRepository;
 import com.jobai.backend.global.apiPayload.code.GeneralErrorCode;
 import com.jobai.backend.global.apiPayload.exception.GeneralException;
 import com.jobai.backend.global.apiPayload.handler.GeneralExceptionAdvice;
@@ -38,6 +39,9 @@ class HomeRecommendationControllerTest {
 
     @MockitoBean
     private JwtProvider jwtProvider;
+
+    @MockitoBean
+    private MemberRepository memberRepository;
 
     @MockitoBean
     private CookieProvider cookieProvider;

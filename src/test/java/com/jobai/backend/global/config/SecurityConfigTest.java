@@ -2,6 +2,7 @@ package com.jobai.backend.global.config;
 
 import com.jobai.backend.domain.auth.controller.AuthController;
 import com.jobai.backend.domain.member.service.MemberService;
+import com.jobai.backend.domain.member.repository.MemberRepository;
 import com.jobai.backend.global.auth.CookieProvider;
 import com.jobai.backend.global.auth.CustomOAuth2UserService;
 import com.jobai.backend.global.auth.JwtAuthenticationFilter;
@@ -33,6 +34,9 @@ class SecurityConfigTest {
 
     @MockBean
     private MemberService memberService;
+
+    @MockBean
+    private MemberRepository memberRepository;
 
     @MockBean
     private CookieProvider cookieProvider;

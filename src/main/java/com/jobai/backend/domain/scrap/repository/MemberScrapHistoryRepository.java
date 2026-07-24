@@ -18,6 +18,8 @@ public interface MemberScrapHistoryRepository extends JpaRepository<MemberScrapH
 
     void deleteByMemberEmailAndSourceAndSourceId(String email, String source, Long sourceId);
 
+    void deleteByMemberId(Long memberId);
+
     @Query("""
             SELECT h.id, h.source, h.sourceId, p.companyName, p.title, p.workRegion, p.recrutType, p.endDate, h.scrappedAt
             FROM MemberScrapHistory h

@@ -612,4 +612,15 @@ public interface MemberControllerDocs {
             )
     })
     ApiResponse<String> updateOnboardingNotificationSettings(String email, NotificationRequestDTO.UpdateSettingsDTO request);
+
+    @Operation(
+            summary = "회원 탈퇴",
+            description = "회원과 연결된 이력서, 매칭 점수, 스크랩, 지원 내역, 알림 데이터를 삭제합니다. "
+                    + "Refresh token과 accessToken 쿠키를 만료 처리하며, DB 커밋 후 이력서 S3 파일을 비동기로 정리합니다."
+    )
+    @ApiResponses(value = {
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "회원 탈퇴 완료"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "인증되지 않은 사용자")
+    })
+    ApiResponse<String> withdraw(String email, jakarta.servlet.http.HttpServletResponse response);
 }

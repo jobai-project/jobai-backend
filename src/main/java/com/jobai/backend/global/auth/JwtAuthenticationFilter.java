@@ -1,5 +1,7 @@
 package com.jobai.backend.global.auth;
 
+import com.jobai.backend.domain.member.repository.MemberRepository;
+
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.Cookie;
@@ -24,6 +26,7 @@ import java.util.Collections;
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtProvider jwtProvider;
+    private final MemberRepository memberRepository;
 
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
@@ -35,6 +38,11 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         // 2. 토큰이 유효하면 SecurityContext에 인증 정보 저장
         if (token != null && jwtProvider.validateToken(token)) {
             String email = jwtProvider.getEmailFromToken(token);
+
+            if (!memberRepository.existsByEmail(email)) {
+                filterChain.doFilter(request, response);
+                return;
+            }
 
             // 인증 객체를 생성할 때 principal 자리에 객체가 아닌 email (String 문자열)을 넣음
             UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(

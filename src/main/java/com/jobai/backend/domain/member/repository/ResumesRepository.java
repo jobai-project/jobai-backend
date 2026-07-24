@@ -12,6 +12,8 @@ public interface ResumesRepository extends JpaRepository<Resumes, Long> {
 
     List<Resumes> findByMemberEmailOrderByUpdatedAtDescIdDesc(String email);
 
+    List<Resumes> findByMemberId(Long memberId);
+
     Optional<Resumes> findByMemberEmailAndIsActiveTrue(String email);
 
     @Modifying
