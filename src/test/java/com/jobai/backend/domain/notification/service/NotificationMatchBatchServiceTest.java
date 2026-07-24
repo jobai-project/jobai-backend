@@ -59,7 +59,7 @@ class NotificationMatchBatchServiceTest {
                 .containsExactly(1, 2);
         assertThat(saved.getItems())
                 .extracting(NotificationMatchBatchItem::getJobCategory)
-                .containsExactly("Backend", "Backend");
+                .containsExactly("Backend", null);
     }
 
     @Test
@@ -83,7 +83,7 @@ class NotificationMatchBatchServiceTest {
                 .containsExactly("First Job", "Second Job");
         assertThat(response.jobs())
                 .extracting(NotificationMatchBatchResponse.RecommendedJob::jobCategory)
-                .containsExactly("Backend", "Backend");
+                .containsExactly(null, "Backend");
     }
 
     @Test
@@ -115,7 +115,7 @@ class NotificationMatchBatchServiceTest {
                 "Test Company",
                 "Seoul",
                 "Full-time",
-                "Backend",
+                jobCategory(source),
                 LocalDate.of(2026, 8, 1),
                 score,
                 "/jobs/" + source.toLowerCase() + "/" + jobId
@@ -131,10 +131,14 @@ class NotificationMatchBatchServiceTest {
                 .companyName("Test Company")
                 .location("Seoul")
                 .employmentType("Full-time")
-                .jobCategory("Backend")
+                .jobCategory(jobCategory(source))
                 .deadline(LocalDate.of(2026, 8, 1))
                 .matchScore(score)
                 .detailLinkUrl("/jobs/" + source.toLowerCase() + "/" + jobId)
                 .build();
+    }
+
+    private String jobCategory(String source) {
+        return "PRIVATE".equals(source) ? "Backend" : null;
     }
 }
