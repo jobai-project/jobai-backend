@@ -38,6 +38,7 @@ public class NotificationMatchBatchService {
                     .companyName(item.companyName())
                     .location(item.location())
                     .employmentType(item.employmentType())
+                    .jobCategory(item.jobCategory())
                     .deadline(item.deadline())
                     .matchScore(item.matchScore())
                     .detailLinkUrl(item.detailLinkUrl())
@@ -70,6 +71,7 @@ public class NotificationMatchBatchService {
             String companyName,
             String location,
             String employmentType,
+            String jobCategory,
             LocalDate deadline,
             Integer matchScore,
             String detailLinkUrl
