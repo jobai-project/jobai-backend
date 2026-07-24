@@ -72,21 +72,27 @@ JobA!는 사용자가 채용공고를 직접 찾는 대신,
 - 🗣 **4-path 자연어 검색 파이프라인**
   - 형태소 분석기(Komoran)로 쿼리에서 카테고리·지역·경력·회사명을 구조화 조건으로 추출하고,
     인식되지 않은 표현(unmatched token)은 다음 단계로 전달
-  - **① Query Expansion** — LLM이 unmatched token을 두 유형으로 분류
-    - `EXACT_REQUIRED`: 특정 기술명(kafka, python 등) → 해당 단어가 공고에 반드시 포함되어야 함
-    - `SEMANTIC_PREFERRED`: 의미 표현("재택근무", "수평적 문화" 등) → 유사 키워드로 확장
+
+  - **① Query Expansion** — LLM이 unmatched token을 네 유형으로 분류
+    - `EXACT_REQUIRED`: 특정 기술명(Kafka, Java 등) → 해당 단어가 공고에 반드시 포함되어야 함
+    - `SEMANTIC_REQUIRED`: 의미 표현("재택근무" 등) → 원격근무·WFH 등 유사 키워드로 확장하여 필터 적용
+    - `SEMANTIC_PREFERRED`: 분위기·문화 표현("수평적 문화" 등) → 벡터 검색 힌트로만 활용
+
   - **② 4-path 검색 라우팅** — 분석 결과에 따라 최적 경로 선택
     - **Path A (Keyword)**: 모든 토큰이 구조화 조건으로 인식된 경우 → DB 필터 검색
-    - **Path B (Hybrid)**: 구조화 조건 + 확장 키워드 → DB 필터 + 벡터 검색을 **RRF 알고리즘**으로 병합
+    - **Path B (Hybrid)**: 구조화 조건 또는 확장 키워드가 있는 경우 → DB 필터로 조건 일치 수준별 후보 그룹(STRICT → RELAXED)을 수집하고, 그룹 순서를 유지하면서 그룹 내부에서 벡터 유사도로 재정렬
     - **Path C (Vector)**: 구조화 앵커 없는 순수 자연어 → 벡터 유사도 검색
-    - **Path D (Exact-first)**: EXACT_REQUIRED 토큰 존재 → 기술명 포함 공고 우선, 미포함 공고 후순위 병합
+    - **Path D (Exact-first)**: `EXACT_REQUIRED` 토큰만 존재하는 경우 → 기술명 포함 공고 우선, 미포함 공고를 벡터 검색으로 후순위 병합
+
   - **③ Per-group Rerank** — 조건 일치 수준별 그룹(STRICT → RELAXED) 순서를 유지하면서,
     그룹 내부에서만 한국어 특화 **Cross-Encoder** 모델로 쿼리–공고 관련성을 재평가
     *(전체 리스트 재정렬 시 필터 기반 그룹 순서가 붕괴되어 Recall@10이 하락하는 문제를 실험으로 검증 후 적용)*
+
   - 각 단계를 **독립적으로 On/Off** 가능하도록 설계하고,
     외부 AI 서버 장애 시 **키워드 검색으로 자동 Fallback**
-  - 평가 지표(MRR@10 / Recall@5 / Recall@10) 기반으로 파이프라인 개선 효과를 수치로 검증
-    - Keyword 단독 대비 최종 파이프라인: **Recall@10 0.29 → 0.40 (+38%)**
+
+  - 평가 지표(**MRR@10 / Recall@5 / Recall@10**) 기반으로 파이프라인 개선 효과를 수치로 검증
+    - **Keyword 단독 대비 최종 파이프라인: Recall@10 0.29 → 0.40 (+38%)**
 
 - ⚡ **Redis 캐싱**
   - 반복 조회 데이터를 캐싱해 응답 속도 및 부하 개선
