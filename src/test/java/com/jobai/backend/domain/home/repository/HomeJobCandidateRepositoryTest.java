@@ -1,5 +1,6 @@
 package com.jobai.backend.domain.home.repository;
 
+import com.jobai.backend.domain.publicInstitution.entity.PublicJobPosting;
 import com.jobai.backend.global.enums.JobCategory;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.TypedQuery;
@@ -22,6 +23,7 @@ class HomeJobCandidateRepositoryTest {
     private EntityManager entityManager;
     private TypedQuery<Long> countQuery;
     private TypedQuery<Object[]> scoredQuery;
+    private TypedQuery<PublicJobPosting> publicQuery;
     private HomeJobCandidateRepository repository;
 
     @SuppressWarnings("unchecked")
@@ -30,14 +32,18 @@ class HomeJobCandidateRepositoryTest {
         entityManager = Mockito.mock(EntityManager.class);
         countQuery = Mockito.mock(TypedQuery.class);
         scoredQuery = Mockito.mock(TypedQuery.class);
+        publicQuery = Mockito.mock(TypedQuery.class);
         repository = new HomeJobCandidateRepository(entityManager);
         when(entityManager.createQuery(anyString(), eq(Long.class))).thenReturn(countQuery);
         when(entityManager.createQuery(anyString(), eq(Object[].class))).thenReturn(scoredQuery);
+        when(entityManager.createQuery(anyString(), eq(PublicJobPosting.class))).thenReturn(publicQuery);
         when(countQuery.setParameter(anyString(), Mockito.any())).thenReturn(countQuery);
         when(countQuery.getSingleResult()).thenReturn(1L);
         when(scoredQuery.setParameter(anyString(), Mockito.any())).thenReturn(scoredQuery);
         when(scoredQuery.setMaxResults(Mockito.anyInt())).thenReturn(scoredQuery);
         when(scoredQuery.getResultList()).thenReturn(List.of());
+        when(publicQuery.setMaxResults(Mockito.anyInt())).thenReturn(publicQuery);
+        when(publicQuery.getResultList()).thenReturn(List.of());
     }
 
     @Test
@@ -52,6 +58,7 @@ class HomeJobCandidateRepositoryTest {
                 .contains("s.resume.id = :resumeId")
                 .doesNotContain("s.score >= :threshold")
                 .contains("p.jobCategory IN :validCategories")
+                .contains("(p.deadline IS NULL OR p.deadline >= CURRENT_DATE)")
                 .contains("LOWER(p.location) LIKE :loc0")
                 .contains("LOWER(p.employmentType) LIKE :empKw0");
         verify(countQuery).setParameter("validCategories", JobCategory.matchTargetLabels());
@@ -68,6 +75,7 @@ class HomeJobCandidateRepositoryTest {
         verify(entityManager).createQuery(jpql.capture(), eq(Long.class));
         assertThat(jpql.getValue())
                 .contains("(p.isClosed IS NULL OR p.isClosed = false)")
+                .contains("(p.endDate IS NULL OR p.endDate >= CURRENT_DATE)")
                 .contains("LOWER(p.workRegion) LIKE :loc0")
                 .contains("LOWER(p.jobRole) LIKE :prefJob0")
                 .contains("LOWER(p.workRegion) LIKE :prefLocation0");
@@ -81,6 +89,31 @@ class HomeJobCandidateRepositoryTest {
         ArgumentCaptor<String> jpql = ArgumentCaptor.forClass(String.class);
         verify(entityManager).createQuery(jpql.capture(), eq(Object[].class));
         assertThat(jpql.getValue()).contains("ORDER BY s.score DESC, p.createdAt DESC, p.id DESC");
+        assertThat(jpql.getValue()).contains("(p.deadline IS NULL OR p.deadline >= CURRENT_DATE)");
         verify(scoredQuery).setMaxResults(1_018);
+    }
+
+    @Test
+    @DisplayName("공기업 점수 추천은 마감일이 지난 공고를 제외한다")
+    void excludesExpiredPublicPostingsFromScoredCandidates() {
+        repository.findScoredPublicCandidates(10L, null, null, 18);
+
+        ArgumentCaptor<String> jpql = ArgumentCaptor.forClass(String.class);
+        verify(entityManager).createQuery(jpql.capture(), eq(Object[].class));
+        assertThat(jpql.getValue())
+                .contains("(p.isClosed IS NULL OR p.isClosed = false)")
+                .contains("(p.endDate IS NULL OR p.endDate >= CURRENT_DATE)");
+    }
+
+    @Test
+    @DisplayName("홈 최신 공고 목록은 마감일이 지난 공공기관 공고를 제외한다")
+    void excludesExpiredPublicPostingsFromLatestFeed() {
+        repository.findPublicCandidates(null, null, 18);
+
+        ArgumentCaptor<String> jpql = ArgumentCaptor.forClass(String.class);
+        verify(entityManager).createQuery(jpql.capture(), eq(PublicJobPosting.class));
+        assertThat(jpql.getValue())
+                .contains("(p.isClosed IS NULL OR p.isClosed = false)")
+                .contains("(p.endDate IS NULL OR p.endDate >= CURRENT_DATE)");
     }
 }
