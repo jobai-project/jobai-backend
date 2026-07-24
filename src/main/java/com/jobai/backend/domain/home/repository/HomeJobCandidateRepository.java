@@ -23,6 +23,11 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class HomeJobCandidateRepository {
 
+    private static final String ACTIVE_PUBLIC_POSTING_PREDICATE = "(p.isClosed IS NULL OR p.isClosed = false)"
+            + " AND (p.endDate IS NULL OR p.endDate >= CURRENT_DATE)";
+    private static final String ACTIVE_PRIVATE_POSTING_PREDICATE = "p.isClosed = false"
+            + " AND (p.deadline IS NULL OR p.deadline >= CURRENT_DATE)";
+
     private final EntityManager em;
 
     private record PredicateResult(List<String> predicates, Map<String, String> params) {
@@ -44,7 +49,7 @@ public class HomeJobCandidateRepository {
         );
         String jpql = buildQuery(
                 "SELECT p FROM PublicJobPosting p",
-                "(p.isClosed IS NULL OR p.isClosed = false)",
+                ACTIVE_PUBLIC_POSTING_PREDICATE,
                 pr,
                 "p.createdAt DESC, p.id DESC"
         );
@@ -66,7 +71,7 @@ public class HomeJobCandidateRepository {
         );
         String jpql = buildQuery(
                 "SELECT COUNT(p) FROM PublicJobPosting p",
-                "(p.isClosed IS NULL OR p.isClosed = false)",
+                ACTIVE_PUBLIC_POSTING_PREDICATE,
                 pr,
                 null
         );
@@ -88,7 +93,7 @@ public class HomeJobCandidateRepository {
         );
         String jpql = buildQuery(
                 "SELECT p FROM PrivateJobPosting p",
-                "p.isClosed = false AND p.jobCategory IN :validCategories",
+                ACTIVE_PRIVATE_POSTING_PREDICATE + " AND p.jobCategory IN :validCategories",
                 pr,
                 "p.createdAt DESC, p.id DESC"
         );
@@ -111,7 +116,7 @@ public class HomeJobCandidateRepository {
         );
         String jpql = buildQuery(
                 "SELECT COUNT(p) FROM PrivateJobPosting p",
-                "p.isClosed = false AND p.jobCategory IN :validCategories",
+                ACTIVE_PRIVATE_POSTING_PREDICATE + " AND p.jobCategory IN :validCategories",
                 pr,
                 null
         );
@@ -130,7 +135,7 @@ public class HomeJobCandidateRepository {
         PredicateResult pr = buildPublicPredicates(locations, employmentTypes);
         String jpql = buildQuery(
                 "SELECT p, s.score FROM PublicMatchScore s JOIN s.publicJobPosting p",
-                "s.resume.id = :resumeId AND (p.isClosed IS NULL OR p.isClosed = false)",
+                "s.resume.id = :resumeId AND " + ACTIVE_PUBLIC_POSTING_PREDICATE,
                 pr,
                 "s.score DESC, p.createdAt DESC, p.id DESC"
         );
@@ -151,7 +156,7 @@ public class HomeJobCandidateRepository {
         PredicateResult pr = buildPublicPredicates(locations, employmentTypes);
         String jpql = buildQuery(
                 "SELECT COUNT(s) FROM PublicMatchScore s JOIN s.publicJobPosting p",
-                "s.resume.id = :resumeId AND (p.isClosed IS NULL OR p.isClosed = false)",
+                "s.resume.id = :resumeId AND " + ACTIVE_PUBLIC_POSTING_PREDICATE,
                 pr,
                 null
         );
@@ -170,7 +175,8 @@ public class HomeJobCandidateRepository {
         PredicateResult pr = buildPrivatePredicates(locations, employmentTypes);
         String jpql = buildQuery(
                 "SELECT p, s.score FROM PrivateMatchScore s JOIN s.privateJobPosting p",
-                "s.resume.id = :resumeId AND p.isClosed = false AND p.jobCategory IN :validCategories",
+                "s.resume.id = :resumeId AND " + ACTIVE_PRIVATE_POSTING_PREDICATE
+                        + " AND p.jobCategory IN :validCategories",
                 pr,
                 "s.score DESC, p.createdAt DESC, p.id DESC"
         );
@@ -192,7 +198,8 @@ public class HomeJobCandidateRepository {
         PredicateResult pr = buildPrivatePredicates(locations, employmentTypes);
         String jpql = buildQuery(
                 "SELECT COUNT(s) FROM PrivateMatchScore s JOIN s.privateJobPosting p",
-                "s.resume.id = :resumeId AND p.isClosed = false AND p.jobCategory IN :validCategories",
+                "s.resume.id = :resumeId AND " + ACTIVE_PRIVATE_POSTING_PREDICATE
+                        + " AND p.jobCategory IN :validCategories",
                 pr,
                 null
         );
@@ -257,7 +264,7 @@ public class HomeJobCandidateRepository {
         PredicateResult pr = buildPublicPredicates(locations, employmentTypes);
 
         StringBuilder jpql = new StringBuilder(
-                "SELECT p FROM PublicJobPosting p WHERE (p.isClosed IS NULL OR p.isClosed = false)");
+                "SELECT p FROM PublicJobPosting p WHERE " + ACTIVE_PUBLIC_POSTING_PREDICATE);
         for (String pred : pr.predicates()) {
             jpql.append(" AND ").append(pred);
         }
@@ -358,7 +365,7 @@ public class HomeJobCandidateRepository {
         PredicateResult pr = buildPrivatePredicates(locations, employmentTypes);
 
         StringBuilder jpql = new StringBuilder(
-                "SELECT p FROM PrivateJobPosting p WHERE p.isClosed = false"
+                "SELECT p FROM PrivateJobPosting p WHERE " + ACTIVE_PRIVATE_POSTING_PREDICATE
                 + " AND p.jobCategory IN :validCategories");
         for (String pred : pr.predicates()) {
             jpql.append(" AND ").append(pred);
