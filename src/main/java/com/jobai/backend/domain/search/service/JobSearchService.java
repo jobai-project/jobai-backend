@@ -182,11 +182,8 @@ public class JobSearchService {
     private JobSearchResponse executeKeywordSearch(SearchCondition condition) {
         List<JobSummary> privateResults = "PUBLIC".equals(condition.sourceType()) ? List.of()
                 : jobSearchRepository.searchPrivate(condition, 0, HYBRID_CANDIDATE_DEPTH);
-        // company 필터가 있고 공공기관 검색이 아니면 공기업 공고 제외
-        // (공공기관 검색 시 sourceType=PUBLIC이 자동 설정되므로 정상 통과)
-        boolean skipPublic = "PRIVATE".equals(condition.sourceType())
-                || (condition.company() != null && !condition.company().isBlank()
-                    && !"PUBLIC".equals(condition.sourceType()));
+        // 공공기관 이름 매칭 또는 sourceType=PUBLIC 명시 시에만 공기업 공고 조회
+        boolean skipPublic = !"PUBLIC".equals(condition.sourceType());
         List<JobSummary> publicResults = skipPublic ? List.of()
                 : jobSearchRepository.searchPublic(condition, 0, HYBRID_CANDIDATE_DEPTH);
 

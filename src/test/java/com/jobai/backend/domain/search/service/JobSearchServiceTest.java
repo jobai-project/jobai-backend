@@ -184,8 +184,8 @@ class JobSearchServiceTest {
     }
 
     @Test
-    @DisplayName("사기업/공기업 유사도순(distance 오름차순) 합산 정렬")
-    void 소스무관_유사도순정렬() {
+    @DisplayName("사기업 벡터 유사도순(distance 오름차순) 정렬 (기본 검색에서 공공기관 제외)")
+    void 사기업_유사도순정렬() {
         when(keywordMatcher.extract(anyString()))
                 .thenReturn(new MatchResult(List.of(), null, null, null, List.of(), List.of(), null, List.of("혼자")));
 
@@ -196,17 +196,13 @@ class JobSearchServiceTest {
         when(vectorSearchRepository.searchPrivateByVector(any(), anyDouble(), any(), anyInt(), anyInt()))
                 .thenReturn(List.of(new ScoredJob(prv1, 0.20), new ScoredJob(prv2, 0.35)));
 
-        JobSummary pub1 = createJobSummary(101L, "PUBLIC", "공기업A", LocalDateTime.of(2025, 6, 4, 10, 0));
-        when(vectorSearchRepository.searchPublicByVector(any(), anyDouble(), any(), anyInt(), anyInt()))
-                .thenReturn(List.of(new ScoredJob(pub1, 0.10)));
-
         when(vectorSearchRepository.countPrivateByVector(any(), anyDouble(), any())).thenReturn(2L);
-        when(vectorSearchRepository.countPublicByVector(any(), anyDouble(), any())).thenReturn(1L);
 
         JobSearchResponse response = jobSearchService.search("혼자 일하기 편한", 0, 3, null);
 
         assertThat(response.jobs().stream().map(JobSummary::title).toList())
-                .containsExactly("공기업A", "사기업A", "사기업B");
+                .containsExactly("사기업A", "사기업B");
+        verifyNoInteractions(jobSearchRepository);
     }
 
     @Test
