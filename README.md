@@ -4,6 +4,7 @@
 
 <img width="1920" height="1080" alt="표지" src="https://github.com/user-attachments/assets/fa4c9941-82ce-4194-bf24-f2a444191e19" />
 
+>TAVE 17기 프로젝트 <최우수상🏆> 수상
 ---
 
 ## 📌 Project Overview
