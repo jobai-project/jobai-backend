@@ -252,7 +252,7 @@ JobA!는 사용자가 채용공고를 직접 찾는 대신,
 ## Devloper
 | 김민주 | 이원준 | 이정헌 | 
 |:------:|:------:|:------:|
-| <img src="https://github.com/user-attachments/assets/c367f7cd-0700-428a-9571-a8ccf10a2572" alt="김민주" width="190" height="190"> | <img src="https://github.com/user-attachments/assets/6495bd60-1034-4b58-a5a6-ffe410464efd" alt="이원준" width="190" height="190"> | <img src="https://github.com/user-attachments/assets/6de709d7-39f3-43df-b7bb-e636c42463c0" alt="이정헌" width="190" height="190"> |
+| <img src="https://github.com/user-attachments/assets/c367f7cd-0700-428a-9571-a8ccf10a2572" alt="김민주" width="190" height="200"> | <img src="https://github.com/user-attachments/assets/6495bd60-1034-4b58-a5a6-ffe410464efd" alt="이원준" width="190" height="200"> | <img src="https://github.com/user-attachments/assets/6de709d7-39f3-43df-b7bb-e636c42463c0" alt="이정헌" width="190" height="200"> |
 | BE | BE | BE | 
 | [GitHub](https://github.com/kimmingju) | [GitHub](https://github.com/wonjun-lee-fcwj245) |  [GitHub](https://github.com/LeeJeongHeon02) | 
 
