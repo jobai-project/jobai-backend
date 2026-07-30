@@ -1,4 +1,3 @@
-<img width="3072" height="3139" alt="KakaoTalk_20260729_011840344" src="https://github.com/user-attachments/assets/2149d720-adda-4ed4-a6ef-cd1534282e39" />
 # ✨ JobA!
 ### 나에게 맞는 채용공고, 이제 직접 찾지 마세요
 ### IT 채용공고 자동 수집 · AI 매칭 · 실시간 알림 서비스
