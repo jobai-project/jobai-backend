@@ -1,3 +1,4 @@
+<img width="3072" height="3139" alt="KakaoTalk_20260729_011840344" src="https://github.com/user-attachments/assets/2149d720-adda-4ed4-a6ef-cd1534282e39" />
 # ✨ JobA!
 ### 나에게 맞는 채용공고, 이제 직접 찾지 마세요
 ### IT 채용공고 자동 수집 · AI 매칭 · 실시간 알림 서비스
@@ -244,6 +245,7 @@ JobA!는 사용자가 채용공고를 직접 찾는 대신,
 
 
 
+
 ---
 
 ## 👨‍👩‍👧‍👦 Developer
@@ -251,7 +253,7 @@ JobA!는 사용자가 채용공고를 직접 찾는 대신,
 ## Devloper
 | 김민주 | 이원준 | 이정헌 | 
 |:------:|:------:|:------:|
-| <img src="https://github.com/user-attachments/assets/c367f7cd-0700-428a-9571-a8ccf10a2572" alt="김민주" width="150" height="170"> | <img src="https://github.com/user-attachments/assets/bdb74de7-ed7d-427b-aae1-b30c290d35a8" alt="이원준" width="150" height="170"> | <img src="https://github.com/user-attachments/assets/6de709d7-39f3-43df-b7bb-e636c42463c0" alt="이정헌" width="150" height="170"> |
+| <img src="https://github.com/user-attachments/assets/c367f7cd-0700-428a-9571-a8ccf10a2572" alt="김민주" width="150" height="170"> | <img src="https://github.com/user-attachments/assets/6495bd60-1034-4b58-a5a6-ffe410464efd" alt="이원준" width="150" height="170"> | <img src="https://github.com/user-attachments/assets/6de709d7-39f3-43df-b7bb-e636c42463c0" alt="이정헌" width="170" height="180"> |
 | BE | BE | BE | 
 | [GitHub](https://github.com/kimmingju) | [GitHub](https://github.com/wonjun-lee-fcwj245) |  [GitHub](https://github.com/LeeJeongHeon02) | 
 
