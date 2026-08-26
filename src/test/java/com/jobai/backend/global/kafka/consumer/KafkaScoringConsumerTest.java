@@ -17,6 +17,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
+import org.springframework.data.redis.core.SetOperations;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.ValueOperations;
 import reactor.core.publisher.Mono;
@@ -37,9 +38,12 @@ class KafkaScoringConsumerTest {
     private ObjectMapper objectMapper;
     private StringRedisTemplate stringRedisTemplate;
     private BatchNotificationHelper batchNotificationHelper;
+    private ValueOperations<String, String> valueOps;
+    private SetOperations<String, String> setOps;
 
     private KafkaScoringConsumer consumer;
 
+    @SuppressWarnings("unchecked")
     @BeforeEach
     void setUp() {
         aiScoringClient = Mockito.mock(AiScoringClient.class);
@@ -50,6 +54,15 @@ class KafkaScoringConsumerTest {
         objectMapper = new ObjectMapper();
         stringRedisTemplate = Mockito.mock(StringRedisTemplate.class);
         batchNotificationHelper = Mockito.mock(BatchNotificationHelper.class);
+
+        // Redis mock: opsForValue, opsForSet 공통 설정
+        valueOps = Mockito.mock(ValueOperations.class);
+        setOps = Mockito.mock(SetOperations.class);
+        when(stringRedisTemplate.opsForValue()).thenReturn(valueOps);
+        when(stringRedisTemplate.opsForSet()).thenReturn(setOps);
+        // SADD 기본: 신규 이벤트로 처리 (added=1)
+        when(setOps.add(anyString(), any(String[].class))).thenReturn(1L);
+        when(valueOps.increment(anyString())).thenReturn(1L);
 
         consumer = new KafkaScoringConsumer(
                 aiScoringClient,
@@ -70,11 +83,6 @@ class KafkaScoringConsumerTest {
         when(privateMatchScoreRepository.existsByResumeIdAndPrivateJobPostingId(1L, 100L))
                 .thenReturn(true);
 
-        @SuppressWarnings("unchecked")
-        ValueOperations<String, String> valueOps = Mockito.mock(ValueOperations.class);
-        when(stringRedisTemplate.opsForValue()).thenReturn(valueOps);
-        when(valueOps.increment(anyString())).thenReturn(1L);
-
         consumer.consume(event);
 
         verify(aiScoringClient, never()).scorePrivate(any());
@@ -82,7 +90,7 @@ class KafkaScoringConsumerTest {
     }
 
     @Test
-    @DisplayName("정상 처리 시 AI 호출 → DB 저장 → Redis 카운터 증가")
+    @DisplayName("정상 처리 시 AI 호출 → DB 저장 → SADD + 카운터 증가")
     void consume_정상처리_AI호출_DB저장_Redis증가() {
         ScoringRequestEvent event = createEvent(70);
         when(privateMatchScoreRepository.existsByResumeIdAndPrivateJobPostingId(1L, 100L))
@@ -99,19 +107,32 @@ class KafkaScoringConsumerTest {
         when(memberRepository.getReferenceById(1L))
                 .thenReturn(Mockito.mock(Member.class));
 
-        @SuppressWarnings("unchecked")
-        ValueOperations<String, String> valueOps = Mockito.mock(ValueOperations.class);
-        when(stringRedisTemplate.opsForValue()).thenReturn(valueOps);
-        when(valueOps.increment(anyString())).thenReturn(1L);
-
         consumer.consume(event);
 
         // AI 호출 검증
         verify(aiScoringClient).scorePrivate(any());
         // DB 저장 검증
         verify(privateMatchScoreRepository).save(any(PrivateMatchScore.class));
+        // SADD로 이벤트 기록 검증
+        verify(setOps).add(contains(":processed"), eq("1:100"));
         // Redis 카운터 증가 검증
         verify(valueOps).increment(contains(":completed"));
+    }
+
+    @Test
+    @DisplayName("재시도 시 SADD가 0을 반환하면 카운터가 중복 증가하지 않는다")
+    void consume_재시도시_카운터중복방지() {
+        ScoringRequestEvent event = createEvent(70);
+        when(privateMatchScoreRepository.existsByResumeIdAndPrivateJobPostingId(1L, 100L))
+                .thenReturn(true); // 이미 DB에 저장됨 (1차 시도에서 성공)
+
+        // SADD 반환 0: 이미 처리된 이벤트
+        when(setOps.add(anyString(), any(String[].class))).thenReturn(0L);
+
+        consumer.consume(event);
+
+        // 카운터 증가 없어야 함
+        verify(valueOps, never()).increment(contains(":completed"));
     }
 
     @Test
@@ -132,11 +153,7 @@ class KafkaScoringConsumerTest {
         when(memberRepository.getReferenceById(1L))
                 .thenReturn(Mockito.mock(Member.class));
 
-        @SuppressWarnings("unchecked")
-        ValueOperations<String, String> valueOps = Mockito.mock(ValueOperations.class);
-        when(stringRedisTemplate.opsForValue()).thenReturn(valueOps);
         // completed(1) >= total(1) → 완료 판정
-        when(valueOps.increment(anyString())).thenReturn(1L);
         when(valueOps.get(contains(":total"))).thenReturn("1");
         when(valueOps.get(contains(":startMs"))).thenReturn(String.valueOf(System.currentTimeMillis()));
         when(valueOps.get(contains(":failed"))).thenReturn(null);
@@ -150,8 +167,8 @@ class KafkaScoringConsumerTest {
     }
 
     @Test
-    @DisplayName("개별 알림은 발행하지 않는다 (배치 알림으로 통일)")
-    void consume_개별알림미발행() {
+    @DisplayName("완료 판정 전에는 배치 알림을 발송하지 않는다")
+    void consume_완료판정전_배치알림미발송() {
         ScoringRequestEvent event = createEvent(60);
         when(privateMatchScoreRepository.existsByResumeIdAndPrivateJobPostingId(1L, 100L))
                 .thenReturn(false);
@@ -167,16 +184,16 @@ class KafkaScoringConsumerTest {
         when(memberRepository.getReferenceById(1L))
                 .thenReturn(Mockito.mock(Member.class));
 
-        @SuppressWarnings("unchecked")
-        ValueOperations<String, String> valueOps = Mockito.mock(ValueOperations.class);
-        when(stringRedisTemplate.opsForValue()).thenReturn(valueOps);
-        when(valueOps.increment(anyString())).thenReturn(1L);
+        // total 미설정 → 완료 판정 불가
+        when(valueOps.get(contains(":total"))).thenReturn(null);
 
         consumer.consume(event);
 
-        // 점수가 임계값 이상이더라도 개별 알림은 발행하지 않음
-        // (배치 알림으로 통일하므로 KafkaNotificationProducer 의존성 자체가 없음)
+        // DB 저장은 정상 수행
         verify(privateMatchScoreRepository).save(any(PrivateMatchScore.class));
+        // 완료 판정 전이므로 배치 알림 미발송
+        verify(batchNotificationHelper, never()).sendNotificationsForExistingScores();
+        verify(batchNotificationHelper, never()).sendNotificationsForExistingScores(any());
     }
 
     @Test
@@ -186,12 +203,6 @@ class KafkaScoringConsumerTest {
         when(privateMatchScoreRepository.existsByResumeIdAndPrivateJobPostingId(1L, 100L))
                 .thenReturn(false);
         when(aiScoringClient.scorePrivate(any())).thenReturn(Mono.empty());
-
-        // finally에서 trackCompletion이 호출되므로 Redis mock 필요
-        @SuppressWarnings("unchecked")
-        ValueOperations<String, String> valueOps = Mockito.mock(ValueOperations.class);
-        when(stringRedisTemplate.opsForValue()).thenReturn(valueOps);
-        when(valueOps.increment(anyString())).thenReturn(1L);
 
         assertThatThrownBy(() -> consumer.consume(event))
                 .isInstanceOf(IllegalStateException.class)

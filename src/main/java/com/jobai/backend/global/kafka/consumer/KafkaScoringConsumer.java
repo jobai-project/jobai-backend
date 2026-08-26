@@ -115,7 +115,8 @@ public class KafkaScoringConsumer {
 
     /**
      * Redis 카운터로 완료 건수 추적.
-     * 성공/실패 모두 completed를 증가시키고, 실패 시 failed도 별도 증가.
+     * SADD로 이벤트 식별자를 기록하여, 재시도/리밸런스로 같은 레코드가 재처리되어도
+     * 카운터가 중복 증가하지 않도록 멱등성을 보장한다.
      * completed >= total이면 배치 완료로 판정한다. result는 setIfAbsent로 1회만 기록.
      * 최초 완료 판정 스레드가 배치 알림을 발송한다 (동기 경로와 동일한 알림 계약).
      */
@@ -123,6 +124,13 @@ public class KafkaScoringConsumer {
         if (event.pipelineRunId() == null) return;
 
         String prefix = "jobai:scoring:" + event.pipelineRunId();
+        String eventId = event.resumeId() + ":" + event.postingId();
+
+        // SADD: 이미 처리된 이벤트면 0 반환 → 카운터 증가 스킵 (멱등성)
+        Long added = stringRedisTemplate.opsForSet().add(prefix + ":processed", eventId);
+        stringRedisTemplate.expire(prefix + ":processed", Duration.ofHours(24));
+        if (added == null || added == 0) return;
+
         String completedKey = prefix + ":completed";
         Long completed = stringRedisTemplate.opsForValue().increment(completedKey);
         stringRedisTemplate.expire(completedKey, Duration.ofHours(24));

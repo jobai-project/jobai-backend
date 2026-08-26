@@ -1,6 +1,5 @@
 package com.jobai.backend.global.kafka.consumer;
 
-import com.jobai.backend.domain.matching.service.BatchNotificationHelper;
 import com.jobai.backend.domain.matching.service.PublicMatchBatchService;
 import com.jobai.backend.domain.matching.service.ScoringDispatcher;
 import com.jobai.backend.domain.privatejobposting.service.PrivateJobPostingService;
@@ -28,7 +27,6 @@ public class KafkaPipelineOrchestrator {
     private final EmbeddingBatchService embeddingBatchService;
     private final ScoringDispatcher scoringDispatcher;
     private final PublicMatchBatchService publicMatchBatchService;
-    private final BatchNotificationHelper batchNotificationHelper;
     private final KafkaPipelineProducer pipelineProducer;
 
     /**
@@ -136,24 +134,28 @@ public class KafkaPipelineOrchestrator {
         log.info("[파이프라인] 임베딩 완료 수신 → 스코어링 시작: pipelineRunId={}", event.pipelineRunId());
 
         // 사기업: Kafka 병렬 처리 — 상위 pipelineRunId 전달
+        Exception dispatchException = null;
         try {
             ScoringDispatcher.DispatchResult result =
                     scoringDispatcher.dispatchPrivateScoring(event.pipelineRunId());
             log.info("[파이프라인] 사기업 스코어링 이벤트 발행 완료: {}건", result.dispatched());
         } catch (Exception e) {
             log.error("[파이프라인] 사기업 스코어링 발행 실패: {}", e.getMessage(), e);
+            dispatchException = e;
         }
 
-        // 공기업: Kafka 디스패처 미구현이므로 동기 처리
+        // 공기업: Kafka 디스패처 미구현이므로 동기 처리 (알림은 Kafka 스코어링 완료 시 배치 발송)
         try {
             log.info("[파이프라인] 공기업 매칭 점수 산출 시작 (동기)");
-            BatchNotificationHelper.BatchScoringResult publicResult =
-                    publicMatchBatchService.scoreNewAndUpdatedPostings();
-            publicResult.notifications().forEach((email, data) ->
-                    batchNotificationHelper.sendIfNeeded(data.member(), data.postings(), "새 추천 공고"));
+            publicMatchBatchService.scoreNewAndUpdatedPostings();
             log.info("[파이프라인] 공기업 매칭 점수 산출 완료");
         } catch (Exception e) {
             log.error("[파이프라인] 공기업 매칭 점수 산출 실패: {}", e.getMessage(), e);
+        }
+
+        // 사기업 디스패치 실패 시 예외를 전파하여 DefaultErrorHandler가 재시도하도록 한다
+        if (dispatchException != null) {
+            throw new RuntimeException("[파이프라인] 사기업 스코어링 발행 실패", dispatchException);
         }
     }
 

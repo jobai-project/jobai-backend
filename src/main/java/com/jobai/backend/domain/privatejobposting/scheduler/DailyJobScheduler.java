@@ -188,13 +188,10 @@ public class DailyJobScheduler {
                 log.error("[DailyPipeline] Step 7/7 — Kafka 사기업 스코어링 발행 실패: {}", e.getMessage(), e);
             }
 
-            // 공기업은 Kafka 디스패처 미구현이므로 동기 처리
+            // 공기업은 Kafka 디스패처 미구현이므로 동기 처리 (알림은 Kafka 스코어링 완료 시 배치 발송)
             try {
                 log.info("[DailyPipeline] Step 7/7 — 공기업 매칭 점수 산출 시작 (동기)");
-                BatchNotificationHelper.BatchScoringResult publicResult =
-                        publicMatchBatchService.scoreNewAndUpdatedPostings();
-                publicResult.notifications().forEach((email, data) ->
-                        batchNotificationHelper.sendIfNeeded(data.member(), data.postings(), "새 추천 공고"));
+                publicMatchBatchService.scoreNewAndUpdatedPostings();
                 log.info("[DailyPipeline] Step 7/7 — 공기업 매칭 점수 산출 완료");
             } catch (Exception e) {
                 log.error("[DailyPipeline] Step 7/7 — 공기업 매칭 점수 산출 실패: {}", e.getMessage(), e);

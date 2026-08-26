@@ -3,6 +3,7 @@ package com.jobai.backend.global.kafka.consumer;
 import com.jobai.backend.domain.notification.dto.RealtimeNotificationPayload;
 import com.jobai.backend.domain.notification.service.NotificationDispatchService;
 import com.jobai.backend.global.kafka.event.NotificationDispatchEvent;
+import com.jobai.backend.global.util.LogMaskingUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Profile;
@@ -29,7 +30,7 @@ public class KafkaNotificationConsumer {
             }
     )
     public void consume(NotificationDispatchEvent event) {
-        log.info("[Kafka] 알림 이벤트 수신: userId={}, type={}", maskEmail(event.userId()), event.type());
+        log.info("[Kafka] 알림 이벤트 수신: userId={}, type={}", LogMaskingUtil.maskEmail(event.userId()), event.type());
 
         try {
             notificationDispatchService.notifyUser(
@@ -42,16 +43,12 @@ public class KafkaNotificationConsumer {
                             event.createdAt()
                     )
             );
-            log.info("[Kafka] 알림 처리 완료: userId={}", maskEmail(event.userId()));
+            log.info("[Kafka] 알림 처리 완료: userId={}", LogMaskingUtil.maskEmail(event.userId()));
         } catch (Exception e) {
             // 예외를 전파하면 DefaultErrorHandler가 재처리하여 이메일이 중복 발송될 수 있으므로 로그만 남긴다
             log.error("[Kafka] 알림 처리 실패 (재시도 안 함): userId={}, error={}",
-                    maskEmail(event.userId()), e.getMessage(), e);
+                    LogMaskingUtil.maskEmail(event.userId()), e.getMessage(), e);
         }
     }
 
-    private static String maskEmail(String email) {
-        if (email == null || !email.contains("@")) return "***";
-        return email.charAt(0) + "***" + email.substring(email.indexOf('@'));
-    }
 }

@@ -14,6 +14,7 @@ import com.jobai.backend.domain.notification.service.NotificationDispatchService
 import com.jobai.backend.domain.notification.service.NotificationMatchBatchService;
 import com.jobai.backend.global.kafka.event.NotificationDispatchEvent;
 import com.jobai.backend.global.kafka.producer.KafkaNotificationProducer;
+import com.jobai.backend.global.util.LogMaskingUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.ObjectProvider;
@@ -123,13 +124,13 @@ public class BatchNotificationHelper {
                         payload.linkUrl(),
                         payload.createdAt()
                 ));
-                log.info("[배치알림] {} — {}건 Kafka 발행", maskEmail(member.getEmail()), aboveThreshold.size());
+                log.info("[배치알림] {} — {}건 Kafka 발행", LogMaskingUtil.maskEmail(member.getEmail()), aboveThreshold.size());
             } else {
                 notificationDispatchService.notifyUser(member.getEmail(), payload);
-                log.info("[배치알림] {} — {}건 직접 발송", maskEmail(member.getEmail()), aboveThreshold.size());
+                log.info("[배치알림] {} — {}건 직접 발송", LogMaskingUtil.maskEmail(member.getEmail()), aboveThreshold.size());
             }
         } catch (Exception e) {
-            log.warn("[배치알림] 알림 발송 실패: email={}, error={}", maskEmail(member.getEmail()), e.getMessage());
+            log.warn("[배치알림] 알림 발송 실패: email={}, error={}", LogMaskingUtil.maskEmail(member.getEmail()), e.getMessage());
         }
     }
 
@@ -146,11 +147,6 @@ public class BatchNotificationHelper {
                 posting.score(),
                 posting.linkPrefix() + posting.postingId()
         );
-    }
-
-    private static String maskEmail(String email) {
-        if (email == null || !email.contains("@")) return "***";
-        return email.charAt(0) + "***" + email.substring(email.indexOf('@'));
     }
 
     /** 기존 점수 기반으로 모든 활성 이력서에 대해 알림을 발송한다. */
