@@ -146,10 +146,22 @@ resource "aws_instance" "jobai" {
   user_data = <<-EOF
     #!/bin/bash
     apt-get update -y
-    apt-get install -y docker.io awscli snapd
+    apt-get install -y docker.io awscli snapd nginx
+    # t3.micro(1GB)에서 Spring Boot JVM 기동 중 OOM으로 죽지 않도록 스왑 확보
+    if [ ! -f /swapfile ]; then
+      fallocate -l 2G /swapfile
+      chmod 600 /swapfile
+      mkswap /swapfile
+      swapon /swapfile
+      echo '/swapfile none swap sw 0 0' >> /etc/fstab
+    elif ! swapon --show=NAME --noheadings | grep -qx /swapfile; then
+      swapon /swapfile
+    fi
     systemctl start docker
     systemctl enable docker
     usermod -aG docker ubuntu
+    systemctl enable nginx
+    systemctl start nginx
     snap install amazon-ssm-agent --classic || true
     systemctl enable snap.amazon-ssm-agent.amazon-ssm-agent.service || true
     systemctl start snap.amazon-ssm-agent.amazon-ssm-agent.service || true
