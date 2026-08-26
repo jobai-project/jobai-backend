@@ -209,6 +209,26 @@ public interface DailyJobSchedulerControllerDocs {
     ResponseEntity<String> triggerNotifyTest(@io.swagger.v3.oas.annotations.Parameter(hidden = true) String email);
 
     @Operation(
+            summary = "[Kafka] 사기업 매칭 점수 산출 (병렬)",
+            description = """
+                    Kafka를 통해 스코어링 요청을 6개 파티션으로 분산하여 병렬 처리합니다.
+                    기존 동기 방식(POST /scoring)과 성능 비교용으로 사용합니다.
+                    kafka 프로필이 활성화되어 있어야 합니다.
+                    """
+    )
+    @ApiResponses(value = {
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "202",
+                    description = "Kafka 스코어링 발행 완료",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = @ExampleObject(value = "\"[Kafka] 스코어링 이벤트 150건 발행 완료 (발행 소요: 320ms)\"")
+                    )
+            )
+    })
+    ResponseEntity<String> scorePostingsKafka();
+
+    @Operation(
             summary = "비동기 작업 상태 조회",
             description = """
                     백그라운드로 실행 중인 작업들의 현재 상태와 결과를 조회합니다.
@@ -229,4 +249,24 @@ public interface DailyJobSchedulerControllerDocs {
             )
     })
     ResponseEntity<Map<String, Map<String, String>>> getTaskStatus();
+
+    @Operation(
+            summary = "스코어링 점수 초기화",
+            description = """
+                    벤치마크 비교를 위해 기존 매칭 점수를 모두 삭제합니다.
+                    동기 스코어링(POST /scoring) 실행 후, Kafka 스코어링과 비교하려면
+                    이 API로 점수를 초기화한 뒤 POST /scoring-kafka를 실행하세요.
+                    """
+    )
+    @ApiResponses(value = {
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "200",
+                    description = "초기화 완료",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = @ExampleObject(value = "\"매칭 점수 150건 초기화 완료\"")
+                    )
+            )
+    })
+    ResponseEntity<String> resetScores();
 }

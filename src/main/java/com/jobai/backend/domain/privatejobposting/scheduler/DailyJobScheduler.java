@@ -5,18 +5,20 @@ import com.jobai.backend.domain.privatejobposting.service.PrivateJobPostingServi
 import com.jobai.backend.domain.matching.service.BatchNotificationHelper;
 import com.jobai.backend.domain.matching.service.PrivateMatchBatchService;
 import com.jobai.backend.domain.matching.service.PublicMatchBatchService;
+import com.jobai.backend.domain.matching.service.ScoringDispatcher;
 import com.jobai.backend.domain.publicInstitution.service.JobDataSyncService;
 import com.jobai.backend.domain.search.service.EmbeddingBatchService;
-import lombok.RequiredArgsConstructor;
+import com.jobai.backend.global.kafka.event.PipelineStageCompleteEvent;
+import com.jobai.backend.global.kafka.producer.KafkaPipelineProducer;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
-import java.util.ArrayList;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
+import java.time.Instant;
+import java.util.*;
 
 /**
  * 새벽 2시(KST) 전체 파이프라인을 순차 실행하는 스케줄러.
@@ -35,7 +37,6 @@ import java.util.Map;
  */
 @Slf4j
 @Component
-@RequiredArgsConstructor
 @ConditionalOnProperty(name = "scheduler.daily.enabled", havingValue = "true", matchIfMissing = true)
 public class DailyJobScheduler {
 
@@ -46,6 +47,36 @@ public class DailyJobScheduler {
     private final PrivateMatchBatchService privateMatchBatchService;
     private final PublicMatchBatchService publicMatchBatchService;
     private final BatchNotificationHelper batchNotificationHelper;
+    private final ObjectProvider<ScoringDispatcher> scoringDispatcher;
+    private final ObjectProvider<KafkaPipelineProducer> kafkaPipelineProducer;
+    private final boolean kafkaScoringEnabled;
+    private final boolean kafkaPipelineEnabled;
+
+    public DailyJobScheduler(
+            PrivateJobBatchCollectService privateJobBatchCollectService,
+            PrivateJobPostingService privateJobPostingService,
+            JobDataSyncService jobDataSyncService,
+            EmbeddingBatchService embeddingBatchService,
+            PrivateMatchBatchService privateMatchBatchService,
+            PublicMatchBatchService publicMatchBatchService,
+            BatchNotificationHelper batchNotificationHelper,
+            ObjectProvider<ScoringDispatcher> scoringDispatcher,
+            ObjectProvider<KafkaPipelineProducer> kafkaPipelineProducer,
+            @Value("${kafka.scoring.enabled:false}") boolean kafkaScoringEnabled,
+            @Value("${kafka.pipeline.enabled:false}") boolean kafkaPipelineEnabled
+    ) {
+        this.privateJobBatchCollectService = privateJobBatchCollectService;
+        this.privateJobPostingService = privateJobPostingService;
+        this.jobDataSyncService = jobDataSyncService;
+        this.embeddingBatchService = embeddingBatchService;
+        this.privateMatchBatchService = privateMatchBatchService;
+        this.publicMatchBatchService = publicMatchBatchService;
+        this.batchNotificationHelper = batchNotificationHelper;
+        this.scoringDispatcher = scoringDispatcher;
+        this.kafkaPipelineProducer = kafkaPipelineProducer;
+        this.kafkaScoringEnabled = kafkaScoringEnabled;
+        this.kafkaPipelineEnabled = kafkaPipelineEnabled;
+    }
 
     /**
      * 7단계 파이프라인을 순차 실행한다.
@@ -81,6 +112,28 @@ public class DailyJobScheduler {
         } catch (Exception e) {
             log.error("[DailyPipeline] Step 2/7 — 공기업 공고 수집 실패: {}", e.getMessage(), e);
         }
+
+        // Kafka 파이프라인 모드: 수집 완료 후 나머지를 Orchestrator에게 위임
+        KafkaPipelineProducer pipelineProducer = kafkaPipelineProducer.getIfAvailable();
+        if (kafkaPipelineEnabled && pipelineProducer != null) {
+            String pipelineRunId = UUID.randomUUID().toString();
+            log.info("[DailyPipeline] Kafka 파이프라인 모드 — 수집 완료 이벤트 발행, pipelineRunId={}",
+                    pipelineRunId);
+            pipelineProducer.sendStageComplete(new PipelineStageCompleteEvent(
+                    pipelineRunId,
+                    PipelineStageCompleteEvent.COLLECTION,
+                    privateCollected + publicCollected,
+                    String.format("사기업 %d건, 공기업 %d건", privateCollected, publicCollected),
+                    Instant.now()
+            ));
+
+            long elapsed = System.currentTimeMillis() - start;
+            log.info("[DailyPipeline] ===== 수집 완료, 나머지는 Kafka Orchestrator가 처리 ({}ms) =====", elapsed);
+            return String.format("Kafka 파이프라인: 수집 사기업 %d건, 공기업 %d건 | 소요: %dms",
+                    privateCollected, publicCollected, elapsed);
+        }
+
+        // ── 기존 동기 경로 (kafka.pipeline.enabled=false) ──
 
         // Step 3: 직무/고용형태/경력 분류
         try {
@@ -119,41 +172,54 @@ public class DailyJobScheduler {
             log.error("[DailyPipeline] Step 6/7 — 공고 임베딩 생성 실패: {}", e.getMessage(), e);
         }
 
-        // Step 7: 매칭 점수 산출 (신규/변경 공고만, 사기업·공기업 결과를 합산 후 알림 1회 발송)
-        Map<String, BatchNotificationHelper.MemberNotifications> combinedNotifications = new LinkedHashMap<>();
+        // Step 7: 매칭 점수 산출
+        ScoringDispatcher dispatcher = scoringDispatcher.getIfAvailable();
+        if (kafkaScoringEnabled && dispatcher != null) {
+            // Kafka 경로: 이벤트 발행 → Consumer가 병렬로 AI 호출 + 점수 저장 + 알림
+            try {
+                log.info("[DailyPipeline] Step 7/7 — Kafka 스코어링 이벤트 발행 시작");
+                ScoringDispatcher.DispatchResult dispatchResult = dispatcher.dispatchPrivateScoring();
+                log.info("[DailyPipeline] Step 7/7 — Kafka 스코어링 이벤트 발행 완료: {}건", dispatchResult.dispatched());
+            } catch (Exception e) {
+                log.error("[DailyPipeline] Step 7/7 — Kafka 스코어링 발행 실패: {}", e.getMessage(), e);
+            }
+        } else {
+            // 기존 경로: 동기 순차 처리
+            Map<String, BatchNotificationHelper.MemberNotifications> combinedNotifications = new LinkedHashMap<>();
 
-        try {
-            log.info("[DailyPipeline] Step 7/7 — 사기업 매칭 점수 산출 시작");
-            BatchNotificationHelper.BatchScoringResult privateResult =
-                    privateMatchBatchService.scoreNewAndUpdatedPostings();
-            privateResult.notifications().forEach((email, data) ->
-                    combinedNotifications.merge(email, data, (existing, incoming) -> {
-                        List<BatchNotificationHelper.ScoredPosting> merged = new ArrayList<>(existing.postings());
-                        merged.addAll(incoming.postings());
-                        return new BatchNotificationHelper.MemberNotifications(existing.member(), merged);
-                    }));
-            log.info("[DailyPipeline] Step 7/7 — 사기업 매칭 점수 산출 완료");
-        } catch (Exception e) {
-            log.error("[DailyPipeline] Step 7/7 — 사기업 매칭 점수 산출 실패: {}", e.getMessage(), e);
+            try {
+                log.info("[DailyPipeline] Step 7/7 — 사기업 매칭 점수 산출 시작");
+                BatchNotificationHelper.BatchScoringResult privateResult =
+                        privateMatchBatchService.scoreNewAndUpdatedPostings();
+                privateResult.notifications().forEach((email, data) ->
+                        combinedNotifications.merge(email, data, (existing, incoming) -> {
+                            List<BatchNotificationHelper.ScoredPosting> merged = new ArrayList<>(existing.postings());
+                            merged.addAll(incoming.postings());
+                            return new BatchNotificationHelper.MemberNotifications(existing.member(), merged);
+                        }));
+                log.info("[DailyPipeline] Step 7/7 — 사기업 매칭 점수 산출 완료");
+            } catch (Exception e) {
+                log.error("[DailyPipeline] Step 7/7 — 사기업 매칭 점수 산출 실패: {}", e.getMessage(), e);
+            }
+
+            try {
+                log.info("[DailyPipeline] Step 7/7 — 공기업 매칭 점수 산출 시작");
+                BatchNotificationHelper.BatchScoringResult publicResult =
+                        publicMatchBatchService.scoreNewAndUpdatedPostings();
+                publicResult.notifications().forEach((email, data) ->
+                        combinedNotifications.merge(email, data, (existing, incoming) -> {
+                            List<BatchNotificationHelper.ScoredPosting> merged = new ArrayList<>(existing.postings());
+                            merged.addAll(incoming.postings());
+                            return new BatchNotificationHelper.MemberNotifications(existing.member(), merged);
+                        }));
+                log.info("[DailyPipeline] Step 7/7 — 공기업 매칭 점수 산출 완료");
+            } catch (Exception e) {
+                log.error("[DailyPipeline] Step 7/7 — 공기업 매칭 점수 산출 실패: {}", e.getMessage(), e);
+            }
+
+            combinedNotifications.forEach((email, data) ->
+                    batchNotificationHelper.sendIfNeeded(data.member(), data.postings(), "새 추천 공고"));
         }
-
-        try {
-            log.info("[DailyPipeline] Step 7/7 — 공기업 매칭 점수 산출 시작");
-            BatchNotificationHelper.BatchScoringResult publicResult =
-                    publicMatchBatchService.scoreNewAndUpdatedPostings();
-            publicResult.notifications().forEach((email, data) ->
-                    combinedNotifications.merge(email, data, (existing, incoming) -> {
-                        List<BatchNotificationHelper.ScoredPosting> merged = new ArrayList<>(existing.postings());
-                        merged.addAll(incoming.postings());
-                        return new BatchNotificationHelper.MemberNotifications(existing.member(), merged);
-                    }));
-            log.info("[DailyPipeline] Step 7/7 — 공기업 매칭 점수 산출 완료");
-        } catch (Exception e) {
-            log.error("[DailyPipeline] Step 7/7 — 공기업 매칭 점수 산출 실패: {}", e.getMessage(), e);
-        }
-
-        combinedNotifications.forEach((email, data) ->
-                batchNotificationHelper.sendIfNeeded(data.member(), data.postings(), "새 추천 공고"));
 
         long elapsed = System.currentTimeMillis() - start;
         log.info("[DailyPipeline] ===== 새벽 파이프라인 종료 ({}ms) =====", elapsed);
