@@ -14,6 +14,8 @@ public interface JobEmbeddingRepository extends JpaRepository<JobEmbedding, Long
 
     Optional<JobEmbedding> findBySourceAndSourceId(JobSource source, Long sourceId);
 
+    List<JobEmbedding> findBySourceAndSourceIdIn(JobSource source, List<Long> sourceIds);
+
     @Modifying
     @Query("DELETE FROM JobEmbedding e WHERE e.source = :source AND e.sourceId = :sourceId")
     void deleteBySourceAndSourceId(@Param("source") JobSource source, @Param("sourceId") Long sourceId);

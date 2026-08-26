@@ -5,8 +5,11 @@ import com.jobai.backend.domain.privatejobposting.service.PrivateJobPostingServi
 import com.jobai.backend.domain.matching.service.BatchNotificationHelper;
 import com.jobai.backend.domain.matching.service.PrivateMatchBatchService;
 import com.jobai.backend.domain.matching.service.PublicMatchBatchService;
+import com.jobai.backend.domain.matching.service.ScoringDispatcher;
 import com.jobai.backend.domain.publicInstitution.service.JobDataSyncService;
 import com.jobai.backend.domain.search.service.EmbeddingBatchService;
+import com.jobai.backend.global.kafka.producer.KafkaPipelineProducer;
+import org.springframework.beans.factory.ObjectProvider;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -43,6 +46,11 @@ DailyJobSchedulerTest {
         Mockito.when(publicMatchBatchService.scoreNewAndUpdatedPostings())
                 .thenReturn(new BatchNotificationHelper.BatchScoringResult("", java.util.Map.of()));
 
+        @SuppressWarnings("unchecked")
+        ObjectProvider<ScoringDispatcher> scoringDispatcherProvider = Mockito.mock(ObjectProvider.class);
+        @SuppressWarnings("unchecked")
+        ObjectProvider<KafkaPipelineProducer> pipelineProducerProvider = Mockito.mock(ObjectProvider.class);
+
         scheduler = new DailyJobScheduler(
                 privateJobBatchCollectService,
                 privateJobPostingService,
@@ -50,7 +58,11 @@ DailyJobSchedulerTest {
                 embeddingBatchService,
                 privateMatchBatchService,
                 publicMatchBatchService,
-                batchNotificationHelper
+                batchNotificationHelper,
+                scoringDispatcherProvider,
+                pipelineProducerProvider,
+                false,
+                false
         );
     }
 
@@ -161,5 +173,53 @@ DailyJobSchedulerTest {
         verify(embeddingBatchService).generateMissingResumeEmbeddings();
         verify(embeddingBatchService).generateAllMissingEmbeddings();
         verify(privateMatchBatchService).scoreNewAndUpdatedPostings();
+    }
+
+    @Test
+    @DisplayName("kafkaScoringEnabled=true이면 ScoringDispatcher를 호출하고 동기 스코어링은 호출하지 않는다")
+    void runDailyPipeline_kafkaScoring활성_dispatcher호출() {
+        ScoringDispatcher dispatcher = Mockito.mock(ScoringDispatcher.class);
+        when(dispatcher.dispatchPrivateScoring())
+                .thenReturn(new ScoringDispatcher.DispatchResult("test-run-id", 10));
+
+        @SuppressWarnings("unchecked")
+        ObjectProvider<ScoringDispatcher> dispatcherProvider = Mockito.mock(ObjectProvider.class);
+        when(dispatcherProvider.getIfAvailable()).thenReturn(dispatcher);
+
+        @SuppressWarnings("unchecked")
+        ObjectProvider<KafkaPipelineProducer> pipelineProducerProvider = Mockito.mock(ObjectProvider.class);
+
+        DailyJobScheduler kafkaScheduler = new DailyJobScheduler(
+                privateJobBatchCollectService,
+                privateJobPostingService,
+                jobDataSyncService,
+                embeddingBatchService,
+                privateMatchBatchService,
+                publicMatchBatchService,
+                batchNotificationHelper,
+                dispatcherProvider,
+                pipelineProducerProvider,
+                true,   // kafkaScoringEnabled
+                false
+        );
+
+        kafkaScheduler.runDailyPipeline();
+
+        // Kafka dispatcher로 사기업 스코어링 검증
+        verify(dispatcher).dispatchPrivateScoring();
+        // 사기업 동기 스코어링 미호출 검증
+        verify(privateMatchBatchService, never()).scoreNewAndUpdatedPostings();
+        // 공기업은 동기 fallback으로 호출됨
+        verify(publicMatchBatchService).scoreNewAndUpdatedPostings();
+    }
+
+    @Test
+    @DisplayName("kafkaScoringEnabled=false이면 기존 동기 스코어링을 호출한다")
+    void runDailyPipeline_kafkaScoring비활성_동기스코어링호출() {
+        scheduler.runDailyPipeline();
+
+        // 동기 스코어링 호출 검증
+        verify(privateMatchBatchService).scoreNewAndUpdatedPostings();
+        verify(publicMatchBatchService).scoreNewAndUpdatedPostings();
     }
 }

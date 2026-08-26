@@ -15,4 +15,7 @@ public interface PrivateMatchScoreRepository extends JpaRepository<PrivateMatchS
 
     /** 배치 점수 산출: 특정 이력서의 기존 점수를 공고 ID 포함하여 조회 (신규/변경 판단용) */
     List<PrivateMatchScore> findByResumeId(Long resumeId);
+
+    /** Kafka Consumer 멱등성 체크: 해당 이력서-공고 조합의 점수가 이미 존재하는지 확인 */
+    boolean existsByResumeIdAndPrivateJobPostingId(Long resumeId, Long privateJobPostingId);
 }

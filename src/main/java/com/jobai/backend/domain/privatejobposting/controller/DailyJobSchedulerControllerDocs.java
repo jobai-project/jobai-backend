@@ -209,10 +209,39 @@ public interface DailyJobSchedulerControllerDocs {
     ResponseEntity<String> triggerNotifyTest(@io.swagger.v3.oas.annotations.Parameter(hidden = true) String email);
 
     @Operation(
+            summary = "[Kafka] 사기업 매칭 점수 산출 (병렬)",
+            description = """
+                    Kafka를 통해 스코어링 요청을 6개 파티션으로 분산하여 병렬 처리합니다.
+                    기존 동기 방식(POST /scoring)과 성능 비교용으로 사용합니다.
+                    kafka 프로필이 활성화되어 있어야 합니다.
+                    """
+    )
+    @ApiResponses(value = {
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "202",
+                    description = "Kafka 스코어링 발행 시작됨",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = @ExampleObject(value = "\"[Kafka] 스코어링 이벤트 발행 시작됨 (백그라운드)\"")
+                    )
+            ),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "400",
+                    description = "kafka 프로필 미활성화",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = @ExampleObject(value = "\"kafka 프로필이 활성화되지 않았습니다. --spring.profiles.active에 kafka를 추가하세요.\"")
+                    )
+            )
+    })
+    ResponseEntity<String> scorePostingsKafka();
+
+    @Operation(
             summary = "비동기 작업 상태 조회",
             description = """
                     백그라운드로 실행 중인 작업들의 현재 상태와 결과를 조회합니다.
-                    상태값: RUNNING(실행 중), COMPLETED(완료), FAILED(실패).
+                    상태값: RUNNING(실행 중), PROCESSING(처리 중), COMPLETED(완료), FAILED(실패).
+                    scoring-kafka 항목은 Redis에서 실시간 진행률을 조회하여 반환합니다.
                     한 번도 실행되지 않은 작업은 목록에 나타나지 않습니다.
                     """
     )
@@ -229,4 +258,33 @@ public interface DailyJobSchedulerControllerDocs {
             )
     })
     ResponseEntity<Map<String, Map<String, String>>> getTaskStatus();
+
+    @Operation(
+            summary = "스코어링 점수 초기화",
+            description = """
+                    벤치마크 비교를 위해 기존 매칭 점수를 모두 삭제합니다.
+                    동기 스코어링(POST /scoring) 실행 후, Kafka 스코어링과 비교하려면
+                    이 API로 점수를 초기화한 뒤 POST /scoring-kafka를 실행하세요.
+                    local 프로필에서만 허용됩니다.
+                    """
+    )
+    @ApiResponses(value = {
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "200",
+                    description = "초기화 완료",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = @ExampleObject(value = "\"매칭 점수 150건 초기화 완료\"")
+                    )
+            ),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "403",
+                    description = "local 프로필이 아닌 경우",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = @ExampleObject(value = "\"점수 초기화는 local 프로필에서만 허용됩니다.\"")
+                    )
+            )
+    })
+    ResponseEntity<String> resetScores();
 }

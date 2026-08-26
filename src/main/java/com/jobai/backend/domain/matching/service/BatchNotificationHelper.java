@@ -12,10 +12,16 @@ import com.jobai.backend.domain.notification.entity.Notification;
 import com.jobai.backend.domain.notification.repository.NotificationRepository;
 import com.jobai.backend.domain.notification.service.NotificationDispatchService;
 import com.jobai.backend.domain.notification.service.NotificationMatchBatchService;
+import com.jobai.backend.global.kafka.event.NotificationDispatchEvent;
+import com.jobai.backend.global.kafka.producer.KafkaNotificationProducer;
+import com.jobai.backend.global.util.LogMaskingUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -25,7 +31,6 @@ import java.util.Map;
 
 @Slf4j
 @Component
-@RequiredArgsConstructor
 public class BatchNotificationHelper {
 
     private static final String MATCH_NOTIFICATION_LINK_PREFIX = "/notifications/matches/";
@@ -36,6 +41,28 @@ public class BatchNotificationHelper {
     private final PublicMatchScoreRepository publicMatchScoreRepository;
     private final NotificationRepository notificationRepository;
     private final NotificationMatchBatchService notificationMatchBatchService;
+    private final ObjectProvider<KafkaNotificationProducer> kafkaNotificationProducer;
+    private final boolean kafkaNotificationEnabled;
+
+    public BatchNotificationHelper(
+            NotificationDispatchService notificationDispatchService,
+            ResumesRepository resumesRepository,
+            PrivateMatchScoreRepository privateMatchScoreRepository,
+            PublicMatchScoreRepository publicMatchScoreRepository,
+            NotificationRepository notificationRepository,
+            NotificationMatchBatchService notificationMatchBatchService,
+            ObjectProvider<KafkaNotificationProducer> kafkaNotificationProducer,
+            @Value("${kafka.notification.enabled:false}") boolean kafkaNotificationEnabled
+    ) {
+        this.notificationDispatchService = notificationDispatchService;
+        this.resumesRepository = resumesRepository;
+        this.privateMatchScoreRepository = privateMatchScoreRepository;
+        this.publicMatchScoreRepository = publicMatchScoreRepository;
+        this.notificationRepository = notificationRepository;
+        this.notificationMatchBatchService = notificationMatchBatchService;
+        this.kafkaNotificationProducer = kafkaNotificationProducer;
+        this.kafkaNotificationEnabled = kafkaNotificationEnabled;
+    }
 
     public record ScoredPosting(
             String source,
@@ -57,6 +84,10 @@ public class BatchNotificationHelper {
     public record BatchScoringResult(String summary, Map<String, MemberNotifications> notifications) {
     }
 
+    /**
+     * 임계값 이상 공고가 있으면 알림을 발송한다.
+     * kafka.notification.enabled=true이면 Kafka로 발행, 아니면 직접 발송.
+     */
     public void sendIfNeeded(Member member, List<ScoredPosting> aboveThreshold, String notificationType) {
         if (aboveThreshold.isEmpty()) return;
 
@@ -80,13 +111,26 @@ public class BatchNotificationHelper {
                             top.company(), top.title(), sortedPostings.size() - 1, top.score());
             String linkUrl = MATCH_NOTIFICATION_LINK_PREFIX + batchId;
 
-            notificationDispatchService.notifyUser(
-                    member.getEmail(),
-                    RealtimeNotificationPayload.of("MATCH", notificationType, message, linkUrl)
-            );
-            log.info("[배치알림] {} — {}건 알림 발송", member.getEmail(), aboveThreshold.size());
+            RealtimeNotificationPayload payload =
+                    RealtimeNotificationPayload.of("MATCH", notificationType, message, linkUrl);
+
+            KafkaNotificationProducer producer = kafkaNotificationProducer.getIfAvailable();
+            if (kafkaNotificationEnabled && producer != null) {
+                producer.send(new NotificationDispatchEvent(
+                        member.getEmail(),
+                        payload.type(),
+                        payload.title(),
+                        payload.message(),
+                        payload.linkUrl(),
+                        payload.createdAt()
+                ));
+                log.info("[배치알림] {} — {}건 Kafka 발행", LogMaskingUtil.maskEmail(member.getEmail()), aboveThreshold.size());
+            } else {
+                notificationDispatchService.notifyUser(member.getEmail(), payload);
+                log.info("[배치알림] {} — {}건 직접 발송", LogMaskingUtil.maskEmail(member.getEmail()), aboveThreshold.size());
+            }
         } catch (Exception e) {
-            log.warn("[배치알림] 알림 발송 실패: email={}, error={}", member.getEmail(), e.getMessage());
+            log.warn("[배치알림] 알림 발송 실패: email={}, error={}", LogMaskingUtil.maskEmail(member.getEmail()), e.getMessage());
         }
     }
 
@@ -105,10 +149,16 @@ public class BatchNotificationHelper {
         );
     }
 
+    /** 기존 점수 기반으로 모든 활성 이력서에 대해 알림을 발송한다. */
     public int sendNotificationsForExistingScores() {
         return sendNotificationsForExistingScores(null);
     }
 
+    /**
+     * 기존 점수 기반으로 알림을 발송한다. targetEmail이 지정되면 해당 사용자만 처리.
+     *
+     * @return 알림 발송된 공고 수. 활성 이력서가 없으면 -1.
+     */
     public int sendNotificationsForExistingScores(String targetEmail) {
         List<Resumes> resumes = resumesRepository.findAllActiveWithEmbedding();
         if (resumes.isEmpty()) {
