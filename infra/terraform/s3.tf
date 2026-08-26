@@ -1,5 +1,6 @@
 resource "aws_s3_bucket" "resume_files" {
-  bucket = "jobai-resumes-077660206269-ap-northeast-2"
+  bucket        = "jobai-resumes-077660206269-ap-northeast-2"
+  force_destroy = true
 }
 
 resource "aws_s3_bucket_public_access_block" "resume_files" {
@@ -22,7 +23,8 @@ resource "aws_s3_bucket_server_side_encryption_configuration" "resume_files" {
 }
 
 resource "aws_s3_bucket" "ai_models" {
-  bucket = "jobai-ai-models-${data.aws_caller_identity.current.account_id}-${var.aws_region}"
+  bucket        = "jobai-ai-models-${data.aws_caller_identity.current.account_id}-${var.aws_region}"
+  force_destroy = true
 }
 
 resource "aws_s3_bucket_versioning" "ai_models" {

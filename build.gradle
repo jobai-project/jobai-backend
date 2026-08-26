@@ -33,6 +33,7 @@ dependencies {
 	// ── Core ─────────────────────────────────────────────────
 	implementation 'org.springframework.boot:spring-boot-starter-web'
 	implementation 'org.springframework.boot:spring-boot-starter-validation'
+	implementation 'org.springframework.boot:spring-boot-starter-actuator'
 
 	// ── 인증 (Google OAuth2 + JWT) ───────────────────────────
 	implementation 'org.springframework.boot:spring-boot-starter-security'
@@ -73,6 +74,7 @@ dependencies {
 	// ── Redis + Cache (Bloom Filter, LLM 캐싱) ───────────────
 	implementation 'org.springframework.boot:spring-boot-starter-cache'
 	implementation 'org.springframework.boot:spring-boot-starter-data-redis'
+	runtimeOnly 'io.micrometer:micrometer-registry-prometheus'
 
 	implementation 'org.redisson:redisson-spring-boot-starter:3.29.0'
 

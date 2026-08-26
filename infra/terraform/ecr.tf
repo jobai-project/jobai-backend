@@ -3,6 +3,7 @@ data "aws_caller_identity" "current" {}
 resource "aws_ecr_repository" "backend" {
   name                 = var.ecr_backend_repository_name
   image_tag_mutability = "MUTABLE"
+  force_delete         = true
 
   image_scanning_configuration {
     scan_on_push = true
@@ -20,6 +21,7 @@ resource "aws_ecr_repository" "backend" {
 resource "aws_ecr_repository" "ai_server" {
   name                 = var.ecr_ai_server_repository_name
   image_tag_mutability = "MUTABLE"
+  force_delete         = true
 
   image_scanning_configuration {
     scan_on_push = true

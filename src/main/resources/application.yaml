@@ -70,6 +70,7 @@ spring:
   flyway:
     enabled: true
     baseline-on-migrate: true
+    baseline-version: 13
 
   cloud:
     aws:
@@ -126,6 +127,16 @@ app:
   frontend-base-url: ${APP_FRONTEND_BASE_URL:http://localhost:3000}
 
 management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: when_authorized
+  metrics:
+    tags:
+      application: jobai-backend
   health:
     elasticsearch:
       enabled: false
@@ -167,6 +178,7 @@ spring:
   flyway:
     enabled: true
     baseline-on-migrate: true
+    baseline-version: 13
 
   ai:
     anthropic:
@@ -226,6 +238,16 @@ app:
     region: ${AWS_REGION:ap-northeast-2}
 
 management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: when_authorized
+  metrics:
+    tags:
+      application: jobai-backend
   health:
     elasticsearch:
       enabled: false

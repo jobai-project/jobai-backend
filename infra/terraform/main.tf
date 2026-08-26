@@ -8,7 +8,7 @@ terraform {
 }
 
 provider "aws" {
-  location = var.aws_region
+  region = var.aws_region
 }
 
 # VPC
