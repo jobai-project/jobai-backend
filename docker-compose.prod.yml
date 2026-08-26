@@ -19,6 +19,7 @@ services:
     container_name: jobai-spring
     ports:
       - "${SPRING_PORT}:8080"
+      - "9090:9090"
     restart: unless-stopped
     environment:
       SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE}

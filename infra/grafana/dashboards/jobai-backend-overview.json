@@ -1,0 +1,130 @@
+{
+  "title": "jobai-backend Overview",
+  "uid": "jobai-backend-overview",
+  "schemaVersion": 39,
+  "version": 1,
+  "editable": true,
+  "timezone": "browser",
+  "time": { "from": "now-6h", "to": "now" },
+  "refresh": "10s",
+  "tags": ["jobai", "spring-boot"],
+  "panels": [
+    { "id": 100, "type": "row", "title": "Overview", "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 } },
+    {
+      "id": 1, "type": "stat", "title": "Service Up",
+      "gridPos": { "h": 4, "w": 6, "x": 0, "y": 1 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [{ "expr": "up{job=\"jobai-backend-local\"}", "legendFormat": "up" }],
+      "fieldConfig": { "defaults": { "mappings": [
+        { "type": "value", "options": { "0": { "text": "DOWN", "color": "red" }, "1": { "text": "UP", "color": "green" } } }
+      ] }, "overrides": [] }
+    },
+    {
+      "id": 2, "type": "stat", "title": "Uptime",
+      "gridPos": { "h": 4, "w": 6, "x": 6, "y": 1 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [{ "expr": "process_uptime_seconds{job=\"jobai-backend-local\"}", "legendFormat": "uptime" }],
+      "fieldConfig": { "defaults": { "unit": "s" }, "overrides": [] }
+    },
+    {
+      "id": 3, "type": "stat", "title": "HTTP Request Rate",
+      "gridPos": { "h": 4, "w": 6, "x": 12, "y": 1 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [{ "expr": "sum(rate(http_server_requests_seconds_count{job=\"jobai-backend-local\"}[5m]))", "legendFormat": "req/s" }],
+      "fieldConfig": { "defaults": { "unit": "reqps" }, "overrides": [] }
+    },
+    {
+      "id": 4, "type": "stat", "title": "5xx Error Rate",
+      "gridPos": { "h": 4, "w": 6, "x": 18, "y": 1 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [{ "expr": "100 * sum(rate(http_server_requests_seconds_count{job=\"jobai-backend-local\",status=~\"5..\"}[5m])) / sum(rate(http_server_requests_seconds_count{job=\"jobai-backend-local\"}[5m]))", "legendFormat": "error %" }],
+      "fieldConfig": { "defaults": { "unit": "percent", "thresholds": { "mode": "absolute", "steps": [
+        { "color": "green", "value": null }, { "color": "red", "value": 1 }
+      ] } }, "overrides": [] }
+    },
+
+    { "id": 101, "type": "row", "title": "JVM", "gridPos": { "h": 1, "w": 24, "x": 0, "y": 5 } },
+    {
+      "id": 10, "type": "timeseries", "title": "Heap Memory (used / max)",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 6 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        { "expr": "sum(jvm_memory_used_bytes{job=\"jobai-backend-local\",area=\"heap\"})", "legendFormat": "used" },
+        { "expr": "sum(jvm_memory_max_bytes{job=\"jobai-backend-local\",area=\"heap\"})", "legendFormat": "max" }
+      ],
+      "fieldConfig": { "defaults": { "unit": "bytes" }, "overrides": [] }
+    },
+    {
+      "id": 11, "type": "timeseries", "title": "GC Pause (avg)",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 6 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        { "expr": "rate(jvm_gc_pause_seconds_sum{job=\"jobai-backend-local\"}[5m]) / rate(jvm_gc_pause_seconds_count{job=\"jobai-backend-local\"}[5m])", "legendFormat": "{{action}} / {{cause}}" }
+      ],
+      "fieldConfig": { "defaults": { "unit": "s" }, "overrides": [] }
+    },
+    {
+      "id": 12, "type": "timeseries", "title": "Live Threads",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 14 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [{ "expr": "jvm_threads_live_threads{job=\"jobai-backend-local\"}", "legendFormat": "live threads" }],
+      "fieldConfig": { "defaults": {}, "overrides": [] }
+    },
+    {
+      "id": 13, "type": "timeseries", "title": "CPU Usage",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 14 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        { "expr": "process_cpu_usage{job=\"jobai-backend-local\"}", "legendFormat": "process cpu" },
+        { "expr": "system_cpu_usage{job=\"jobai-backend-local\"}", "legendFormat": "system cpu" }
+      ],
+      "fieldConfig": { "defaults": { "unit": "percentunit", "max": 1, "min": 0 }, "overrides": [] }
+    },
+
+    { "id": 102, "type": "row", "title": "HTTP", "gridPos": { "h": 1, "w": 24, "x": 0, "y": 22 } },
+    {
+      "id": 20, "type": "timeseries", "title": "Request Rate by URI (top 10)",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 23 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [{ "expr": "topk(10, sum by (uri) (rate(http_server_requests_seconds_count{job=\"jobai-backend-local\"}[5m])))", "legendFormat": "{{uri}}" }],
+      "fieldConfig": { "defaults": { "unit": "reqps" }, "overrides": [] }
+    },
+    {
+      "id": 21, "type": "timeseries", "title": "Avg Latency by URI (top 10)",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 23 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [{ "expr": "topk(10, sum by (uri) (rate(http_server_requests_seconds_sum{job=\"jobai-backend-local\"}[5m])) / sum by (uri) (rate(http_server_requests_seconds_count{job=\"jobai-backend-local\"}[5m])))", "legendFormat": "{{uri}}" }],
+      "fieldConfig": { "defaults": { "unit": "s" }, "overrides": [] }
+    },
+
+    { "id": 103, "type": "row", "title": "DB & Cache", "gridPos": { "h": 1, "w": 24, "x": 0, "y": 31 } },
+    {
+      "id": 30, "type": "timeseries", "title": "Hikari Connections",
+      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 32 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        { "expr": "hikaricp_connections_active{job=\"jobai-backend-local\"}", "legendFormat": "active" },
+        { "expr": "hikaricp_connections_idle{job=\"jobai-backend-local\"}", "legendFormat": "idle" },
+        { "expr": "hikaricp_connections_pending{job=\"jobai-backend-local\"}", "legendFormat": "pending" }
+      ],
+      "fieldConfig": { "defaults": {}, "overrides": [] }
+    },
+    {
+      "id": 31, "type": "timeseries", "title": "Cache Hit Ratio",
+      "gridPos": { "h": 8, "w": 8, "x": 8, "y": 32 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [{ "expr": "sum(rate(cache_gets_total{job=\"jobai-backend-local\",result=\"hit\"}[5m])) / sum(rate(cache_gets_total{job=\"jobai-backend-local\"}[5m]))", "legendFormat": "hit ratio" }],
+      "fieldConfig": { "defaults": { "unit": "percentunit", "max": 1, "min": 0 }, "overrides": [] }
+    },
+    {
+      "id": 32, "type": "timeseries", "title": "Tomcat Threads Busy / Max",
+      "gridPos": { "h": 8, "w": 8, "x": 16, "y": 32 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        { "expr": "tomcat_threads_busy_threads{job=\"jobai-backend-local\"}", "legendFormat": "busy" },
+        { "expr": "tomcat_threads_config_max_threads{job=\"jobai-backend-local\"}", "legendFormat": "max" }
+      ],
+      "fieldConfig": { "defaults": {}, "overrides": [] }
+    }
+  ]
+}

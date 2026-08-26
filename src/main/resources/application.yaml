@@ -238,6 +238,10 @@ app:
     region: ${AWS_REGION:ap-northeast-2}
 
 management:
+  # actuator는 서비스 포트(8080)와 분리해 외부에 노출하지 않는다.
+  # 9090은 보안그룹에서 모니터링 인스턴스에만 열려 있다.
+  server:
+    port: 9090
   endpoints:
     web:
       exposure:

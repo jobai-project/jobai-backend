@@ -122,6 +122,14 @@ resource "aws_security_group" "jobai" {
     cidr_blocks = ["0.0.0.0/0"] # FastAPI 전체 오픈
   }
 
+  ingress {
+    description     = "actuator/prometheus scrape from monitoring instance only"
+    from_port       = 9090
+    to_port         = 9090
+    protocol        = "tcp"
+    security_groups = [aws_security_group.monitoring.id]
+  }
+
   egress {
     from_port   = 0
     to_port     = 0
