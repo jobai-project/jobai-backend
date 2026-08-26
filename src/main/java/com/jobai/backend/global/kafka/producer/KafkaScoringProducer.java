@@ -4,8 +4,11 @@ import com.jobai.backend.global.kafka.event.ScoringRequestEvent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Profile;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Component;
+
+import java.time.Duration;
 
 @Slf4j
 @Component
@@ -16,13 +19,23 @@ public class KafkaScoringProducer {
     private static final String TOPIC = "jobai.scoring.request";
 
     private final KafkaTemplate<String, Object> kafkaTemplate;
+    private final StringRedisTemplate stringRedisTemplate;
 
+    /** 스코어링 요청 이벤트를 Kafka 토픽에 비동기 발행한다. 발행 실패 시 completed/failed 카운터를 증가시킨다. */
     public void send(ScoringRequestEvent event) {
         String key = event.resumeId() + ":" + event.postingId();
         kafkaTemplate.send(TOPIC, key, event)
                 .whenComplete((result, ex) -> {
                     if (ex != null) {
                         log.error("[Kafka] 스코어링 요청 발행 실패: key={}, error={}", key, ex.getMessage());
+                        // 발행 실패 시 completed + failed 카운터 증가 → 완료 판정이 깨지지 않도록
+                        if (event.pipelineRunId() != null) {
+                            String prefix = "jobai:scoring:" + event.pipelineRunId();
+                            stringRedisTemplate.opsForValue().increment(prefix + ":completed");
+                            stringRedisTemplate.expire(prefix + ":completed", Duration.ofHours(24));
+                            stringRedisTemplate.opsForValue().increment(prefix + ":failed");
+                            stringRedisTemplate.expire(prefix + ":failed", Duration.ofHours(24));
+                        }
                     }
                 });
     }

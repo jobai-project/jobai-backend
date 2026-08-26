@@ -119,13 +119,17 @@ public class DailyJobScheduler {
             String pipelineRunId = UUID.randomUUID().toString();
             log.info("[DailyPipeline] Kafka 파이프라인 모드 — 수집 완료 이벤트 발행, pipelineRunId={}",
                     pipelineRunId);
-            pipelineProducer.sendStageComplete(new PipelineStageCompleteEvent(
-                    pipelineRunId,
-                    PipelineStageCompleteEvent.COLLECTION,
-                    privateCollected + publicCollected,
-                    String.format("사기업 %d건, 공기업 %d건", privateCollected, publicCollected),
-                    Instant.now()
-            ));
+            try {
+                pipelineProducer.sendStageComplete(new PipelineStageCompleteEvent(
+                        pipelineRunId,
+                        PipelineStageCompleteEvent.COLLECTION,
+                        privateCollected + publicCollected,
+                        String.format("사기업 %d건, 공기업 %d건", privateCollected, publicCollected),
+                        Instant.now()
+                )).get(30, java.util.concurrent.TimeUnit.SECONDS);
+            } catch (Exception e) {
+                log.error("[DailyPipeline] 수집 완료 이벤트 발행 실패: {}", e.getMessage(), e);
+            }
 
             long elapsed = System.currentTimeMillis() - start;
             log.info("[DailyPipeline] ===== 수집 완료, 나머지는 Kafka Orchestrator가 처리 ({}ms) =====", elapsed);
@@ -175,13 +179,25 @@ public class DailyJobScheduler {
         // Step 7: 매칭 점수 산출
         ScoringDispatcher dispatcher = scoringDispatcher.getIfAvailable();
         if (kafkaScoringEnabled && dispatcher != null) {
-            // Kafka 경로: 이벤트 발행 → Consumer가 병렬로 AI 호출 + 점수 저장 + 알림
+            // Kafka 경로: 사기업은 이벤트 발행 → Consumer가 병렬 처리
             try {
-                log.info("[DailyPipeline] Step 7/7 — Kafka 스코어링 이벤트 발행 시작");
+                log.info("[DailyPipeline] Step 7/7 — Kafka 사기업 스코어링 이벤트 발행 시작");
                 ScoringDispatcher.DispatchResult dispatchResult = dispatcher.dispatchPrivateScoring();
-                log.info("[DailyPipeline] Step 7/7 — Kafka 스코어링 이벤트 발행 완료: {}건", dispatchResult.dispatched());
+                log.info("[DailyPipeline] Step 7/7 — Kafka 사기업 스코어링 이벤트 발행 완료: {}건", dispatchResult.dispatched());
             } catch (Exception e) {
-                log.error("[DailyPipeline] Step 7/7 — Kafka 스코어링 발행 실패: {}", e.getMessage(), e);
+                log.error("[DailyPipeline] Step 7/7 — Kafka 사기업 스코어링 발행 실패: {}", e.getMessage(), e);
+            }
+
+            // 공기업은 Kafka 디스패처 미구현이므로 동기 처리
+            try {
+                log.info("[DailyPipeline] Step 7/7 — 공기업 매칭 점수 산출 시작 (동기)");
+                BatchNotificationHelper.BatchScoringResult publicResult =
+                        publicMatchBatchService.scoreNewAndUpdatedPostings();
+                publicResult.notifications().forEach((email, data) ->
+                        batchNotificationHelper.sendIfNeeded(data.member(), data.postings(), "새 추천 공고"));
+                log.info("[DailyPipeline] Step 7/7 — 공기업 매칭 점수 산출 완료");
+            } catch (Exception e) {
+                log.error("[DailyPipeline] Step 7/7 — 공기업 매칭 점수 산출 실패: {}", e.getMessage(), e);
             }
         } else {
             // 기존 경로: 동기 순차 처리

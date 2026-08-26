@@ -17,18 +17,24 @@ public class KafkaNotificationProducer {
 
     private final KafkaTemplate<String, Object> kafkaTemplate;
 
+    /** 알림 이벤트를 Kafka 토픽에 비동기 발행한다. key는 userId(email). */
     public void send(NotificationDispatchEvent event) {
         kafkaTemplate.send(TOPIC, event.userId(), event)
                 .whenComplete((result, ex) -> {
                     if (ex != null) {
                         log.error("[Kafka] 알림 이벤트 발행 실패: userId={}, error={}",
-                                event.userId(), ex.getMessage());
+                                maskEmail(event.userId()), ex.getMessage());
                     } else {
-                        log.info("[Kafka] 알림 이벤트 발행 완료: userId={}, partition={}, offset={}",
-                                event.userId(),
+                        log.debug("[Kafka] 알림 이벤트 발행 완료: userId={}, partition={}, offset={}",
+                                maskEmail(event.userId()),
                                 result.getRecordMetadata().partition(),
                                 result.getRecordMetadata().offset());
                     }
                 });
+    }
+
+    private static String maskEmail(String email) {
+        if (email == null || !email.contains("@")) return "***";
+        return email.charAt(0) + "***" + email.substring(email.indexOf('@'));
     }
 }

@@ -46,12 +46,22 @@ public class ScoringDispatcher {
     public record DispatchResult(String pipelineRunId, int dispatched) {}
 
     /**
-     * 활성 이력서 × 활성 공고 중 신규/변경분을 필터링하여
-     * Kafka 스코어링 요청 이벤트로 발행한다.
-     *
-     * @return 발행 결과 (pipelineRunId + 발행 건수)
+     * 새 pipelineRunId를 생성하여 스코어링 이벤트를 발행한다.
+     * 수동 트리거(벤치마크) 등 독립 실행 시 사용한다.
      */
     public DispatchResult dispatchPrivateScoring() {
+        return dispatchPrivateScoring(UUID.randomUUID().toString());
+    }
+
+    /**
+     * 활성 이력서 × 활성 공고 중 신규/변경분을 필터링하여
+     * Kafka 스코어링 요청 이벤트로 발행한다.
+     * 파이프라인 경로에서 호출 시 상위 pipelineRunId를 전달받아 추적을 유지한다.
+     *
+     * @param pipelineRunId 파이프라인 추적용 ID
+     * @return 발행 결과 (pipelineRunId + 발행 건수)
+     */
+    public DispatchResult dispatchPrivateScoring(String pipelineRunId) {
         List<Resumes> activeResumes = resumesRepository.findAllActiveWithEmbedding();
         if (activeResumes.isEmpty()) {
             log.info("[ScoringDispatcher] 활성 이력서 없음 — 스킵");
@@ -72,8 +82,12 @@ public class ScoringDispatcher {
                 .stream()
                 .collect(Collectors.toMap(JobEmbedding::getSourceId, e -> e));
 
-        String pipelineRunId = UUID.randomUUID().toString();
-        int dispatched = 0;
+        // 1단계: 발행 대상을 먼저 수집
+        record DispatchEntry(Resumes resume, PrivateJobPosting posting, JobEmbedding embedding,
+                             String email, List<String> resumeSkills, List<Double> resumeVec,
+                             int experienceYears, int threshold) {}
+
+        List<DispatchEntry> entries = new ArrayList<>();
 
         for (Resumes resume : activeResumes) {
             String email = resume.getMember().getEmail();
@@ -81,7 +95,6 @@ public class ScoringDispatcher {
                     .map(Notification::getMatchScoreThreshold)
                     .orElse(70);
 
-            // 기존 점수 조회 → 신규만 필터
             Set<Long> existingPostingIds = privateMatchScoreRepository.findByResumeId(resume.getId())
                     .stream()
                     .map(s -> s.getPrivateJobPosting().getId())
@@ -92,52 +105,56 @@ public class ScoringDispatcher {
             int experienceYears = resume.getExperienceYears() != null ? resume.getExperienceYears() : 0;
 
             for (PrivateJobPosting posting : activePostings) {
-                // 이미 점수 존재 → 스킵
                 if (existingPostingIds.contains(posting.getId())) continue;
-
-                // 임베딩 없는 공고 → 스킵
                 JobEmbedding embedding = embeddingMap.get(posting.getId());
                 if (embedding == null) continue;
-
-                String jdText = (posting.getTitle() != null ? posting.getTitle() : "")
-                        + "\n"
-                        + (posting.getDescription() != null ? posting.getDescription() : "");
-
-                kafkaScoringProducer.send(new ScoringRequestEvent(
-                        pipelineRunId,
-                        resume.getId(),
-                        resume.getMember().getId(),
-                        email,
-                        posting.getId(),
-                        "PRIVATE",
-                        jdText,
-                        toDoubleList(embedding.getEmbedding()),
-                        resumeVec,
-                        resumeSkills,
-                        experienceYears,
-                        threshold,
-                        posting.getTitle(),
-                        posting.getCompany(),
-                        posting.getLocation(),
-                        posting.getEmploymentType(),
-                        posting.getJobCategory(),
-                        posting.getDeadline() != null ? posting.getDeadline().toString() : null
-                ));
-                dispatched++;
+                entries.add(new DispatchEntry(resume, posting, embedding,
+                        email, resumeSkills, resumeVec, experienceYears, threshold));
             }
         }
 
-        // Redis에 총 건수 + 시작 시간 저장 (완료 추적 + 벤치마크용)
-        if (dispatched > 0) {
-            String totalKey = "jobai:scoring:" + pipelineRunId + ":total";
-            String startKey = "jobai:scoring:" + pipelineRunId + ":startMs";
-            stringRedisTemplate.opsForValue().set(totalKey, String.valueOf(dispatched), Duration.ofHours(24));
-            stringRedisTemplate.opsForValue().set(startKey, String.valueOf(System.currentTimeMillis()), Duration.ofHours(24));
+        if (entries.isEmpty()) {
+            log.info("[ScoringDispatcher] 발행 대상 없음 — 스킵");
+            return new DispatchResult(pipelineRunId, 0);
+        }
+
+        // 2단계: Redis에 total + startMs 저장 (이벤트 발행 전에 기록)
+        String totalKey = "jobai:scoring:" + pipelineRunId + ":total";
+        String startKey = "jobai:scoring:" + pipelineRunId + ":startMs";
+        stringRedisTemplate.opsForValue().set(totalKey, String.valueOf(entries.size()), Duration.ofHours(24));
+        stringRedisTemplate.opsForValue().set(startKey, String.valueOf(System.currentTimeMillis()), Duration.ofHours(24));
+
+        // 3단계: 이벤트 발행
+        for (DispatchEntry entry : entries) {
+            String jdText = (entry.posting().getTitle() != null ? entry.posting().getTitle() : "")
+                    + "\n"
+                    + (entry.posting().getDescription() != null ? entry.posting().getDescription() : "");
+
+            kafkaScoringProducer.send(new ScoringRequestEvent(
+                    pipelineRunId,
+                    entry.resume().getId(),
+                    entry.resume().getMember().getId(),
+                    entry.email(),
+                    entry.posting().getId(),
+                    "PRIVATE",
+                    jdText,
+                    toDoubleList(entry.embedding().getEmbedding()),
+                    entry.resumeVec(),
+                    entry.resumeSkills(),
+                    entry.experienceYears(),
+                    entry.threshold(),
+                    entry.posting().getTitle(),
+                    entry.posting().getCompany(),
+                    entry.posting().getLocation(),
+                    entry.posting().getEmploymentType(),
+                    entry.posting().getJobCategory(),
+                    entry.posting().getDeadline() != null ? entry.posting().getDeadline().toString() : null
+            ));
         }
 
         log.info("[ScoringDispatcher] 사기업 스코어링 이벤트 발행 완료: pipelineRunId={}, 건수={}",
-                pipelineRunId, dispatched);
-        return new DispatchResult(pipelineRunId, dispatched);
+                pipelineRunId, entries.size());
+        return new DispatchResult(pipelineRunId, entries.size());
     }
 
     private List<String> parseSkills(String skillsJson) {

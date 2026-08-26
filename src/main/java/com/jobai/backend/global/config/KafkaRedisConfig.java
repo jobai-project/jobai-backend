@@ -14,6 +14,7 @@ import org.springframework.util.StringUtils;
 @Profile("kafka")
 public class KafkaRedisConfig {
 
+    /** Kafka 프로필용 Redis 연결 팩토리. 비밀번호가 설정된 경우 인증을 수행한다. */
     @Bean
     public RedisConnectionFactory redisConnectionFactory(
             @Value("${redis.host:localhost}") String redisHost,
@@ -27,6 +28,7 @@ public class KafkaRedisConfig {
         return new LettuceConnectionFactory(configuration);
     }
 
+    /** Kafka 완료 추적용 StringRedisTemplate. */
     @Bean
     public StringRedisTemplate stringRedisTemplate(RedisConnectionFactory redisConnectionFactory) {
         return new StringRedisTemplate(redisConnectionFactory);

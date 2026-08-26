@@ -13,6 +13,7 @@ import lombok.extern.slf4j.Slf4j;
 
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.core.env.Environment;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -21,6 +22,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.Arrays;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executor;
@@ -50,6 +52,7 @@ public class DailyJobSchedulerController implements DailyJobSchedulerControllerD
     private final ObjectProvider<ScoringDispatcher> scoringDispatcher;
     private final PrivateMatchScoreRepository privateMatchScoreRepository;
     private final ObjectProvider<StringRedisTemplate> stringRedisTemplate;
+    private final Environment environment;
 
     /** 비동기 작업 상태 추적용. key: 작업명, value: {status, result} */
     private final Map<String, Map<String, String>> taskStatus = new ConcurrentHashMap<>();
@@ -65,7 +68,8 @@ public class DailyJobSchedulerController implements DailyJobSchedulerControllerD
             @Qualifier("schedulerTaskExecutor") Executor schedulerTaskExecutor,
             ObjectProvider<ScoringDispatcher> scoringDispatcher,
             PrivateMatchScoreRepository privateMatchScoreRepository,
-            ObjectProvider<StringRedisTemplate> stringRedisTemplate
+            ObjectProvider<StringRedisTemplate> stringRedisTemplate,
+            Environment environment
     ) {
         this.dailyJobScheduler = dailyJobScheduler;
         this.privateJobPostingService = privateJobPostingService;
@@ -78,8 +82,10 @@ public class DailyJobSchedulerController implements DailyJobSchedulerControllerD
         this.scoringDispatcher = scoringDispatcher;
         this.privateMatchScoreRepository = privateMatchScoreRepository;
         this.stringRedisTemplate = stringRedisTemplate;
+        this.environment = environment;
     }
 
+    /** 새벽 파이프라인을 수동으로 트리거한다 (백그라운드 실행). */
     @Override
     @PostMapping("/daily-pipeline")
     public ResponseEntity<String> triggerDailyPipeline() {
@@ -96,6 +102,7 @@ public class DailyJobSchedulerController implements DailyJobSchedulerControllerD
         return ResponseEntity.accepted().body("새벽 파이프라인 실행 시작됨 (백그라운드)");
     }
 
+    /** 미분류 공고에 대해 직무 분류를 실행한다. */
     @Override
     @PostMapping("/classify")
     public ResponseEntity<String> classifyUnclassified() {
@@ -103,6 +110,7 @@ public class DailyJobSchedulerController implements DailyJobSchedulerControllerD
         return ResponseEntity.ok("미분류 공고 " + total + "건 분류 완료");
     }
 
+    /** 고용형태/경력 미분류 공고를 분류한다. */
     @Override
     @PostMapping("/classify-employment")
     public ResponseEntity<String> classifyMissingEmploymentTypes() {
@@ -110,6 +118,7 @@ public class DailyJobSchedulerController implements DailyJobSchedulerControllerD
         return ResponseEntity.ok("고용형태/경력 미분류 공고 " + total + "건 분류 완료");
     }
 
+    /** 지역 미분류 공고를 분류한다. */
     @Override
     @PostMapping("/classify-location")
     public ResponseEntity<String> classifyMissingRegions() {
@@ -117,6 +126,7 @@ public class DailyJobSchedulerController implements DailyJobSchedulerControllerD
         return ResponseEntity.ok("지역 미분류 공고 " + total + "건 분류 완료");
     }
 
+    /** 미생성 공고 임베딩을 일괄 생성한다 (백그라운드 실행). */
     @Override
     @PostMapping("/embedding")
     public ResponseEntity<String> generateEmbeddings() {
@@ -133,6 +143,7 @@ public class DailyJobSchedulerController implements DailyJobSchedulerControllerD
         return ResponseEntity.accepted().body("공고 임베딩 생성 시작됨 (백그라운드)");
     }
 
+    /** 사기업 매칭 점수를 동기 방식으로 산출한다 (백그라운드 실행, 시간 측정 포함). */
     @Override
     @PostMapping("/scoring")
     public ResponseEntity<String> scorePostings() {
@@ -159,6 +170,7 @@ public class DailyJobSchedulerController implements DailyJobSchedulerControllerD
         return ResponseEntity.accepted().body("사기업 매칭 점수 산출 시작됨 (백그라운드)");
     }
 
+    /** 공기업 매칭 점수를 동기 방식으로 산출한다 (백그라운드 실행). */
     @Override
     @PostMapping("/scoring-public")
     public ResponseEntity<String> scorePublicPostings() {
@@ -178,6 +190,7 @@ public class DailyJobSchedulerController implements DailyJobSchedulerControllerD
         return ResponseEntity.accepted().body("공기업 매칭 점수 산출 시작됨 (백그라운드)");
     }
 
+    /** 미생성 이력서 임베딩을 일괄 생성한다. */
     @Override
     @PostMapping("/resume-embedding")
     public ResponseEntity<String> generateResumeEmbeddings() {
@@ -185,6 +198,7 @@ public class DailyJobSchedulerController implements DailyJobSchedulerControllerD
         return ResponseEntity.ok(result);
     }
 
+    /** IT 뉴스 카드를 수집·요약한다 (백그라운드 실행). */
     @Override
     @PostMapping("/tech-cards")
     public ResponseEntity<String> collectTechCards() {
@@ -201,6 +215,7 @@ public class DailyJobSchedulerController implements DailyJobSchedulerControllerD
         return ResponseEntity.accepted().body("IT 뉴스 카드 수집 시작됨 (백그라운드)");
     }
 
+    /** 기존 점수 기반 알림 테스트를 실행한다. email 파라미터로 특정 사용자만 지정 가능. */
     @Override
     @PostMapping("/notify-test")
     public ResponseEntity<String> triggerNotifyTest(
@@ -213,6 +228,10 @@ public class DailyJobSchedulerController implements DailyJobSchedulerControllerD
         return ResponseEntity.ok("알림 테스트 완료 — 임계값 이상 공고 " + result + "건 알림 발송");
     }
 
+    /**
+     * Kafka 기반 병렬 스코어링을 실행한다.
+     * 이벤트 발행 후 즉시 반환하며, 진행 상태는 {@code GET /status}에서 Redis를 조회하여 확인한다.
+     */
     @Override
     @PostMapping("/scoring-kafka")
     public ResponseEntity<String> scorePostingsKafka() {
@@ -229,43 +248,20 @@ public class DailyJobSchedulerController implements DailyJobSchedulerControllerD
                 ScoringDispatcher.DispatchResult dispatchResult = dispatcher.dispatchPrivateScoring();
                 long dispatchElapsedMs = System.currentTimeMillis() - startMs;
                 String dispatchMsg = String.format(
-                        "Kafka 스코어링 이벤트 %d건 발행 완료 (발행 소요: %dms) — Consumer 6개가 병렬 처리 중",
+                        "Kafka 스코어링 이벤트 %d건 발행 완료 (발행 소요: %dms)",
                         dispatchResult.dispatched(), dispatchElapsedMs);
-                taskStatus.put("scoring-kafka", Map.of("status", "PROCESSING", "result", dispatchMsg));
                 log.info("[벤치마크] {}", dispatchMsg);
 
-                // Redis 폴링으로 Consumer 전체 완료 대기
                 if (dispatchResult.pipelineRunId() != null && dispatchResult.dispatched() > 0) {
-                    StringRedisTemplate redis = stringRedisTemplate.getIfAvailable();
-                    if (redis != null) {
-                        String resultKey = "jobai:scoring:" + dispatchResult.pipelineRunId() + ":result";
-                        String completedKey = "jobai:scoring:" + dispatchResult.pipelineRunId() + ":completed";
-                        String totalStr = String.valueOf(dispatchResult.dispatched());
-
-                        // 최대 10분 대기, 3초 간격 폴링
-                        for (int i = 0; i < 200; i++) {
-                            Thread.sleep(3000);
-                            String completedStr = redis.opsForValue().get(completedKey);
-                            if (completedStr != null && Long.parseLong(completedStr) >= Long.parseLong(totalStr)) {
-                                String finalResult = redis.opsForValue().get(resultKey);
-                                if (finalResult == null) {
-                                    long totalElapsed = System.currentTimeMillis() - startMs;
-                                    finalResult = String.format(
-                                            "Kafka 스코어링 전체 완료: %s건 처리 (총 소요: %dms)",
-                                            totalStr, totalElapsed);
-                                }
-                                taskStatus.put("scoring-kafka", Map.of("status", "COMPLETED", "result", finalResult));
-                                log.info("[벤치마크] scoring-kafka 최종: {}", finalResult);
-                                return;
-                            }
-                            // 진행률 업데이트
-                            String progress = String.format("%s — 진행: %s/%s건 완료",
-                                    dispatchMsg, completedStr != null ? completedStr : "0", totalStr);
-                            taskStatus.put("scoring-kafka", Map.of("status", "PROCESSING", "result", progress));
-                        }
-                        taskStatus.put("scoring-kafka", Map.of("status", "TIMEOUT",
-                                "result", "10분 내 전체 처리 완료되지 않음"));
-                    }
+                    // pipelineRunId를 저장해두면 /status 호출 시 Redis에서 진행률을 조회한다
+                    taskStatus.put("scoring-kafka", Map.of(
+                            "status", "PROCESSING",
+                            "result", dispatchMsg,
+                            "pipelineRunId", dispatchResult.pipelineRunId(),
+                            "total", String.valueOf(dispatchResult.dispatched()),
+                            "startMs", String.valueOf(startMs)));
+                } else {
+                    taskStatus.put("scoring-kafka", Map.of("status", "COMPLETED", "result", dispatchMsg));
                 }
             } catch (Exception e) {
                 long elapsedMs = System.currentTimeMillis() - startMs;
@@ -278,17 +274,62 @@ public class DailyJobSchedulerController implements DailyJobSchedulerControllerD
         return ResponseEntity.accepted().body("[Kafka] 스코어링 이벤트 발행 시작됨 (백그라운드)");
     }
 
+    /** 매칭 점수를 전체 초기화한다 (벤치마크용). local 프로필에서만 허용된다. */
     @Override
     @PostMapping("/reset-scores")
     public ResponseEntity<String> resetScores() {
+        if (!Arrays.asList(environment.getActiveProfiles()).contains("local")) {
+            return ResponseEntity.status(403)
+                    .body("점수 초기화는 local 프로필에서만 허용됩니다.");
+        }
         long count = privateMatchScoreRepository.count();
         privateMatchScoreRepository.deleteAllInBatch();
         return ResponseEntity.ok("매칭 점수 " + count + "건 초기화 완료");
     }
 
+    /**
+     * 비동기 작업들의 현재 상태를 조회한다.
+     * scoring-kafka가 PROCESSING 상태이면 Redis에서 실시간 진행률을 조회하여 반환한다.
+     */
     @Override
     @GetMapping("/status")
     public ResponseEntity<Map<String, Map<String, String>>> getTaskStatus() {
-        return ResponseEntity.ok(taskStatus);
+        Map<String, Map<String, String>> response = new ConcurrentHashMap<>(taskStatus);
+        enrichKafkaScoringStatus(response);
+        return ResponseEntity.ok(response);
+    }
+
+    /** scoring-kafka 항목이 PROCESSING이면 Redis 카운터를 조회하여 진행률·완료 판정을 반영한다. */
+    private void enrichKafkaScoringStatus(Map<String, Map<String, String>> response) {
+        Map<String, String> kafkaStatus = taskStatus.get("scoring-kafka");
+        if (kafkaStatus == null || !"PROCESSING".equals(kafkaStatus.get("status"))) return;
+
+        String pipelineRunId = kafkaStatus.get("pipelineRunId");
+        String totalStr = kafkaStatus.get("total");
+        if (pipelineRunId == null || totalStr == null) return;
+
+        StringRedisTemplate redis = stringRedisTemplate.getIfAvailable();
+        if (redis == null) return;
+
+        String prefix = "jobai:scoring:" + pipelineRunId;
+        String completedStr = redis.opsForValue().get(prefix + ":completed");
+        String resultStr = redis.opsForValue().get(prefix + ":result");
+
+        if (resultStr != null) {
+            // Consumer가 완료 판정을 기록함
+            taskStatus.put("scoring-kafka", Map.of("status", "COMPLETED", "result", resultStr));
+            response.put("scoring-kafka", Map.of("status", "COMPLETED", "result", resultStr));
+        } else if (completedStr != null && Long.parseLong(completedStr) >= Long.parseLong(totalStr)) {
+            String startMsStr = kafkaStatus.get("startMs");
+            long elapsed = startMsStr != null ? System.currentTimeMillis() - Long.parseLong(startMsStr) : 0;
+            String finalResult = String.format(
+                    "Kafka 스코어링 전체 완료: %s건 처리 (총 소요: %dms)", totalStr, elapsed);
+            taskStatus.put("scoring-kafka", Map.of("status", "COMPLETED", "result", finalResult));
+            response.put("scoring-kafka", Map.of("status", "COMPLETED", "result", finalResult));
+        } else {
+            String progress = String.format("%s — 진행: %s/%s건 완료",
+                    kafkaStatus.get("result"), completedStr != null ? completedStr : "0", totalStr);
+            response.put("scoring-kafka", Map.of("status", "PROCESSING", "result", progress));
+        }
     }
 }

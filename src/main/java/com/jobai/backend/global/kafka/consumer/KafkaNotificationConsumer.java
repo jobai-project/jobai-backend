@@ -17,6 +17,10 @@ public class KafkaNotificationConsumer {
 
     private final NotificationDispatchService notificationDispatchService;
 
+    /**
+     * 알림 발송 이벤트를 수신하여 NotificationDispatchService로 전달한다.
+     * 예외를 catch하여 재처리로 인한 중복 발송(이메일 등)을 방지한다.
+     */
     @KafkaListener(
             topics = "jobai.notification.dispatch",
             groupId = "jobai-notification-group",
@@ -25,19 +29,29 @@ public class KafkaNotificationConsumer {
             }
     )
     public void consume(NotificationDispatchEvent event) {
-        log.info("[Kafka] 알림 이벤트 수신: userId={}, type={}", event.userId(), event.type());
+        log.info("[Kafka] 알림 이벤트 수신: userId={}, type={}", maskEmail(event.userId()), event.type());
 
-        notificationDispatchService.notifyUser(
-                event.userId(),
-                RealtimeNotificationPayload.of(
-                        event.type(),
-                        event.title(),
-                        event.message(),
-                        event.linkUrl(),
-                        event.createdAt()
-                )
-        );
+        try {
+            notificationDispatchService.notifyUser(
+                    event.userId(),
+                    RealtimeNotificationPayload.of(
+                            event.type(),
+                            event.title(),
+                            event.message(),
+                            event.linkUrl(),
+                            event.createdAt()
+                    )
+            );
+            log.info("[Kafka] 알림 처리 완료: userId={}", maskEmail(event.userId()));
+        } catch (Exception e) {
+            // 예외를 전파하면 DefaultErrorHandler가 재처리하여 이메일이 중복 발송될 수 있으므로 로그만 남긴다
+            log.error("[Kafka] 알림 처리 실패 (재시도 안 함): userId={}, error={}",
+                    maskEmail(event.userId()), e.getMessage(), e);
+        }
+    }
 
-        log.info("[Kafka] 알림 처리 완료: userId={}", event.userId());
+    private static String maskEmail(String email) {
+        if (email == null || !email.contains("@")) return "***";
+        return email.charAt(0) + "***" + email.substring(email.indexOf('@'));
     }
 }

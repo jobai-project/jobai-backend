@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jobai.backend.domain.matching.entity.PrivateMatchScore;
 import com.jobai.backend.domain.matching.repository.PrivateMatchScoreRepository;
+import com.jobai.backend.domain.matching.service.BatchNotificationHelper;
 import com.jobai.backend.domain.member.entity.Member;
 import com.jobai.backend.domain.member.entity.Resumes;
 import com.jobai.backend.domain.member.repository.MemberRepository;
@@ -14,19 +15,14 @@ import com.jobai.backend.global.ai.client.AiScoringClient;
 import com.jobai.backend.global.ai.dto.ScorePrivateRequest;
 import com.jobai.backend.global.ai.dto.ScorePrivateResponse;
 import com.jobai.backend.global.kafka.event.ScoringRequestEvent;
-import com.jobai.backend.global.kafka.event.ScoringResultEvent;
-import com.jobai.backend.global.kafka.producer.KafkaNotificationProducer;
-import com.jobai.backend.global.kafka.event.NotificationDispatchEvent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Profile;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.kafka.annotation.KafkaListener;
-import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Component;
 
 import java.time.Duration;
-import java.time.Instant;
 import java.util.List;
 
 @Slf4j
@@ -42,9 +38,14 @@ public class KafkaScoringConsumer {
     private final MemberRepository memberRepository;
     private final ObjectMapper objectMapper;
     private final StringRedisTemplate stringRedisTemplate;
-    private final KafkaTemplate<String, Object> kafkaTemplate;
-    private final KafkaNotificationProducer kafkaNotificationProducer;
+    private final BatchNotificationHelper batchNotificationHelper;
 
+    /**
+     * 스코어링 요청 이벤트를 수신하여 AI 호출 → 점수 저장을 처리한다.
+     * 멱등성 보장: 이미 점수가 존재하면 스킵한다.
+     * 성공/실패 관계없이 finally에서 trackCompletion을 호출하여 완료 카운터를 증가시킨다.
+     * 알림은 전체 완료 시 BatchNotificationHelper로 배치 발송한다 (동기 경로와 동일한 계약).
+     */
     @KafkaListener(
             topics = "jobai.scoring.request",
             groupId = "jobai-scoring-group",
@@ -63,89 +64,110 @@ public class KafkaScoringConsumer {
                         event.resumeId(), event.postingId())) {
             log.info("[Kafka 스코어링] 이미 점수 존재, 스킵: resumeId={}, postingId={}",
                     event.resumeId(), event.postingId());
-            trackCompletion(event);
+            trackCompletion(event, true);
             return;
         }
 
-        // AI 스코어링 호출
-        ScorePrivateRequest request = new ScorePrivateRequest(
-                event.jdText(),
-                event.jdVector(),
-                event.resumeVector(),
-                event.resumeSkills(),
-                event.experienceYears()
-        );
+        boolean success = false;
+        try {
+            // AI 스코어링 호출
+            ScorePrivateRequest request = new ScorePrivateRequest(
+                    event.jdText(),
+                    event.jdVector(),
+                    event.resumeVector(),
+                    event.resumeSkills(),
+                    event.experienceYears()
+            );
 
-        ScorePrivateResponse response = aiScoringClient.scorePrivate(request).block();
-        if (response == null) {
-            throw new IllegalStateException(
-                    "AI 점수 응답 null: resumeId=" + event.resumeId() + ", postingId=" + event.postingId());
+            ScorePrivateResponse response = aiScoringClient.scorePrivate(request).block();
+            if (response == null) {
+                throw new IllegalStateException(
+                        "AI 점수 응답 null: resumeId=" + event.resumeId() + ", postingId=" + event.postingId());
+            }
+
+            int score = (int) Math.round(response.score());
+
+            // DB 저장
+            PrivateJobPosting posting = privateJobPostingRepository.getReferenceById(event.postingId());
+            Resumes resume = resumesRepository.getReferenceById(event.resumeId());
+            Member member = memberRepository.getReferenceById(event.memberId());
+
+            privateMatchScoreRepository.save(PrivateMatchScore.builder()
+                    .member(member)
+                    .resume(resume)
+                    .privateJobPosting(posting)
+                    .score(score)
+                    .scoreReason(response.scoreReason())
+                    .matchedSkills(toJson(response.matchedSkills()))
+                    .missingSkills(toJson(response.missingSkills()))
+                    .careerMet(response.careerMet())
+                    .modelVersion(response.modelVersion())
+                    .build());
+
+            log.info("[Kafka 스코어링] 저장 완료: resumeId={}, postingId={}, score={}",
+                    event.resumeId(), event.postingId(), score);
+
+            success = true;
+        } finally {
+            trackCompletion(event, success);
         }
-
-        int score = (int) Math.round(response.score());
-
-        // DB 저장
-        PrivateJobPosting posting = privateJobPostingRepository.getReferenceById(event.postingId());
-        Resumes resume = resumesRepository.getReferenceById(event.resumeId());
-        Member member = memberRepository.getReferenceById(event.memberId());
-
-        privateMatchScoreRepository.save(PrivateMatchScore.builder()
-                .member(member)
-                .resume(resume)
-                .privateJobPosting(posting)
-                .score(score)
-                .scoreReason(response.scoreReason())
-                .matchedSkills(toJson(response.matchedSkills()))
-                .missingSkills(toJson(response.missingSkills()))
-                .careerMet(response.careerMet())
-                .modelVersion(response.modelVersion())
-                .build());
-
-        log.info("[Kafka 스코어링] 저장 완료: resumeId={}, postingId={}, score={}",
-                event.resumeId(), event.postingId(), score);
-
-        // 임계값 이상이면 알림 발행
-        if (score >= event.scoreThreshold()) {
-            String message = String.format("[%s] %s (매칭 %d점)",
-                    event.postingCompany(), event.postingTitle(), score);
-            kafkaNotificationProducer.send(new NotificationDispatchEvent(
-                    event.userEmail(), "MATCH", "새 추천 공고", message,
-                    "/jobs/private/" + event.postingId(), Instant.now()));
-        }
-
-        trackCompletion(event);
     }
 
     /**
      * Redis 카운터로 완료 건수 추적.
-     * pipelineRunId별로 completed를 증가시키고, total과 같아지면 배치 완료.
+     * 성공/실패 모두 completed를 증가시키고, 실패 시 failed도 별도 증가.
+     * completed >= total이면 배치 완료로 판정한다. result는 setIfAbsent로 1회만 기록.
+     * 최초 완료 판정 스레드가 배치 알림을 발송한다 (동기 경로와 동일한 알림 계약).
      */
-    private void trackCompletion(ScoringRequestEvent event) {
+    private void trackCompletion(ScoringRequestEvent event, boolean success) {
         if (event.pipelineRunId() == null) return;
 
-        String completedKey = "jobai:scoring:" + event.pipelineRunId() + ":completed";
+        String prefix = "jobai:scoring:" + event.pipelineRunId();
+        String completedKey = prefix + ":completed";
         Long completed = stringRedisTemplate.opsForValue().increment(completedKey);
         stringRedisTemplate.expire(completedKey, Duration.ofHours(24));
 
-        String totalKey = "jobai:scoring:" + event.pipelineRunId() + ":total";
+        if (!success) {
+            String failedKey = prefix + ":failed";
+            stringRedisTemplate.opsForValue().increment(failedKey);
+            stringRedisTemplate.expire(failedKey, Duration.ofHours(24));
+        }
+
+        String totalKey = prefix + ":total";
         String totalStr = stringRedisTemplate.opsForValue().get(totalKey);
 
-        if (totalStr != null && completed != null && completed == Long.parseLong(totalStr)) {
-            String startKey = "jobai:scoring:" + event.pipelineRunId() + ":startMs";
+        if (totalStr != null && completed != null && completed >= Long.parseLong(totalStr)) {
+            String startKey = prefix + ":startMs";
             String startMsStr = stringRedisTemplate.opsForValue().get(startKey);
             long elapsedMs = 0;
             if (startMsStr != null) {
                 elapsedMs = System.currentTimeMillis() - Long.parseLong(startMsStr);
             }
 
-            String resultKey = "jobai:scoring:" + event.pipelineRunId() + ":result";
+            String failedKey = prefix + ":failed";
+            String failedStr = stringRedisTemplate.opsForValue().get(failedKey);
+            long failedCount = failedStr != null ? Long.parseLong(failedStr) : 0;
+
+            String resultKey = prefix + ":result";
             String result = String.format(
-                    "Kafka 스코어링 전체 완료: %s건 처리 (총 소요: %dms)", totalStr, elapsedMs);
-            stringRedisTemplate.opsForValue().set(resultKey, result, Duration.ofHours(24));
+                    "Kafka 스코어링 전체 완료: %s건 처리, 실패 %d건 (총 소요: %dms)",
+                    totalStr, failedCount, elapsedMs);
+            // setIfAbsent: 여러 스레드가 동시에 도달해도 1회만 기록 + 알림 발송
+            Boolean isFirst = stringRedisTemplate.opsForValue().setIfAbsent(resultKey, result, Duration.ofHours(24));
 
             log.info("[벤치마크] {}", result);
             log.info("[Kafka 스코어링] 파이프라인 완료: pipelineRunId={}, total={}",
                     event.pipelineRunId(), totalStr);
+
+            // 최초 완료 판정 스레드만 배치 알림 발송 (동기 경로의 sendIfNeeded와 동일한 계약)
+            if (Boolean.TRUE.equals(isFirst)) {
+                try {
+                    batchNotificationHelper.sendNotificationsForExistingScores();
+                    log.info("[Kafka 스코어링] 배치 알림 발송 완료");
+                } catch (Exception e) {
+                    log.warn("[Kafka 스코어링] 배치 알림 발송 실패: {}", e.getMessage(), e);
+                }
+            }
         }
     }
 

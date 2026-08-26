@@ -18,6 +18,7 @@ import org.springframework.util.backoff.FixedBackOff;
 public class KafkaConfig {
 
     // ── 알림 토픽 ──────────────────────────────────────────
+    /** 알림 발송 토픽 (3 파티션). */
     @Bean
     public NewTopic notificationDispatchTopic() {
         return TopicBuilder.name("jobai.notification.dispatch")
@@ -26,6 +27,7 @@ public class KafkaConfig {
                 .build();
     }
 
+    /** 알림 발송 DLT (실패 메시지 보관). */
     @Bean
     public NewTopic notificationDispatchDltTopic() {
         return TopicBuilder.name("jobai.notification.dispatch.DLT")
@@ -35,6 +37,7 @@ public class KafkaConfig {
     }
 
     // ── 스코어링 토픽 ────────────────────────────────────────
+    /** 스코어링 요청 토픽 (6 파티션 = 최대 6 Consumer 병렬 처리). */
     @Bean
     public NewTopic scoringRequestTopic() {
         return TopicBuilder.name("jobai.scoring.request")
@@ -43,6 +46,7 @@ public class KafkaConfig {
                 .build();
     }
 
+    /** 스코어링 요청 DLT (실패 메시지 보관). */
     @Bean
     public NewTopic scoringRequestDltTopic() {
         return TopicBuilder.name("jobai.scoring.request.DLT")
@@ -51,6 +55,7 @@ public class KafkaConfig {
                 .build();
     }
 
+    /** 스코어링 결과 토픽 (3 파티션). */
     @Bean
     public NewTopic scoringResultTopic() {
         return TopicBuilder.name("jobai.scoring.result")
@@ -60,6 +65,7 @@ public class KafkaConfig {
     }
 
     // ── 파이프라인 토픽 ──────────────────────────────────────
+    /** 수집 완료 파이프라인 이벤트 토픽. */
     @Bean
     public NewTopic collectionCompleteTopic() {
         return TopicBuilder.name("jobai.pipeline.collection-complete")
@@ -68,6 +74,7 @@ public class KafkaConfig {
                 .build();
     }
 
+    /** 분류 완료 파이프라인 이벤트 토픽. */
     @Bean
     public NewTopic classificationCompleteTopic() {
         return TopicBuilder.name("jobai.pipeline.classification-complete")
@@ -76,6 +83,7 @@ public class KafkaConfig {
                 .build();
     }
 
+    /** 임베딩 완료 파이프라인 이벤트 토픽. */
     @Bean
     public NewTopic embeddingCompleteTopic() {
         return TopicBuilder.name("jobai.pipeline.embedding-complete")
@@ -84,7 +92,10 @@ public class KafkaConfig {
                 .build();
     }
 
-    // ── 에러 처리: 3회 재시도 후 DLT로 전송 ─────────────────
+    /**
+     * Kafka Consumer 공통 에러 핸들러.
+     * 3회 재시도(1초 간격) 후 실패 시 DLT로 전송한다.
+     */
     @Bean
     public CommonErrorHandler kafkaErrorHandler(KafkaOperations<String, Object> kafkaOperations) {
         DeadLetterPublishingRecoverer recoverer = new DeadLetterPublishingRecoverer(

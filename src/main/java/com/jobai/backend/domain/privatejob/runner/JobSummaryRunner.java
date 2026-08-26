@@ -30,6 +30,7 @@ public class JobSummaryRunner implements ApplicationRunner {
     private final JobPostingSummaryRepository summaryRepository;
     private final ObjectMapper objectMapper;
 
+    /** 백엔드 카테고리 공고를 일괄 요약하고 기술스택을 집계한다. */
     @Override
     public void run(ApplicationArguments args) {
         log.info("[요약] 백엔드 카테고리 공고 일괄 요약 시작");

@@ -83,6 +83,10 @@ public class BatchNotificationHelper {
     public record BatchScoringResult(String summary, Map<String, MemberNotifications> notifications) {
     }
 
+    /**
+     * 임계값 이상 공고가 있으면 알림을 발송한다.
+     * kafka.notification.enabled=true이면 Kafka로 발행, 아니면 직접 발송.
+     */
     public void sendIfNeeded(Member member, List<ScoredPosting> aboveThreshold, String notificationType) {
         if (aboveThreshold.isEmpty()) return;
 
@@ -119,13 +123,13 @@ public class BatchNotificationHelper {
                         payload.linkUrl(),
                         payload.createdAt()
                 ));
-                log.info("[배치알림] {} — {}건 Kafka 발행", member.getEmail(), aboveThreshold.size());
+                log.info("[배치알림] {} — {}건 Kafka 발행", maskEmail(member.getEmail()), aboveThreshold.size());
             } else {
                 notificationDispatchService.notifyUser(member.getEmail(), payload);
-                log.info("[배치알림] {} — {}건 직접 발송", member.getEmail(), aboveThreshold.size());
+                log.info("[배치알림] {} — {}건 직접 발송", maskEmail(member.getEmail()), aboveThreshold.size());
             }
         } catch (Exception e) {
-            log.warn("[배치알림] 알림 발송 실패: email={}, error={}", member.getEmail(), e.getMessage());
+            log.warn("[배치알림] 알림 발송 실패: email={}, error={}", maskEmail(member.getEmail()), e.getMessage());
         }
     }
 
@@ -144,10 +148,21 @@ public class BatchNotificationHelper {
         );
     }
 
+    private static String maskEmail(String email) {
+        if (email == null || !email.contains("@")) return "***";
+        return email.charAt(0) + "***" + email.substring(email.indexOf('@'));
+    }
+
+    /** 기존 점수 기반으로 모든 활성 이력서에 대해 알림을 발송한다. */
     public int sendNotificationsForExistingScores() {
         return sendNotificationsForExistingScores(null);
     }
 
+    /**
+     * 기존 점수 기반으로 알림을 발송한다. targetEmail이 지정되면 해당 사용자만 처리.
+     *
+     * @return 알림 발송된 공고 수. 활성 이력서가 없으면 -1.
+     */
     public int sendNotificationsForExistingScores(String targetEmail) {
         List<Resumes> resumes = resumesRepository.findAllActiveWithEmbedding();
         if (resumes.isEmpty()) {
