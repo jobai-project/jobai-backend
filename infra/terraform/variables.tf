@@ -93,3 +93,9 @@ variable "rds_port_forward_user_names" {
   type        = list(string)
   default     = []
 }
+
+variable "ai_server_dev_ips" {
+  description = "AI 서버 8001 포트에 직접 접근할 개발자 공인 IP 목록. 임시 허용이며 작업이 끝나면 비운다."
+  type        = list(string)
+  default     = []
+}

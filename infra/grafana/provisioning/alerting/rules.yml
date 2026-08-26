@@ -1,0 +1,258 @@
+apiVersion: 1
+
+groups:
+  - orgId: 1
+    name: jobai-backend
+    folder: JobAI
+    interval: 1m
+    rules:
+      # 1) 서비스 자체가 죽은 경우. 스크랩이 아예 실패해도(NoData) 알린다.
+      - uid: jobai-backend-down
+        title: 백엔드 다운
+        condition: THRESHOLD
+        for: 1m
+        noDataState: Alerting
+        execErrState: Alerting
+        labels:
+          severity: critical
+        annotations:
+          summary: JobAI 백엔드가 응답하지 않습니다
+          description: Prometheus가 1분 이상 백엔드 메트릭을 가져오지 못했습니다.
+        data:
+          - refId: QUERY
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: prometheus
+            model:
+              refId: QUERY
+              instant: true
+              expr: up{job="jobai-backend"}
+          - refId: THRESHOLD
+            datasourceUid: __expr__
+            model:
+              refId: THRESHOLD
+              type: threshold
+              expression: QUERY
+              conditions:
+                - evaluator:
+                    type: lt
+                    params: [1]
+
+      # 2) JVM 힙 고갈. OOM으로 죽기 전에 잡는 것이 목적이다.
+      - uid: jobai-jvm-heap-high
+        title: JVM 힙 사용률 90% 초과
+        condition: THRESHOLD
+        for: 5m
+        noDataState: NoData
+        execErrState: Alerting
+        labels:
+          severity: warning
+        annotations:
+          summary: JVM 힙 사용률이 90%를 넘었습니다
+          description: GC로 회수되지 않으면 OOM으로 이어질 수 있습니다.
+        data:
+          - refId: QUERY
+            relativeTimeRange:
+              from: 600
+              to: 0
+            datasourceUid: prometheus
+            model:
+              refId: QUERY
+              instant: true
+              expr: >-
+                sum(jvm_memory_used_bytes{job="jobai-backend",area="heap"})
+                / sum(jvm_memory_max_bytes{job="jobai-backend",area="heap"})
+          - refId: THRESHOLD
+            datasourceUid: __expr__
+            model:
+              refId: THRESHOLD
+              type: threshold
+              expression: QUERY
+              conditions:
+                - evaluator:
+                    type: gt
+                    params: [0.9]
+
+      # 3) 5xx 에러율. 트래픽이 없으면 NaN이 되므로 NoData는 정상으로 본다.
+      - uid: jobai-http-5xx-rate
+        title: 5xx 에러율 5% 초과
+        condition: THRESHOLD
+        for: 5m
+        noDataState: OK
+        execErrState: OK
+        labels:
+          severity: critical
+        annotations:
+          summary: 5xx 응답 비율이 5%를 넘었습니다
+          description: 최근 5분 요청 중 서버 오류 비율이 임계치를 초과했습니다.
+        data:
+          - refId: QUERY
+            relativeTimeRange:
+              from: 600
+              to: 0
+            datasourceUid: prometheus
+            model:
+              refId: QUERY
+              instant: true
+              expr: >-
+                sum(rate(http_server_requests_seconds_count{job="jobai-backend",status=~"5.."}[5m]))
+                / sum(rate(http_server_requests_seconds_count{job="jobai-backend"}[5m]))
+          - refId: THRESHOLD
+            datasourceUid: __expr__
+            model:
+              refId: THRESHOLD
+              type: threshold
+              expression: QUERY
+              conditions:
+                - evaluator:
+                    type: gt
+                    params: [0.05]
+
+      # 4) DB 커넥션 풀 고갈. pending이 쌓이면 요청이 대기하기 시작한다.
+      - uid: jobai-hikari-pending
+        title: DB 커넥션 풀 대기 발생
+        condition: THRESHOLD
+        for: 3m
+        noDataState: NoData
+        execErrState: Alerting
+        labels:
+          severity: warning
+        annotations:
+          summary: HikariCP 커넥션을 기다리는 스레드가 있습니다
+          description: 풀이 고갈되어 요청이 커넥션을 대기 중입니다.
+        data:
+          - refId: QUERY
+            relativeTimeRange:
+              from: 600
+              to: 0
+            datasourceUid: prometheus
+            model:
+              refId: QUERY
+              instant: true
+              expr: max(hikaricp_connections_pending{job="jobai-backend"})
+          - refId: THRESHOLD
+            datasourceUid: __expr__
+            model:
+              refId: THRESHOLD
+              type: threshold
+              expression: QUERY
+              conditions:
+                - evaluator:
+                    type: gt
+                    params: [0]
+
+  - orgId: 1
+    name: jobai-host
+    folder: JobAI
+    interval: 1m
+    rules:
+      # 5) 호스트 가용 메모리 부족. 2026-08-26 백엔드 OOM 크래시 루프의 직접 원인이었다.
+      - uid: jobai-host-memory-low
+        title: 호스트 가용 메모리 10% 미만
+        condition: THRESHOLD
+        for: 5m
+        noDataState: NoData
+        execErrState: Alerting
+        labels:
+          severity: critical
+        annotations:
+          summary: '{{ $labels.instance }} 가용 메모리가 10% 미만입니다'
+          description: OOM Killer가 컨테이너를 종료시킬 수 있습니다.
+        data:
+          - refId: QUERY
+            relativeTimeRange:
+              from: 600
+              to: 0
+            datasourceUid: prometheus
+            model:
+              refId: QUERY
+              instant: true
+              expr: >-
+                min by (instance) (
+                  node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes
+                )
+          - refId: THRESHOLD
+            datasourceUid: __expr__
+            model:
+              refId: THRESHOLD
+              type: threshold
+              expression: QUERY
+              conditions:
+                - evaluator:
+                    type: lt
+                    params: [0.1]
+
+      # 6) 스왑 사용 급증. 물리 메모리가 부족해지고 있다는 선행 신호다.
+      - uid: jobai-host-swap-high
+        title: 스왑 사용률 50% 초과
+        condition: THRESHOLD
+        for: 5m
+        noDataState: NoData
+        execErrState: OK
+        labels:
+          severity: warning
+        annotations:
+          summary: '{{ $labels.instance }} 스왑 사용률이 50%를 넘었습니다'
+          description: 물리 메모리가 부족해 디스크로 스와핑 중이며, 응답 지연으로 이어집니다.
+        data:
+          - refId: QUERY
+            relativeTimeRange:
+              from: 600
+              to: 0
+            datasourceUid: prometheus
+            model:
+              refId: QUERY
+              instant: true
+              expr: >-
+                max by (instance) (
+                  (node_memory_SwapTotal_bytes - node_memory_SwapFree_bytes)
+                  / clamp_min(node_memory_SwapTotal_bytes, 1)
+                )
+          - refId: THRESHOLD
+            datasourceUid: __expr__
+            model:
+              refId: THRESHOLD
+              type: threshold
+              expression: QUERY
+              conditions:
+                - evaluator:
+                    type: gt
+                    params: [0.5]
+
+      # 7) 루트 디스크 부족. 도커 이미지가 쌓이면 배포가 실패한다.
+      - uid: jobai-host-disk-low
+        title: 루트 디스크 여유 15% 미만
+        condition: THRESHOLD
+        for: 10m
+        noDataState: NoData
+        execErrState: OK
+        labels:
+          severity: warning
+        annotations:
+          summary: '{{ $labels.instance }} 루트 디스크 여유 공간이 15% 미만입니다'
+          description: 이미지 pull이나 로그 기록이 실패할 수 있습니다.
+        data:
+          - refId: QUERY
+            relativeTimeRange:
+              from: 600
+              to: 0
+            datasourceUid: prometheus
+            model:
+              refId: QUERY
+              instant: true
+              expr: >-
+                min by (instance) (
+                  node_filesystem_avail_bytes{mountpoint="/",fstype!="tmpfs"}
+                  / node_filesystem_size_bytes{mountpoint="/",fstype!="tmpfs"}
+                )
+          - refId: THRESHOLD
+            datasourceUid: __expr__
+            model:
+              refId: THRESHOLD
+              type: threshold
+              expression: QUERY
+              conditions:
+                - evaluator:
+                    type: lt
+                    params: [0.15]

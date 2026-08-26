@@ -19,6 +19,27 @@ resource "aws_security_group" "ai_server" {
     cidr_blocks = ["${var.my_ip}/32"]
   }
 
+  ingress {
+    description     = "node_exporter scrape from monitoring instance only"
+    from_port       = 9100
+    to_port         = 9100
+    protocol        = "tcp"
+    security_groups = [aws_security_group.monitoring.id]
+  }
+
+  # 개발 중 임시 허용. 팀 작업이 끝나면 ai_server_dev_ips를 비워 다시 닫는다.
+  dynamic "ingress" {
+    for_each = length(var.ai_server_dev_ips) > 0 ? [1] : []
+
+    content {
+      description = "temporary direct FastAPI access for developer machines"
+      from_port   = 8001
+      to_port     = 8001
+      protocol    = "tcp"
+      cidr_blocks = [for ip in var.ai_server_dev_ips : "${ip}/32"]
+    }
+  }
+
   egress {
     description = "allow HTTPS egress for ECR, S3, SSM, and external APIs"
     from_port   = 443
@@ -131,6 +152,10 @@ resource "aws_instance" "ai_server" {
     systemctl start snap.amazon-ssm-agent.amazon-ssm-agent.service || true
     curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
     chmod +x /usr/local/bin/docker-compose
+    docker run -d --name jobai-node-exporter --restart unless-stopped \
+      --network host --pid host \
+      -v /:/host:ro,rslave \
+      prom/node-exporter:v1.8.2 --path.rootfs=/host
   EOF
 
   metadata_options {

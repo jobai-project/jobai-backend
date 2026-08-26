@@ -1,5 +1,104 @@
 # Prometheus + Grafana 관측 스택 전용 인스턴스.
 # 백엔드 EC2(t3.micro, 1GB)는 이미 스왑을 쓸 만큼 여유가 없어 같은 호스트에 올리지 않는다.
+#
+# 설정 파일은 user_data 16KB 한도를 넘기므로 S3에 올려두고 부팅 시 sync 한다.
+# Slack 웹훅은 저장소에 두지 않고 SSM Parameter Store(SecureString)에서 읽는다.
+
+locals {
+  monitoring_config_bucket = "jobai-monitoring-config-${data.aws_caller_identity.current.account_id}-${var.aws_region}"
+  slack_webhook_param      = "/jobai/prod/monitoring/slack_webhook_url"
+}
+
+resource "aws_s3_bucket" "monitoring_config" {
+  bucket        = local.monitoring_config_bucket
+  force_destroy = true
+
+  tags = {
+    Name = "jobai-monitoring-config"
+  }
+}
+
+resource "aws_s3_bucket_public_access_block" "monitoring_config" {
+  bucket = aws_s3_bucket.monitoring_config.id
+
+  block_public_acls       = true
+  block_public_policy     = true
+  ignore_public_acls      = true
+  restrict_public_buckets = true
+}
+
+resource "aws_s3_bucket_server_side_encryption_configuration" "monitoring_config" {
+  bucket = aws_s3_bucket.monitoring_config.id
+
+  rule {
+    apply_server_side_encryption_by_default {
+      sse_algorithm = "AES256"
+    }
+  }
+}
+
+# ── 모니터링 스택 설정 파일 ────────────────────────────────────────
+
+resource "aws_s3_object" "monitoring_compose" {
+  bucket      = aws_s3_bucket.monitoring_config.id
+  key         = "docker-compose.yml"
+  content     = file("${path.module}/../monitoring/docker-compose.yml")
+  source_hash = filemd5("${path.module}/../monitoring/docker-compose.yml")
+}
+
+resource "aws_s3_object" "prometheus_config" {
+  bucket = aws_s3_bucket.monitoring_config.id
+  key    = "prometheus/prometheus.yml"
+
+  content = templatefile("${path.module}/../prometheus/prometheus-prod.yml.tftpl", {
+    backend_private_ip = aws_instance.jobai.private_ip
+    ai_private_ip      = aws_instance.ai_server.private_ip
+  })
+}
+
+resource "aws_s3_object" "grafana_datasource" {
+  bucket      = aws_s3_bucket.monitoring_config.id
+  key         = "grafana/provisioning/datasources/datasource.yml"
+  content     = file("${path.module}/../grafana/provisioning/datasources/datasource.yml")
+  source_hash = filemd5("${path.module}/../grafana/provisioning/datasources/datasource.yml")
+}
+
+resource "aws_s3_object" "grafana_dashboard_provider" {
+  bucket      = aws_s3_bucket.monitoring_config.id
+  key         = "grafana/provisioning/dashboards/dashboard.yml"
+  content     = file("${path.module}/../grafana/provisioning/dashboards/dashboard.yml")
+  source_hash = filemd5("${path.module}/../grafana/provisioning/dashboards/dashboard.yml")
+}
+
+resource "aws_s3_object" "grafana_contact_points" {
+  bucket      = aws_s3_bucket.monitoring_config.id
+  key         = "grafana/provisioning/alerting/contact-points.yml"
+  content     = file("${path.module}/../grafana/provisioning/alerting/contact-points.yml")
+  source_hash = filemd5("${path.module}/../grafana/provisioning/alerting/contact-points.yml")
+}
+
+resource "aws_s3_object" "grafana_notification_policies" {
+  bucket      = aws_s3_bucket.monitoring_config.id
+  key         = "grafana/provisioning/alerting/notification-policies.yml"
+  content     = file("${path.module}/../grafana/provisioning/alerting/notification-policies.yml")
+  source_hash = filemd5("${path.module}/../grafana/provisioning/alerting/notification-policies.yml")
+}
+
+resource "aws_s3_object" "grafana_alert_rules" {
+  bucket      = aws_s3_bucket.monitoring_config.id
+  key         = "grafana/provisioning/alerting/rules.yml"
+  content     = file("${path.module}/../grafana/provisioning/alerting/rules.yml")
+  source_hash = filemd5("${path.module}/../grafana/provisioning/alerting/rules.yml")
+}
+
+# 대시보드 쿼리는 로컬 검증용 job 이름을 쓰므로 프로덕션 job 이름으로 바꿔 올린다.
+resource "aws_s3_object" "grafana_dashboard" {
+  bucket  = aws_s3_bucket.monitoring_config.id
+  key     = "grafana/dashboards/jobai-backend-overview.json"
+  content = replace(file("${path.module}/../grafana/dashboards/jobai-backend-overview.json"), "jobai-backend-local", "jobai-backend")
+}
+
+# ── 보안그룹 ───────────────────────────────────────────────────────
 
 resource "aws_security_group" "monitoring" {
   name        = "jobai-monitoring-sg"
@@ -42,6 +141,8 @@ resource "aws_security_group" "monitoring" {
   }
 }
 
+# ── IAM ───────────────────────────────────────────────────────────
+
 resource "aws_iam_role" "monitoring_ec2" {
   name = "jobai-monitoring-ec2-role"
 
@@ -68,10 +169,43 @@ resource "aws_iam_role_policy_attachment" "monitoring_ssm_managed_instance" {
   policy_arn = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
 }
 
+resource "aws_iam_policy" "monitoring_config_access" {
+  name        = "jobai-monitoring-config-access"
+  description = "Allow the monitoring instance to read its config from S3 and the Slack webhook from SSM"
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect   = "Allow"
+        Action   = ["s3:ListBucket"]
+        Resource = aws_s3_bucket.monitoring_config.arn
+      },
+      {
+        Effect   = "Allow"
+        Action   = ["s3:GetObject"]
+        Resource = "${aws_s3_bucket.monitoring_config.arn}/*"
+      },
+      {
+        Effect   = "Allow"
+        Action   = ["ssm:GetParameter"]
+        Resource = "arn:aws:ssm:${var.aws_region}:${data.aws_caller_identity.current.account_id}:parameter${local.slack_webhook_param}"
+      }
+    ]
+  })
+}
+
+resource "aws_iam_role_policy_attachment" "monitoring_config_access" {
+  role       = aws_iam_role.monitoring_ec2.name
+  policy_arn = aws_iam_policy.monitoring_config_access.arn
+}
+
 resource "aws_iam_instance_profile" "monitoring_ec2" {
   name = "jobai-monitoring-ec2-instance-profile"
   role = aws_iam_role.monitoring_ec2.name
 }
+
+# ── 인스턴스 ───────────────────────────────────────────────────────
 
 resource "aws_instance" "monitoring" {
   ami                    = var.ami_id
@@ -101,91 +235,28 @@ resource "aws_instance" "monitoring" {
     curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
     chmod +x /usr/local/bin/docker-compose
 
-    mkdir -p /opt/monitoring/prometheus
-    mkdir -p /opt/monitoring/grafana/provisioning/datasources
-    mkdir -p /opt/monitoring/grafana/provisioning/dashboards
-    mkdir -p /opt/monitoring/grafana/dashboards
+    mkdir -p /opt/monitoring
+    aws s3 sync "s3://${aws_s3_bucket.monitoring_config.id}/" /opt/monitoring/ --region ${var.aws_region}
 
-    cat > /opt/monitoring/prometheus/prometheus.yml <<'PROMCFG'
-    global:
-      scrape_interval: 15s
+    WEBHOOK=$(aws ssm get-parameter \
+      --region ${var.aws_region} \
+      --name "${local.slack_webhook_param}" \
+      --with-decryption \
+      --query "Parameter.Value" \
+      --output text 2>/dev/null || true)
 
-    scrape_configs:
-      - job_name: jobai-backend
-        metrics_path: /actuator/prometheus
-        static_configs:
-          - targets:
-              - ${aws_instance.jobai.private_ip}:9090
-    PROMCFG
-
-    cat > /opt/monitoring/grafana/provisioning/datasources/datasource.yml <<'DSCFG'
-    apiVersion: 1
-
-    datasources:
-      - name: Prometheus
-        uid: prometheus
-        type: prometheus
-        access: proxy
-        url: http://prometheus:9090
-        isDefault: true
-        editable: true
-    DSCFG
-
-    cat > /opt/monitoring/grafana/provisioning/dashboards/dashboard.yml <<'DBCFG'
-    apiVersion: 1
-
-    providers:
-      - name: jobai
-        orgId: 1
-        folder: ''
-        type: file
-        disableDeletion: false
-        updateIntervalSeconds: 30
-        allowUiUpdates: true
-        options:
-          path: /var/lib/grafana/dashboards
-    DBCFG
-
-    cat > /opt/monitoring/grafana/dashboards/jobai-backend-overview.json <<'DASHJSON'
-    ${replace(file("${path.module}/../grafana/dashboards/jobai-backend-overview.json"), "jobai-backend-local", "jobai-backend")}
-    DASHJSON
-
-    cat > /opt/monitoring/docker-compose.yml <<'COMPOSE'
-    services:
-      prometheus:
-        image: prom/prometheus:v2.55.1
-        container_name: jobai-prometheus
-        restart: unless-stopped
-        ports:
-          - "9090:9090"
-        volumes:
-          - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
-          - prometheus_data:/prometheus
-
-      grafana:
-        image: grafana/grafana:11.3.0
-        container_name: jobai-grafana
-        restart: unless-stopped
-        ports:
-          - "3000:3000"
-        environment:
-          GF_SECURITY_ADMIN_USER: admin
-          GF_SECURITY_ADMIN_PASSWORD: admin
-        volumes:
-          - grafana_data:/var/lib/grafana
-          - ./grafana/provisioning:/etc/grafana/provisioning:ro
-          - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
-        depends_on:
-          - prometheus
-
-    volumes:
-      prometheus_data:
-      grafana_data:
-    COMPOSE
+    umask 077
+    printf 'SLACK_WEBHOOK_URL=%s\n' "$WEBHOOK" > /opt/monitoring/.env
 
     cd /opt/monitoring
     /usr/local/bin/docker-compose up -d
   EOF
+
+  # 설정 파일이 바뀌었을 때 인스턴스를 다시 만들지 않고 재적용할 수 있도록,
+  # 설정 변경은 SSM으로 s3 sync 후 compose 재기동하는 방식을 쓴다.
+  lifecycle {
+    ignore_changes = [user_data]
+  }
 
   metadata_options {
     http_tokens = "required"

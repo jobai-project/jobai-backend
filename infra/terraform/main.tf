@@ -130,6 +130,14 @@ resource "aws_security_group" "jobai" {
     security_groups = [aws_security_group.monitoring.id]
   }
 
+  ingress {
+    description     = "node_exporter scrape from monitoring instance only"
+    from_port       = 9100
+    to_port         = 9100
+    protocol        = "tcp"
+    security_groups = [aws_security_group.monitoring.id]
+  }
+
   egress {
     from_port   = 0
     to_port     = 0

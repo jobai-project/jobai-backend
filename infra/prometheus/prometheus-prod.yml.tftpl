@@ -1,0 +1,22 @@
+global:
+  scrape_interval: 15s
+
+scrape_configs:
+  # Spring Boot actuator. 서비스 포트와 분리된 management 포트에서만 노출된다.
+  - job_name: jobai-backend
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets:
+          - ${backend_private_ip}:9090
+
+  # 호스트 메트릭(메모리/스왑/디스크/CPU). JVM 밖에서 벌어지는 일을 본다.
+  - job_name: jobai-node
+    static_configs:
+      - targets:
+          - ${backend_private_ip}:9100
+        labels:
+          host: backend
+      - targets:
+          - ${ai_private_ip}:9100
+        labels:
+          host: ai-server

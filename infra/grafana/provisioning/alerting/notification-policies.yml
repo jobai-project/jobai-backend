@@ -1,0 +1,11 @@
+apiVersion: 1
+
+policies:
+  - orgId: 1
+    receiver: slack
+    group_by:
+      - alertname
+    group_wait: 30s
+    group_interval: 5m
+    # 같은 알림이 계속 울리는 것을 막되, 미해결 상태는 4시간마다 상기시킨다.
+    repeat_interval: 4h
