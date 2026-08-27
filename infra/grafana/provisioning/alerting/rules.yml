@@ -199,7 +199,7 @@ groups:
             model:
               refId: QUERY
               instant: true
-              expr: max(kafka_consumer_records_lag{job="jobai-backend"})
+              expr: max(kafka_consumer_fetch_manager_records_lag{job="jobai-backend"})
           - refId: THRESHOLD
             datasourceUid: __expr__
             model:

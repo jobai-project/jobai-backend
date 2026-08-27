@@ -21,19 +21,29 @@ import reactor.core.publisher.Mono;
 public class AiScoringClient {
 
     private final WebClient aiWebClient;
-    private final Timer privateTimer;
-    private final Timer publicTimer;
+    private final Timer privateSuccessTimer;
+    private final Timer privateFailureTimer;
+    private final Timer publicSuccessTimer;
+    private final Timer publicFailureTimer;
     private final Counter failureCounter;
 
     public AiScoringClient(@Qualifier("aiWebClient") WebClient aiWebClient,
                            MeterRegistry meterRegistry) {
         this.aiWebClient = aiWebClient;
-        this.privateTimer = Timer.builder("ai.scoring.duration")
-                .tag("type", "private")
+        this.privateSuccessTimer = Timer.builder("ai.scoring.duration")
+                .tag("type", "private").tag("outcome", "success")
                 .description("AI 사기업 스코어링 호출 소요시간")
                 .register(meterRegistry);
-        this.publicTimer = Timer.builder("ai.scoring.duration")
-                .tag("type", "public")
+        this.privateFailureTimer = Timer.builder("ai.scoring.duration")
+                .tag("type", "private").tag("outcome", "failure")
+                .description("AI 사기업 스코어링 호출 소요시간")
+                .register(meterRegistry);
+        this.publicSuccessTimer = Timer.builder("ai.scoring.duration")
+                .tag("type", "public").tag("outcome", "success")
+                .description("AI 공기업 스코어링 호출 소요시간")
+                .register(meterRegistry);
+        this.publicFailureTimer = Timer.builder("ai.scoring.duration")
+                .tag("type", "public").tag("outcome", "failure")
                 .description("AI 공기업 스코어링 호출 소요시간")
                 .register(meterRegistry);
         this.failureCounter = Counter.builder("ai.scoring.failures")
@@ -57,9 +67,9 @@ public class AiScoringClient {
                                 )))
                 )
                 .bodyToMono(ScorePrivateResponse.class)
-                .doOnSuccess(r -> sample.stop(privateTimer))
+                .doOnSuccess(r -> sample.stop(privateSuccessTimer))
                 .doOnError(e -> {
-                    sample.stop(privateTimer);
+                    sample.stop(privateFailureTimer);
                     failureCounter.increment();
                 });
     }
@@ -80,9 +90,9 @@ public class AiScoringClient {
                                 )))
                 )
                 .bodyToMono(ScorePublicResponse.class)
-                .doOnSuccess(r -> sample.stop(publicTimer))
+                .doOnSuccess(r -> sample.stop(publicSuccessTimer))
                 .doOnError(e -> {
-                    sample.stop(publicTimer);
+                    sample.stop(publicFailureTimer);
                     failureCounter.increment();
                 });
     }

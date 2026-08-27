@@ -144,14 +144,14 @@
       "id": 40, "type": "timeseries", "title": "Consumer Lag by Topic",
       "gridPos": { "h": 8, "w": 12, "x": 0, "y": 49 },
       "datasource": { "type": "prometheus", "uid": "prometheus" },
-      "targets": [{ "expr": "sum by (topic) (kafka_consumer_records_lag{job=\"jobai-backend-local\"})", "legendFormat": "{{topic}}" }],
+      "targets": [{ "expr": "sum by (topic) (kafka_consumer_fetch_manager_records_lag{job=\"jobai-backend-local\"})", "legendFormat": "{{topic}}" }],
       "fieldConfig": { "defaults": {}, "overrides": [] }
     },
     {
       "id": 41, "type": "timeseries", "title": "Consumer Throughput (records/s)",
       "gridPos": { "h": 8, "w": 12, "x": 12, "y": 49 },
       "datasource": { "type": "prometheus", "uid": "prometheus" },
-      "targets": [{ "expr": "sum by (topic) (rate(kafka_consumer_records_consumed_total{job=\"jobai-backend-local\"}[5m]))", "legendFormat": "{{topic}}" }],
+      "targets": [{ "expr": "sum by (topic) (rate(kafka_consumer_fetch_manager_records_consumed_total{job=\"jobai-backend-local\"}[5m]))", "legendFormat": "{{topic}}" }],
       "fieldConfig": { "defaults": { "unit": "cps" }, "overrides": [] }
     },
 
@@ -161,7 +161,8 @@
       "gridPos": { "h": 8, "w": 8, "x": 0, "y": 58 },
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "targets": [
-        { "expr": "rate(ai_scoring_duration_seconds_sum{job=\"jobai-backend-local\"}[5m]) / rate(ai_scoring_duration_seconds_count{job=\"jobai-backend-local\"}[5m])", "legendFormat": "avg {{type}}" }
+        { "expr": "rate(ai_scoring_duration_seconds_sum{job=\"jobai-backend-local\",outcome=\"success\"}[5m]) / rate(ai_scoring_duration_seconds_count{job=\"jobai-backend-local\",outcome=\"success\"}[5m])", "legendFormat": "success {{type}}" },
+        { "expr": "rate(ai_scoring_duration_seconds_sum{job=\"jobai-backend-local\",outcome=\"failure\"}[5m]) / rate(ai_scoring_duration_seconds_count{job=\"jobai-backend-local\",outcome=\"failure\"}[5m])", "legendFormat": "failure {{type}}" }
       ],
       "fieldConfig": { "defaults": { "unit": "s" }, "overrides": [] }
     },

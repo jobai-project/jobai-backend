@@ -1,5 +1,6 @@
 package com.jobai.backend.global.config;
 
+import io.micrometer.core.instrument.MeterRegistry;
 import org.apache.kafka.clients.admin.NewTopic;
 import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
@@ -15,6 +16,7 @@ import org.springframework.kafka.config.TopicBuilder;
 import org.springframework.kafka.core.ConsumerFactory;
 import org.springframework.kafka.core.DefaultKafkaConsumerFactory;
 import org.springframework.kafka.core.KafkaOperations;
+import org.springframework.kafka.core.MicrometerConsumerListener;
 import org.springframework.kafka.listener.CommonErrorHandler;
 import org.springframework.kafka.listener.DeadLetterPublishingRecoverer;
 import org.springframework.kafka.listener.DefaultErrorHandler;
@@ -134,9 +136,11 @@ public class KafkaConfig {
     @Bean
     public ConcurrentKafkaListenerContainerFactory<String, Object> kafkaListenerContainerFactory(
             KafkaProperties kafkaProperties,
-            CommonErrorHandler kafkaErrorHandler) {
-        ConsumerFactory<String, Object> consumerFactory =
+            CommonErrorHandler kafkaErrorHandler,
+            MeterRegistry meterRegistry) {
+        DefaultKafkaConsumerFactory<String, Object> consumerFactory =
                 new DefaultKafkaConsumerFactory<>(kafkaProperties.buildConsumerProperties());
+        consumerFactory.addListener(new MicrometerConsumerListener<>(meterRegistry));
         ConcurrentKafkaListenerContainerFactory<String, Object> factory =
                 new ConcurrentKafkaListenerContainerFactory<>();
         factory.setConsumerFactory(consumerFactory);
