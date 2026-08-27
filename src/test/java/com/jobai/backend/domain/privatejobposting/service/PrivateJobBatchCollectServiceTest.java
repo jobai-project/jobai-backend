@@ -3,6 +3,7 @@ package com.jobai.backend.domain.privatejobposting.service;
 import com.jobai.backend.domain.privatejobposting.service.PrivateJobBatchCollectService;
 import com.jobai.backend.domain.privatejobposting.service.PrivateJobCollectService;
 import com.jobai.backend.domain.privatejobposting.service.SaveResult;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -22,7 +23,7 @@ class PrivateJobBatchCollectServiceTest {
     @BeforeEach
     void setUp() throws Exception {
         collectService = Mockito.mock(PrivateJobCollectService.class);
-        batchService = new PrivateJobBatchCollectService(collectService);
+        batchService = new PrivateJobBatchCollectService(collectService, new SimpleMeterRegistry());
 
         // @Value 필드를 리플렉션으로 설정
         var field = PrivateJobBatchCollectService.class.getDeclaredField("excludeCompanies");

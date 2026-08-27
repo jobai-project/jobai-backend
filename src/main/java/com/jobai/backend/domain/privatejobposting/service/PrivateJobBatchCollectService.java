@@ -1,7 +1,8 @@
 package com.jobai.backend.domain.privatejobposting.service;
 
 import com.jobai.backend.domain.privatejobposting.scheduler.DailyJobScheduler;
-import lombok.RequiredArgsConstructor;
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.MeterRegistry;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.Resource;
@@ -19,12 +20,24 @@ import java.util.Set;
  */
 @Slf4j
 @Service
-@RequiredArgsConstructor
 public class PrivateJobBatchCollectService {
 
     private final PrivateJobCollectService collectService;
+    private final Counter crawlSuccessCounter;
+    private final Counter crawlFailureCounter;
 
     private static final String SPECS_PATTERN = "classpath:specs/*.yaml";
+
+    public PrivateJobBatchCollectService(PrivateJobCollectService collectService,
+                                        MeterRegistry meterRegistry) {
+        this.collectService = collectService;
+        this.crawlSuccessCounter = Counter.builder("crawl.collect.success")
+                .description("크롤링 수집 성공 건수")
+                .register(meterRegistry);
+        this.crawlFailureCounter = Counter.builder("crawl.collect.failure")
+                .description("크롤링 수집 실패 건수")
+                .register(meterRegistry);
+    }
 
     @Value("${scheduler.daily.exclude-companies:testco}")
     private Set<String> excludeCompanies;
@@ -56,10 +69,12 @@ public class PrivateJobBatchCollectService {
                 totalUpdated += result.getUpdatedCount();
                 totalClosed += result.getClosedCount();
                 successCount++;
+                crawlSuccessCounter.increment();
                 log.info("[배치수집] [{}] 완료 — 신규 {}, 변경 {}, 마감 {}",
                         company, result.getInsertedCount(), result.getUpdatedCount(), result.getClosedCount());
             } catch (Exception e) {
                 failCount++;
+                crawlFailureCounter.increment();
                 log.error("[배치수집] [{}] 실패: {}", company, e.getMessage(), e);
             }
         }

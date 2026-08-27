@@ -5,6 +5,9 @@ import com.jobai.backend.global.ai.dto.ScorePrivateResponse;
 import com.jobai.backend.global.ai.dto.ScorePublicRequest;
 import com.jobai.backend.global.ai.dto.ScorePublicResponse;
 import com.jobai.backend.global.ai.exception.AiClientException;
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.Timer;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.client.WebClient;
@@ -18,13 +21,38 @@ import reactor.core.publisher.Mono;
 public class AiScoringClient {
 
     private final WebClient aiWebClient;
+    private final Timer privateSuccessTimer;
+    private final Timer privateFailureTimer;
+    private final Timer publicSuccessTimer;
+    private final Timer publicFailureTimer;
+    private final Counter failureCounter;
 
-    // Lombok @RequiredArgsConstructor는 필드의 @Qualifier를 생성자 파라미터로 복사하지 않아
-    public AiScoringClient(@Qualifier("aiWebClient") WebClient aiWebClient) {
+    public AiScoringClient(@Qualifier("aiWebClient") WebClient aiWebClient,
+                           MeterRegistry meterRegistry) {
         this.aiWebClient = aiWebClient;
+        this.privateSuccessTimer = Timer.builder("ai.scoring.duration")
+                .tag("type", "private").tag("outcome", "success")
+                .description("AI 사기업 스코어링 호출 소요시간")
+                .register(meterRegistry);
+        this.privateFailureTimer = Timer.builder("ai.scoring.duration")
+                .tag("type", "private").tag("outcome", "failure")
+                .description("AI 사기업 스코어링 호출 소요시간")
+                .register(meterRegistry);
+        this.publicSuccessTimer = Timer.builder("ai.scoring.duration")
+                .tag("type", "public").tag("outcome", "success")
+                .description("AI 공기업 스코어링 호출 소요시간")
+                .register(meterRegistry);
+        this.publicFailureTimer = Timer.builder("ai.scoring.duration")
+                .tag("type", "public").tag("outcome", "failure")
+                .description("AI 공기업 스코어링 호출 소요시간")
+                .register(meterRegistry);
+        this.failureCounter = Counter.builder("ai.scoring.failures")
+                .description("AI 스코어링 호출 실패 횟수")
+                .register(meterRegistry);
     }
 
     public Mono<ScorePrivateResponse> scorePrivate(ScorePrivateRequest request) {
+        Timer.Sample sample = Timer.start();
         return aiWebClient.post()
                 .uri("/score/private")
                 .bodyValue(request)
@@ -38,10 +66,16 @@ public class AiScoringClient {
                                         body
                                 )))
                 )
-                .bodyToMono(ScorePrivateResponse.class);
+                .bodyToMono(ScorePrivateResponse.class)
+                .doOnSuccess(r -> sample.stop(privateSuccessTimer))
+                .doOnError(e -> {
+                    sample.stop(privateFailureTimer);
+                    failureCounter.increment();
+                });
     }
 
     public Mono<ScorePublicResponse> scorePublic(ScorePublicRequest request) {
+        Timer.Sample sample = Timer.start();
         return aiWebClient.post()
                 .uri("/score/public")
                 .bodyValue(request)
@@ -55,6 +89,11 @@ public class AiScoringClient {
                                         body
                                 )))
                 )
-                .bodyToMono(ScorePublicResponse.class);
+                .bodyToMono(ScorePublicResponse.class)
+                .doOnSuccess(r -> sample.stop(publicSuccessTimer))
+                .doOnError(e -> {
+                    sample.stop(publicFailureTimer);
+                    failureCounter.increment();
+                });
     }
 }
