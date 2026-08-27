@@ -1,17 +1,28 @@
 package com.jobai.backend.global.config;
 
 import org.apache.kafka.clients.admin.NewTopic;
+import org.apache.kafka.clients.consumer.Consumer;
+import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.common.TopicPartition;
+import org.apache.kafka.common.header.Header;
+import org.slf4j.MDC;
+import org.springframework.boot.autoconfigure.kafka.KafkaProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Profile;
+import org.springframework.kafka.config.ConcurrentKafkaListenerContainerFactory;
 import org.springframework.kafka.config.TopicBuilder;
+import org.springframework.kafka.core.ConsumerFactory;
+import org.springframework.kafka.core.DefaultKafkaConsumerFactory;
 import org.springframework.kafka.core.KafkaOperations;
 import org.springframework.kafka.listener.CommonErrorHandler;
 import org.springframework.kafka.listener.DeadLetterPublishingRecoverer;
 import org.springframework.kafka.listener.DefaultErrorHandler;
+import org.springframework.kafka.listener.RecordInterceptor;
 import org.springframework.kafka.support.serializer.DeserializationException;
 import org.springframework.util.backoff.FixedBackOff;
+
+import java.nio.charset.StandardCharsets;
 
 @Configuration
 @Profile("kafka")
@@ -90,6 +101,50 @@ public class KafkaConfig {
                 .partitions(1)
                 .replicas(1)
                 .build();
+    }
+
+    /**
+     * Kafka Consumer 메시지 수신 시 헤더에서 requestId를 꺼내 MDC에 세팅한다.
+     * 처리 완료 후 afterRecord에서 MDC를 정리한다.
+     */
+    @Bean
+    public RecordInterceptor<String, Object> mdcRecordInterceptor() {
+        return new RecordInterceptor<>() {
+            private static final String HEADER_NAME = "X-Request-ID";
+            private static final String MDC_KEY = "requestId";
+
+            @Override
+            public ConsumerRecord<String, Object> intercept(ConsumerRecord<String, Object> record,
+                                                            Consumer<String, Object> consumer) {
+                Header header = record.headers().lastHeader(HEADER_NAME);
+                if (header != null && header.value() != null) {
+                    MDC.put(MDC_KEY, new String(header.value(), StandardCharsets.UTF_8));
+                }
+                return record;
+            }
+
+            @Override
+            public void afterRecord(ConsumerRecord<String, Object> record,
+                                    Consumer<String, Object> consumer) {
+                MDC.remove(MDC_KEY);
+            }
+        };
+    }
+
+    @Bean
+    public ConcurrentKafkaListenerContainerFactory<String, Object> kafkaListenerContainerFactory(
+            KafkaProperties kafkaProperties,
+            CommonErrorHandler kafkaErrorHandler) {
+        ConsumerFactory<String, Object> consumerFactory =
+                new DefaultKafkaConsumerFactory<>(kafkaProperties.buildConsumerProperties());
+        ConcurrentKafkaListenerContainerFactory<String, Object> factory =
+                new ConcurrentKafkaListenerContainerFactory<>();
+        factory.setConsumerFactory(consumerFactory);
+        factory.setConcurrency(kafkaProperties.getListener().getConcurrency());
+        factory.getContainerProperties().setAckMode(kafkaProperties.getListener().getAckMode());
+        factory.setCommonErrorHandler(kafkaErrorHandler);
+        factory.setRecordInterceptor(mdcRecordInterceptor());
+        return factory;
     }
 
     /**
