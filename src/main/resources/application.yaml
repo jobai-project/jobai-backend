@@ -12,6 +12,11 @@ spring:
       max-file-size: 10MB
       max-request-size: 11MB
 
+  datasource:
+    hikari:
+      pool-name: jobai-hikari
+      maximum-pool-size: 10
+
   security:
     oauth2:
       client:
@@ -22,6 +27,26 @@ spring:
             scope:
               - profile
               - email
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: when_authorized
+  metrics:
+    tags:
+      application: jobai-backend
+    distribution:
+      percentiles-histogram:
+        http.server.requests: true
+      percentiles:
+        http.server.requests: 0.5, 0.95, 0.99
+  health:
+    elasticsearch:
+      enabled: false
 
 ---
 
@@ -126,21 +151,6 @@ app:
     frontend-redirect-url: ${APP_FRONTEND_REDIRECT_URL:http://localhost:3000/oauth2/redirect}
   frontend-base-url: ${APP_FRONTEND_BASE_URL:http://localhost:3000}
 
-management:
-  endpoints:
-    web:
-      exposure:
-        include: health,info,metrics,prometheus
-  endpoint:
-    health:
-      show-details: when_authorized
-  metrics:
-    tags:
-      application: jobai-backend
-  health:
-    elasticsearch:
-      enabled: false
-
 websocket:
   # comma-separated allowed origins for WebSocket (use full origin(s), e.g. http://localhost:3000)
   allowed-origins: ${WEBSOCKET_ALLOWED_ORIGINS:http://localhost:3000}
@@ -242,19 +252,6 @@ management:
   # 9090은 보안그룹에서 모니터링 인스턴스에만 열려 있다.
   server:
     port: 9090
-  endpoints:
-    web:
-      exposure:
-        include: health,info,metrics,prometheus
-  endpoint:
-    health:
-      show-details: when_authorized
-  metrics:
-    tags:
-      application: jobai-backend
-  health:
-    elasticsearch:
-      enabled: false
 
 websocket:
   allowed-origins: ${WEBSOCKET_ALLOWED_ORIGINS:http://localhost:3000}

@@ -142,6 +142,75 @@ groups:
                     type: gt
                     params: [0]
 
+      # 5) API p99 응답시간 3초 초과. 꼬리 지연이 지속되면 사용자 경험이 악화된다.
+      - uid: jobai-http-p99-slow
+        title: API p99 응답시간 3초 초과
+        condition: THRESHOLD
+        for: 5m
+        noDataState: OK
+        execErrState: OK
+        labels:
+          severity: warning
+        annotations:
+          summary: API p99 응답시간이 3초를 넘었습니다
+          description: 최근 5분간 p99 레이턴시가 임계치를 초과했습니다. 느린 엔드포인트를 확인하세요.
+        data:
+          - refId: QUERY
+            relativeTimeRange:
+              from: 600
+              to: 0
+            datasourceUid: prometheus
+            model:
+              refId: QUERY
+              instant: true
+              expr: >-
+                histogram_quantile(0.99,
+                  sum(rate(http_server_requests_seconds_bucket{job="jobai-backend"}[5m])) by (le)
+                )
+          - refId: THRESHOLD
+            datasourceUid: __expr__
+            model:
+              refId: THRESHOLD
+              type: threshold
+              expression: QUERY
+              conditions:
+                - evaluator:
+                    type: gt
+                    params: [3]
+
+      # 6) Kafka Consumer Lag 급증. 메시지 처리가 생산 속도를 못 따라가고 있다.
+      - uid: jobai-kafka-consumer-lag
+        title: Kafka Consumer Lag 1000 초과
+        condition: THRESHOLD
+        for: 5m
+        noDataState: OK
+        execErrState: OK
+        labels:
+          severity: warning
+        annotations:
+          summary: Kafka Consumer Lag이 1000을 넘었습니다
+          description: 메시지 처리 속도가 생산 속도를 따라가지 못하고 있습니다.
+        data:
+          - refId: QUERY
+            relativeTimeRange:
+              from: 600
+              to: 0
+            datasourceUid: prometheus
+            model:
+              refId: QUERY
+              instant: true
+              expr: max(kafka_consumer_records_lag{job="jobai-backend"})
+          - refId: THRESHOLD
+            datasourceUid: __expr__
+            model:
+              refId: THRESHOLD
+              type: threshold
+              expression: QUERY
+              conditions:
+                - evaluator:
+                    type: gt
+                    params: [1000]
+
   - orgId: 1
     name: jobai-host
     folder: JobAI
