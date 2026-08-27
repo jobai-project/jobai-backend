@@ -117,7 +117,7 @@ public class KafkaConfig {
             public ConsumerRecord<String, Object> intercept(ConsumerRecord<String, Object> record,
                                                             Consumer<String, Object> consumer) {
                 Header header = record.headers().lastHeader(HEADER_NAME);
-                if (header != null) {
+                if (header != null && header.value() != null) {
                     MDC.put(MDC_KEY, new String(header.value(), StandardCharsets.UTF_8));
                 }
                 return record;
