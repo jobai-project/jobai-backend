@@ -17,8 +17,7 @@ services:
     environment:
       GF_SECURITY_ADMIN_USER: admin
       GF_SECURITY_ADMIN_PASSWORD: admin
-      SLACK_WEBHOOK_URL: https://hooks.slack.com/services/PLACEHOLDER
-      SLACK_CHANNEL: "#alerts"
+      DISCORD_WEBHOOK_URL: https://discord.com/api/webhooks/1542441175896555540/bOwGcokaF2cujDuz7VWRIxwiLqVxg8jNmqDYpEMPiDhITgvh15QT84Yljm1_ZptJyO5j
     volumes:
       - grafana_data:/var/lib/grafana
       - ./infra/grafana/provisioning:/etc/grafana/provisioning:ro

@@ -1,19 +1,15 @@
 apiVersion: 1
 
-# SLACK_WEBHOOK_URL은 SSM Parameter Store(SecureString)에서 부팅 시 주입된다.
-# 저장소에는 값이 들어가지 않는다.
 contactPoints:
   - orgId: 1
-    name: slack
+    name: discord
     receivers:
-      - uid: slack-webhook
-        type: slack
+      - uid: discord-webhook
+        type: discord
         settings:
-          url: ${SLACK_WEBHOOK_URL}
-          recipient: ${SLACK_CHANNEL:-#alerts}
-          title: '[{{ .Status | toUpper }}] {{ .CommonLabels.alertname }}'
-          text: >-
-            {{ range .Alerts }}{{ .Annotations.summary }}
+          url: ${DISCORD_WEBHOOK_URL}
+          message: >-
+            {{ range .Alerts }}**{{ .Annotations.summary }}**
             {{ if .Annotations.description }}{{ .Annotations.description }}{{ end }}
             {{ end }}
         disableResolveMessage: false
