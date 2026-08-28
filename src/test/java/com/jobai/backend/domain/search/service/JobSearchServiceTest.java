@@ -59,6 +59,7 @@ class JobSearchServiceTest {
                 resumesRepository, privateMatchScoreRepository, publicMatchScoreRepository,
                 queryExpander, hybridSearchMerger, searchReranker);
 
+        ReflectionTestUtils.setField(jobSearchService, "self", jobSearchService);
         ReflectionTestUtils.setField(jobSearchService, "embeddingEnabled", true);
         ReflectionTestUtils.setField(jobSearchService, "hybridEnabled", false);
 
