@@ -6,12 +6,14 @@ import com.jobai.backend.global.ai.dto.EmbedResponse;
 import com.jobai.backend.domain.privatejobposting.entity.PrivateJobPosting;
 import com.jobai.backend.domain.publicInstitution.entity.PublicJobPosting;
 import com.jobai.backend.domain.search.entity.JobEmbedding;
+import com.jobai.backend.global.cache.CacheNames;
 import com.jobai.backend.global.enums.JobSource;
 import com.jobai.backend.domain.search.repository.JobEmbeddingRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.jsoup.Jsoup;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -54,6 +56,7 @@ public class EmbeddingService {
     }
 
     /** 사용자 검색 쿼리를 임베딩 벡터로 변환한다. DB에 저장하지 않는다. */
+    @Cacheable(cacheNames = CacheNames.QUERY_EMBEDDING, key = "#query.trim()")
     public float[] embedQuery(String query) {
         return requestJdEmbedding(query.trim());
     }

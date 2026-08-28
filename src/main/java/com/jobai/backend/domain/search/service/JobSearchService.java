@@ -17,9 +17,14 @@ import com.jobai.backend.domain.search.repository.JobSearchRepository;
 import com.jobai.backend.domain.search.repository.VectorSearchRepository;
 import com.jobai.backend.domain.search.repository.VectorSearchRepository.ScoredJob;
 import com.jobai.backend.domain.search.service.KeywordMatcher.MatchResult;
+import com.jobai.backend.global.cache.CacheKeyGenerator;
+import com.jobai.backend.global.cache.CacheNames;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -70,6 +75,10 @@ public class JobSearchService {
     private final HybridSearchMerger hybridSearchMerger;
     private final SearchReranker searchReranker;
 
+    @Lazy
+    @Autowired
+    private JobSearchService self;
+
     @Value("${search.embedding.enabled:true}")
     private boolean embeddingEnabled;
 
@@ -99,6 +108,14 @@ public class JobSearchService {
     // ═══════════════════════════════ 진입점 ═══════════════════════════════
 
     public JobSearchResponse search(String query, int page, int size, String email) {
+        JobSearchResponse cached = self.searchWithoutMatchScores(query, page, size);
+        List<JobSummary> withScores = attachMatchScores(cached.jobs(), email);
+        return new JobSearchResponse(cached.totalCount(), withScores, cached.searchInfo());
+    }
+
+    @Cacheable(cacheNames = CacheNames.JOB_SEARCH,
+            key = "T(com.jobai.backend.global.cache.CacheKeyGenerator).buildKey(#query, #page, #size)")
+    public JobSearchResponse searchWithoutMatchScores(String query, int page, int size) {
         MatchResult match = keywordMatcher.extract(query);
         log.info("[검색] query={}, categories={}, company={}, location={}, experience={}, unmatched={}",
                 query, match.categories(), match.company(), match.location(),
@@ -169,12 +186,17 @@ public class JobSearchService {
         int offset = page * size;
         List<JobSummary> pagedJobs = response.jobs().stream().skip(offset).limit(size).toList();
 
+        List<String> allExpandedKeywords = Stream.concat(
+                expansion.exactRequired().stream().flatMap(g -> g.terms().stream()),
+                expansion.expandedKeywords().stream()
+        ).distinct().toList();
+
         SearchInfo finalInfo = new SearchInfo(
                 response.searchInfo().method(),
                 response.searchInfo().matchedCategories(),
-                expansion.expandedKeywords());
+                allExpandedKeywords);
 
-        return new JobSearchResponse(response.totalCount(), attachMatchScores(pagedJobs, email), finalInfo);
+        return new JobSearchResponse(response.totalCount(), pagedJobs, finalInfo);
     }
 
     // ═══════════════════════════════ Path A: 키워드 검색 ═══════════════════════════════

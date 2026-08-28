@@ -4,7 +4,10 @@ import com.jobai.backend.domain.home.dto.JobCandidate;
 import com.jobai.backend.domain.home.dto.LatestJobsResponse;
 import com.jobai.backend.domain.home.dto.LatestJobsResponse.LatestJob;
 import com.jobai.backend.domain.home.repository.HomeJobCandidateRepository;
+import com.jobai.backend.global.cache.CacheKeyGenerator;
+import com.jobai.backend.global.cache.CacheNames;
 import lombok.RequiredArgsConstructor;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -28,6 +31,8 @@ public class LatestJobsService {
 
     private final HomeJobCandidateRepository candidateRepository;
 
+    @Cacheable(cacheNames = CacheNames.LATEST_JOBS,
+            key = "T(com.jobai.backend.global.cache.CacheKeyGenerator).buildKey(#companyTypes, #locations, #employmentTypes, #offset, #size)")
     public LatestJobsResponse getLatestJobs(
             List<String> companyTypes,
             List<String> locations,

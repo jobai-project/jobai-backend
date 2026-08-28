@@ -13,7 +13,10 @@ import com.jobai.backend.domain.member.repository.MemberRepository;
 import com.jobai.backend.domain.member.repository.ResumesRepository;
 import com.jobai.backend.global.apiPayload.code.GeneralErrorCode;
 import com.jobai.backend.global.apiPayload.exception.GeneralException;
+import com.jobai.backend.global.cache.CacheKeyGenerator;
+import com.jobai.backend.global.cache.CacheNames;
 import lombok.RequiredArgsConstructor;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -35,6 +38,8 @@ public class HomeRecommendationService {
     private final HomeJobCandidateRepository candidateRepository;
     private final ResumesRepository resumesRepository;
 
+    @Cacheable(cacheNames = CacheNames.RECOMMENDED_JOBS,
+            key = "T(com.jobai.backend.global.cache.CacheKeyGenerator).buildKey(#email, #companyTypes, #locations, #employmentTypes, #offset, #size)")
     public HomeRecommendationResponse getRecommendedJobs(
             String email,
             List<String> companyTypes,

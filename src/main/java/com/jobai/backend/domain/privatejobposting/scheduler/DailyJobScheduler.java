@@ -8,11 +8,13 @@ import com.jobai.backend.domain.matching.service.PublicMatchBatchService;
 import com.jobai.backend.domain.matching.service.ScoringDispatcher;
 import com.jobai.backend.domain.publicInstitution.service.JobDataSyncService;
 import com.jobai.backend.domain.search.service.EmbeddingBatchService;
+import com.jobai.backend.global.cache.PipelineCacheEvictionEvent;
 import com.jobai.backend.global.kafka.event.PipelineStageCompleteEvent;
 import com.jobai.backend.global.kafka.producer.KafkaPipelineProducer;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
@@ -49,6 +51,7 @@ public class DailyJobScheduler {
     private final BatchNotificationHelper batchNotificationHelper;
     private final ObjectProvider<ScoringDispatcher> scoringDispatcher;
     private final ObjectProvider<KafkaPipelineProducer> kafkaPipelineProducer;
+    private final ApplicationEventPublisher eventPublisher;
     private final boolean kafkaScoringEnabled;
     private final boolean kafkaPipelineEnabled;
 
@@ -62,6 +65,7 @@ public class DailyJobScheduler {
             BatchNotificationHelper batchNotificationHelper,
             ObjectProvider<ScoringDispatcher> scoringDispatcher,
             ObjectProvider<KafkaPipelineProducer> kafkaPipelineProducer,
+            ApplicationEventPublisher eventPublisher,
             @Value("${kafka.scoring.enabled:false}") boolean kafkaScoringEnabled,
             @Value("${kafka.pipeline.enabled:false}") boolean kafkaPipelineEnabled
     ) {
@@ -74,6 +78,7 @@ public class DailyJobScheduler {
         this.batchNotificationHelper = batchNotificationHelper;
         this.scoringDispatcher = scoringDispatcher;
         this.kafkaPipelineProducer = kafkaPipelineProducer;
+        this.eventPublisher = eventPublisher;
         this.kafkaScoringEnabled = kafkaScoringEnabled;
         this.kafkaPipelineEnabled = kafkaPipelineEnabled;
     }
@@ -130,6 +135,8 @@ public class DailyJobScheduler {
             } catch (Exception e) {
                 log.error("[DailyPipeline] 수집 완료 이벤트 발행 실패: {}", e.getMessage(), e);
             }
+
+            eventPublisher.publishEvent(new PipelineCacheEvictionEvent(this));
 
             long elapsed = System.currentTimeMillis() - start;
             log.info("[DailyPipeline] ===== 수집 완료, 나머지는 Kafka Orchestrator가 처리 ({}ms) =====", elapsed);
@@ -233,6 +240,8 @@ public class DailyJobScheduler {
             combinedNotifications.forEach((email, data) ->
                     batchNotificationHelper.sendIfNeeded(data.member(), data.postings(), "새 추천 공고"));
         }
+
+        eventPublisher.publishEvent(new PipelineCacheEvictionEvent(this));
 
         long elapsed = System.currentTimeMillis() - start;
         log.info("[DailyPipeline] ===== 새벽 파이프라인 종료 ({}ms) =====", elapsed);

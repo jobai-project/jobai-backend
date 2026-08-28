@@ -74,6 +74,7 @@ dependencies {
 	// ── Redis + Cache (Bloom Filter, LLM 캐싱) ───────────────
 	implementation 'org.springframework.boot:spring-boot-starter-cache'
 	implementation 'org.springframework.boot:spring-boot-starter-data-redis'
+	implementation 'com.github.ben-manes.caffeine:caffeine:3.1.8'
 	runtimeOnly 'io.micrometer:micrometer-registry-prometheus'
 
 	implementation 'org.redisson:redisson-spring-boot-starter:3.29.0'
