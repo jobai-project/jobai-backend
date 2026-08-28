@@ -10,6 +10,7 @@ import com.jobai.backend.domain.publicInstitution.service.JobDataSyncService;
 import com.jobai.backend.domain.search.service.EmbeddingBatchService;
 import com.jobai.backend.global.kafka.producer.KafkaPipelineProducer;
 import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.context.ApplicationEventPublisher;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -61,6 +62,7 @@ DailyJobSchedulerTest {
                 batchNotificationHelper,
                 scoringDispatcherProvider,
                 pipelineProducerProvider,
+                Mockito.mock(ApplicationEventPublisher.class),
                 false,
                 false
         );
@@ -199,6 +201,7 @@ DailyJobSchedulerTest {
                 batchNotificationHelper,
                 dispatcherProvider,
                 pipelineProducerProvider,
+                Mockito.mock(ApplicationEventPublisher.class),
                 true,   // kafkaScoringEnabled
                 false
         );

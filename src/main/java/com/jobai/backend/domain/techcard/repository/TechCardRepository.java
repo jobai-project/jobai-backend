@@ -13,8 +13,8 @@ public interface TechCardRepository extends JpaRepository<TechCard, Long> {
     @Query(value = """
             SELECT * FROM tech_cards
             WHERE source != 'INTERNAL'
-              AND created_at >= CURRENT_DATE - INTERVAL '9 hours'
-              AND created_at < CURRENT_DATE + INTERVAL '15 hours'
+              AND created_at >= (NOW() AT TIME ZONE 'Asia/Seoul')::date
+              AND created_at < (NOW() AT TIME ZONE 'Asia/Seoul')::date + INTERVAL '1 day'
             ORDER BY RANDOM()
             LIMIT 2
             """, nativeQuery = true)

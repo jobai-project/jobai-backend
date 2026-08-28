@@ -4,10 +4,12 @@ import com.jobai.backend.domain.matching.service.PublicMatchBatchService;
 import com.jobai.backend.domain.matching.service.ScoringDispatcher;
 import com.jobai.backend.domain.privatejobposting.service.PrivateJobPostingService;
 import com.jobai.backend.domain.search.service.EmbeddingBatchService;
+import com.jobai.backend.global.cache.PipelineCacheEvictionEvent;
 import com.jobai.backend.global.kafka.event.PipelineStageCompleteEvent;
 import com.jobai.backend.global.kafka.producer.KafkaPipelineProducer;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.annotation.Profile;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Component;
@@ -28,6 +30,7 @@ public class KafkaPipelineOrchestrator {
     private final ScoringDispatcher scoringDispatcher;
     private final PublicMatchBatchService publicMatchBatchService;
     private final KafkaPipelineProducer pipelineProducer;
+    private final ApplicationEventPublisher eventPublisher;
 
     /**
      * 수집 완료 → 분류 실행 → classification-complete 발행.
@@ -152,6 +155,10 @@ public class KafkaPipelineOrchestrator {
         } catch (Exception e) {
             log.error("[파이프라인] 공기업 매칭 점수 산출 실패: {}", e.getMessage(), e);
         }
+
+        // 파이프라인 최종 단계 완료 — 캐시 무효화
+        eventPublisher.publishEvent(new PipelineCacheEvictionEvent(this));
+        log.info("[파이프라인] 캐시 무효화 완료: pipelineRunId={}", event.pipelineRunId());
 
         // 사기업 디스패치 실패 시 예외를 전파하여 DefaultErrorHandler가 재시도하도록 한다
         if (dispatchException != null) {

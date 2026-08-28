@@ -31,7 +31,8 @@ public record QueryExpansionResult(
 
     /** 쿼리가 확장되었는지 여부를 반환한다. */
     public boolean wasExpanded() {
-        return !exactRequired.isEmpty()
+        return !expandedKeywords.isEmpty()
+                || !exactRequired.isEmpty()
                 || !semanticRequired.isEmpty() || !semanticPreferred.isEmpty();
     }
 

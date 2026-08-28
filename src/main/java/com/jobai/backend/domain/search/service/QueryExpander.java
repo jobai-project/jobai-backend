@@ -2,10 +2,13 @@ package com.jobai.backend.domain.search.service;
 
 import com.jobai.backend.domain.search.dto.QueryExpansionResult;
 import com.jobai.backend.domain.search.dto.RequirementGroup;
+import com.jobai.backend.global.cache.CacheKeyGenerator;
+import com.jobai.backend.global.cache.CacheNames;
 import com.jobai.backend.global.llm.AnthropicClient;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
@@ -93,6 +96,10 @@ public class QueryExpander {
      * @param unmatchedTokens 키워드 매칭에 걸리지 않은 토큰 목록
      * @return 확장 결과 (RequirementGroup 3분류 + 임베딩용 텍스트)
      */
+    @Cacheable(cacheNames = CacheNames.QUERY_EXPANSION,
+            key = "T(com.jobai.backend.global.cache.CacheKeyGenerator).buildKey(#originalQuery, #unmatchedTokens)",
+            condition = "#unmatchedTokens != null && !#unmatchedTokens.isEmpty()",
+            unless = "!#result.wasExpanded()")
     public QueryExpansionResult expand(String originalQuery, List<String> unmatchedTokens) {
         if (!enabled || unmatchedTokens == null || unmatchedTokens.isEmpty()) {
             return QueryExpansionResult.unchanged(originalQuery);
