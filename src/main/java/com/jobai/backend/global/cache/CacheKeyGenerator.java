@@ -14,6 +14,7 @@ public final class CacheKeyGenerator {
     private CacheKeyGenerator() {
     }
 
+    /** 파라미터 목록을 {@code ':'} 구분 문자열로 결합하여 캐시 키를 생성한다. */
     public static String buildKey(Object... parts) {
         StringBuilder sb = new StringBuilder();
         for (int i = 0; i < parts.length; i++) {

@@ -1,5 +1,6 @@
 package com.jobai.backend.global.cache;
 
+/** {@code @Cacheable}에서 사용하는 캐시 이름 상수. */
 public final class CacheNames {
 
     private CacheNames() {

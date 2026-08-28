@@ -17,6 +17,7 @@ public record CacheTtlConfig(
         Duration l2Ttl
 ) {
 
+    /** L1 캐시가 활성화되어 있는지 여부를 반환한다. */
     public boolean hasL1() {
         return l1Ttl != null && l1MaxSize > 0;
     }
