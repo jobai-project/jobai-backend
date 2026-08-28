@@ -93,7 +93,7 @@ public class TwoLevelCache implements org.springframework.cache.Cache {
         ValueWrapper l2Result = redisCache.get(key);
         if (l2Result != null) {
             l2HitCounter.increment();
-            if (caffeineCache != null) {
+            if (caffeineCache != null && l2Result.get() != null) {
                 caffeineCache.put(key, l2Result.get());
             }
             return l2Result;

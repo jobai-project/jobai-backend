@@ -98,7 +98,8 @@ public class QueryExpander {
      */
     @Cacheable(cacheNames = CacheNames.QUERY_EXPANSION,
             key = "T(com.jobai.backend.global.cache.CacheKeyGenerator).buildKey(#originalQuery, #unmatchedTokens)",
-            condition = "#unmatchedTokens != null && !#unmatchedTokens.isEmpty()")
+            condition = "#unmatchedTokens != null && !#unmatchedTokens.isEmpty()",
+            unless = "!#result.wasExpanded()")
     public QueryExpansionResult expand(String originalQuery, List<String> unmatchedTokens) {
         if (!enabled || unmatchedTokens == null || unmatchedTokens.isEmpty()) {
             return QueryExpansionResult.unchanged(originalQuery);

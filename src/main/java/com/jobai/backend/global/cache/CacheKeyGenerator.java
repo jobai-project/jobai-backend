@@ -1,6 +1,7 @@
 package com.jobai.backend.global.cache;
 
 import java.util.List;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 /**
@@ -25,7 +26,7 @@ public final class CacheKeyGenerator {
                 sb.append(list.isEmpty()
                         ? "_"
                         : list.stream()
-                                .map(Object::toString)
+                                .map(e -> Objects.toString(e, "_"))
                                 .sorted()
                                 .collect(Collectors.joining(",")));
             } else {

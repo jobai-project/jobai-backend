@@ -136,7 +136,7 @@ public class DailyJobScheduler {
                 log.error("[DailyPipeline] 수집 완료 이벤트 발행 실패: {}", e.getMessage(), e);
             }
 
-            eventPublisher.publishEvent(new PipelineCacheEvictionEvent(this));
+            // 캐시 무효화는 Kafka Orchestrator 최종 단계(onEmbeddingComplete)에서 수행
 
             long elapsed = System.currentTimeMillis() - start;
             log.info("[DailyPipeline] ===== 수집 완료, 나머지는 Kafka Orchestrator가 처리 ({}ms) =====", elapsed);

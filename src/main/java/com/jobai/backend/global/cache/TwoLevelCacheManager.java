@@ -6,6 +6,7 @@ import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import io.micrometer.core.instrument.MeterRegistry;
 import org.springframework.cache.Cache;
 import org.springframework.cache.CacheManager;
+import org.springframework.data.redis.cache.BatchStrategies;
 import org.springframework.data.redis.cache.RedisCacheConfiguration;
 import org.springframework.data.redis.cache.RedisCacheWriter;
 import org.springframework.data.redis.connection.RedisConnectionFactory;
@@ -31,7 +32,7 @@ public class TwoLevelCacheManager implements CacheManager {
     private final MeterRegistry meterRegistry;
 
     public TwoLevelCacheManager(RedisConnectionFactory connectionFactory, MeterRegistry meterRegistry) {
-        this.cacheWriter = RedisCacheWriter.nonLockingRedisCacheWriter(connectionFactory);
+        this.cacheWriter = RedisCacheWriter.nonLockingRedisCacheWriter(connectionFactory, BatchStrategies.scan(1000));
         this.meterRegistry = meterRegistry;
         this.configMap = buildConfigMap();
     }
