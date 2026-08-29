@@ -88,11 +88,14 @@ spring:
     hibernate:
       ddl-auto: update
 
-    show-sql: true
+    show-sql: false
     properties:
       hibernate:
-        format_sql: true
+        format_sql: false
         dialect: org.hibernate.dialect.PostgreSQLDialect
+        generate_statistics: true
+        use_sql_comments: true
+        default_batch_fetch_size: 100
 
   flyway:
     enabled: true
@@ -161,6 +164,10 @@ notification:
   email:
     from: ${SES_FROM_EMAIL:}
 
+logging:
+  level:
+    org.hibernate.stat: debug
+
 ---
 
 spring:
@@ -186,6 +193,7 @@ spring:
       hibernate:
         format_sql: false
         dialect: org.hibernate.dialect.PostgreSQLDialect
+        default_batch_fetch_size: 100
 
   flyway:
     enabled: true

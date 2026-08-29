@@ -13,6 +13,9 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.Map;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 /**
  * 임베딩이 아직 생성되지 않은 공고/이력서를 배치로 처리하는 서비스.
@@ -71,10 +74,19 @@ public class EmbeddingBatchService {
         if (ids.isEmpty()) return 0;
 
         log.info("임베딩 미생성 Private 공고 {} 건 처리 시작", ids.size());
+        Map<Long, PrivateJobPosting> postingMap;
+        try {
+            postingMap = privateJobPostingRepository.findAllById(ids).stream()
+                    .collect(Collectors.toMap(PrivateJobPosting::getId, Function.identity()));
+        } catch (Exception e) {
+            log.warn("Private 공고 일괄 조회 실패", e);
+            return 0;
+        }
+
         int success = 0;
         for (Long id : ids) {
             try {
-                PrivateJobPosting posting = privateJobPostingRepository.findById(id).orElse(null);
+                PrivateJobPosting posting = postingMap.get(id);
                 if (posting == null) continue;
                 embeddingService.embedPrivatePosting(posting);
                 success++;
@@ -91,13 +103,21 @@ public class EmbeddingBatchService {
         if (ids.isEmpty()) return 0;
 
         log.info("임베딩 미생성 Public 공고 {} 건 처리 시작", ids.size());
+        Map<Long, PublicJobPosting> postingMap;
+        try {
+            postingMap = jobPostingRepository.findAllById(ids).stream()
+                    .filter(jp -> jp instanceof PublicJobPosting)
+                    .map(jp -> (PublicJobPosting) jp)
+                    .collect(Collectors.toMap(PublicJobPosting::getId, Function.identity()));
+        } catch (Exception e) {
+            log.warn("Public 공고 일괄 조회 실패", e);
+            return 0;
+        }
+
         int success = 0;
         for (Long id : ids) {
             try {
-                PublicJobPosting posting = jobPostingRepository.findById(id)
-                        .filter(jp -> jp instanceof PublicJobPosting)
-                        .map(jp -> (PublicJobPosting) jp)
-                        .orElse(null);
+                PublicJobPosting posting = postingMap.get(id);
                 if (posting == null) continue;
                 embeddingService.embedPublicPosting(posting);
                 success++;

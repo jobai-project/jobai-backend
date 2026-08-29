@@ -97,8 +97,8 @@ class EmbeddingBatchServiceTest {
     @DisplayName("Private: 대상 id 전부 정상 임베딩된다")
     void private_allSuccess() {
         when(jobEmbeddingRepository.findPrivateIdsWithoutEmbedding(anyInt())).thenReturn(List.of(1L, 2L));
-        when(privateJobPostingRepository.findById(1L)).thenReturn(Optional.of(privatePosting(1L)));
-        when(privateJobPostingRepository.findById(2L)).thenReturn(Optional.of(privatePosting(2L)));
+        when(privateJobPostingRepository.findAllById(List.of(1L, 2L)))
+                .thenReturn(List.of(privatePosting(1L), privatePosting(2L)));
 
         batchService.generateMissingEmbeddings();
 
@@ -110,8 +110,8 @@ class EmbeddingBatchServiceTest {
     @DisplayName("Private: 일부 항목이 실패해도 나머지는 계속 처리되고 예외가 전파되지 않는다")
     void private_partialFailure_continues() {
         when(jobEmbeddingRepository.findPrivateIdsWithoutEmbedding(anyInt())).thenReturn(List.of(1L, 2L));
-        when(privateJobPostingRepository.findById(1L)).thenReturn(Optional.of(privatePosting(1L)));
-        when(privateJobPostingRepository.findById(2L)).thenReturn(Optional.of(privatePosting(2L)));
+        when(privateJobPostingRepository.findAllById(List.of(1L, 2L)))
+                .thenReturn(List.of(privatePosting(1L), privatePosting(2L)));
         doThrow(new RuntimeException("ai-server 연결 실패"))
                 .when(embeddingService).embedPrivatePosting(argThatId(1L));
 
@@ -125,7 +125,7 @@ class EmbeddingBatchServiceTest {
     @DisplayName("Private: id로 조회되지 않으면 스킵한다")
     void private_notFound_skipped() {
         when(jobEmbeddingRepository.findPrivateIdsWithoutEmbedding(anyInt())).thenReturn(List.of(1L));
-        when(privateJobPostingRepository.findById(1L)).thenReturn(Optional.empty());
+        when(privateJobPostingRepository.findAllById(List.of(1L))).thenReturn(List.of());
 
         batchService.generateMissingEmbeddings();
 
@@ -149,8 +149,8 @@ class EmbeddingBatchServiceTest {
     @DisplayName("Public: 대상 id 전부 정상 임베딩된다")
     void public_allSuccess() {
         when(jobEmbeddingRepository.findPublicIdsWithoutEmbedding(anyInt())).thenReturn(List.of(10L, 20L));
-        when(jobPostingRepository.findById(10L)).thenReturn(Optional.of(publicPosting(10L)));
-        when(jobPostingRepository.findById(20L)).thenReturn(Optional.of(publicPosting(20L)));
+        when(jobPostingRepository.findAllById(List.of(10L, 20L)))
+                .thenReturn(List.of(publicPosting(10L), publicPosting(20L)));
 
         batchService.generateMissingEmbeddings();
 
@@ -162,8 +162,8 @@ class EmbeddingBatchServiceTest {
     @DisplayName("Public: 일부 항목이 실패해도 나머지는 계속 처리되고 예외가 전파되지 않는다")
     void public_partialFailure_continues() {
         when(jobEmbeddingRepository.findPublicIdsWithoutEmbedding(anyInt())).thenReturn(List.of(10L, 20L));
-        when(jobPostingRepository.findById(10L)).thenReturn(Optional.of(publicPosting(10L)));
-        when(jobPostingRepository.findById(20L)).thenReturn(Optional.of(publicPosting(20L)));
+        when(jobPostingRepository.findAllById(List.of(10L, 20L)))
+                .thenReturn(List.of(publicPosting(10L), publicPosting(20L)));
         doThrow(new RuntimeException("차원 불일치"))
                 .when(embeddingService).embedPublicPosting(argThatPublicId(10L));
 
@@ -177,7 +177,7 @@ class EmbeddingBatchServiceTest {
     @DisplayName("Public: id로 조회되지 않으면 스킵한다")
     void public_notFound_skipped() {
         when(jobEmbeddingRepository.findPublicIdsWithoutEmbedding(anyInt())).thenReturn(List.of(10L));
-        when(jobPostingRepository.findById(10L)).thenReturn(Optional.empty());
+        when(jobPostingRepository.findAllById(List.of(10L))).thenReturn(List.of());
 
         batchService.generateMissingEmbeddings();
 
@@ -188,7 +188,8 @@ class EmbeddingBatchServiceTest {
     @DisplayName("Public: 조회된 엔티티가 PublicJobPosting이 아니면 스킵한다")
     void public_wrongType_skipped() {
         when(jobEmbeddingRepository.findPublicIdsWithoutEmbedding(anyInt())).thenReturn(List.of(10L));
-        when(jobPostingRepository.findById(10L)).thenReturn(Optional.of(JobPosting.builder().id(10L).build()));
+        when(jobPostingRepository.findAllById(List.of(10L)))
+                .thenReturn(List.of(JobPosting.builder().id(10L).build()));
 
         batchService.generateMissingEmbeddings();
 
