@@ -179,42 +179,37 @@ public class BatchNotificationHelper {
                     .orElse(70);
 
             List<ScoredPosting> allAbove = new ArrayList<>();
-            for (PrivateMatchScore score : privateMatchScoreRepository.findByResumeId(resume.getId())) {
-                if (score.getScore() >= threshold
-                        && score.getPrivateJobPosting().getCreatedAt() != null
-                        && score.getPrivateJobPosting().getCreatedAt().isAfter(recentThreshold)) {
-                    allAbove.add(new ScoredPosting(
-                            "PRIVATE",
-                            score.getPrivateJobPosting().getTitle(),
-                            score.getPrivateJobPosting().getCompany(),
-                            score.getScore(),
-                            score.getPrivateJobPosting().getId(),
-                            "/jobs/private/",
-                            score.getPrivateJobPosting().getLocation(),
-                            score.getPrivateJobPosting().getEmploymentType(),
-                            score.getPrivateJobPosting().getJobCategory(),
-                            score.getPrivateJobPosting().getDeadline()
-                    ));
-                }
+
+            for (PrivateMatchScore score : privateMatchScoreRepository
+                    .findNotificationTargets(resume.getId(), threshold, recentThreshold)) {
+                allAbove.add(new ScoredPosting(
+                        "PRIVATE",
+                        score.getPrivateJobPosting().getTitle(),
+                        score.getPrivateJobPosting().getCompany(),
+                        score.getScore(),
+                        score.getPrivateJobPosting().getId(),
+                        "/jobs/private/",
+                        score.getPrivateJobPosting().getLocation(),
+                        score.getPrivateJobPosting().getEmploymentType(),
+                        score.getPrivateJobPosting().getJobCategory(),
+                        score.getPrivateJobPosting().getDeadline()
+                ));
             }
 
-            for (PublicMatchScore score : publicMatchScoreRepository.findByResumeId(resume.getId())) {
-                if (score.getScore() >= threshold
-                        && score.getPublicJobPosting().getCreatedAt() != null
-                        && score.getPublicJobPosting().getCreatedAt().isAfter(recentThreshold)) {
-                    allAbove.add(new ScoredPosting(
-                            "PUBLIC",
-                            score.getPublicJobPosting().getTitle(),
-                            score.getPublicJobPosting().getCompanyName(),
-                            score.getScore(),
-                            score.getPublicJobPosting().getId(),
-                            "/jobs/public/",
-                            score.getPublicJobPosting().getWorkRegion(),
-                            score.getPublicJobPosting().getRecrutType(),
-                            null,
-                            score.getPublicJobPosting().getEndDate()
-                    ));
-                }
+            for (PublicMatchScore score : publicMatchScoreRepository
+                    .findNotificationTargets(resume.getId(), threshold, recentThreshold)) {
+                allAbove.add(new ScoredPosting(
+                        "PUBLIC",
+                        score.getPublicJobPosting().getTitle(),
+                        score.getPublicJobPosting().getCompanyName(),
+                        score.getScore(),
+                        score.getPublicJobPosting().getId(),
+                        "/jobs/public/",
+                        score.getPublicJobPosting().getWorkRegion(),
+                        score.getPublicJobPosting().getRecrutType(),
+                        null,
+                        score.getPublicJobPosting().getEndDate()
+                ));
             }
 
             if (!allAbove.isEmpty()) {
