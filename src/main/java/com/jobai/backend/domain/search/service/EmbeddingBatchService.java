@@ -74,8 +74,14 @@ public class EmbeddingBatchService {
         if (ids.isEmpty()) return 0;
 
         log.info("임베딩 미생성 Private 공고 {} 건 처리 시작", ids.size());
-        Map<Long, PrivateJobPosting> postingMap = privateJobPostingRepository.findAllById(ids)
-                .stream().collect(Collectors.toMap(PrivateJobPosting::getId, Function.identity()));
+        Map<Long, PrivateJobPosting> postingMap;
+        try {
+            postingMap = privateJobPostingRepository.findAllById(ids).stream()
+                    .collect(Collectors.toMap(PrivateJobPosting::getId, Function.identity()));
+        } catch (Exception e) {
+            log.warn("Private 공고 일괄 조회 실패", e);
+            return 0;
+        }
 
         int success = 0;
         for (Long id : ids) {
@@ -97,10 +103,16 @@ public class EmbeddingBatchService {
         if (ids.isEmpty()) return 0;
 
         log.info("임베딩 미생성 Public 공고 {} 건 처리 시작", ids.size());
-        Map<Long, PublicJobPosting> postingMap = jobPostingRepository.findAllById(ids).stream()
-                .filter(jp -> jp instanceof PublicJobPosting)
-                .map(jp -> (PublicJobPosting) jp)
-                .collect(Collectors.toMap(PublicJobPosting::getId, Function.identity()));
+        Map<Long, PublicJobPosting> postingMap;
+        try {
+            postingMap = jobPostingRepository.findAllById(ids).stream()
+                    .filter(jp -> jp instanceof PublicJobPosting)
+                    .map(jp -> (PublicJobPosting) jp)
+                    .collect(Collectors.toMap(PublicJobPosting::getId, Function.identity()));
+        } catch (Exception e) {
+            log.warn("Public 공고 일괄 조회 실패", e);
+            return 0;
+        }
 
         int success = 0;
         for (Long id : ids) {
