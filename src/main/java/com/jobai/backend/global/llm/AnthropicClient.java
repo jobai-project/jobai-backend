@@ -20,6 +20,9 @@ import java.util.Map;
 /**
  * Anthropic Messages API 저수준 호출기. 텍스트 프롬프트 → 텍스트 응답.
  * 프롬프트 구성·응답 파싱 같은 도메인 로직은 호출하는 쪽(JobClassifier 등)이 담당한다.
+ *
+ * <p>anthropic-api 서킷 브레이커가 적용되어, API 장애 시 호출을 즉시 차단한다.
+ * 응답시간은 {@code llm.anthropic.duration} 메트릭으로 수집된다.
  */
 @Slf4j
 @Component
@@ -77,6 +80,7 @@ public class AnthropicClient {
         }
     }
 
+    /** 실제 HTTP 호출을 수행한다. 서킷 브레이커가 이 메서드를 감싸서 실행한다. */
     private String doComplete(String system, String userText, int maxTokens) {
         Timer.Sample sample = Timer.start();
         Map<String, Object> body = Map.of(

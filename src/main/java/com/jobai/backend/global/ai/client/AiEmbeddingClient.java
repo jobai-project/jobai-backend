@@ -12,6 +12,13 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Mono;
 
+/**
+ * ai-server의 {@code POST /embed/jd}, {@code POST /embed/ncs} 엔드포인트를 호출하여
+ * 텍스트를 768차원 벡터로 변환하는 클라이언트.
+ *
+ * <p>ai-server 서킷 브레이커가 적용되어, 서버 장애 시 호출을 즉시 차단한다.
+ * 응답시간은 {@code ai.embedding.duration} 메트릭으로 수집된다.
+ */
 @Component
 public class AiEmbeddingClient {
 

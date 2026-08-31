@@ -1,6 +1,7 @@
 package com.jobai.backend.global.ai.client;
 
 import com.jobai.backend.global.ai.dto.EmbedRequest;
+import com.jobai.backend.global.ai.exception.AiClientException;
 import io.github.resilience4j.circuitbreaker.CallNotPermittedException;
 import io.github.resilience4j.circuitbreaker.CircuitBreaker;
 import io.github.resilience4j.circuitbreaker.CircuitBreakerConfig;
@@ -35,6 +36,7 @@ class AiEmbeddingClientCircuitBreakerTest {
                 .build();
 
         // 테스트용 서킷 설정: 빠른 전환을 위해 작은 값 사용
+        // 운영 설정과 동일하게 5xx만 실패로 기록하는 predicate 적용
         CircuitBreakerConfig config = CircuitBreakerConfig.custom()
                 .slidingWindowType(CircuitBreakerConfig.SlidingWindowType.COUNT_BASED)
                 .slidingWindowSize(5)
@@ -42,6 +44,12 @@ class AiEmbeddingClientCircuitBreakerTest {
                 .failureRateThreshold(50)
                 .waitDurationInOpenState(Duration.ofSeconds(1))
                 .permittedNumberOfCallsInHalfOpenState(2)
+                .recordException(e -> {
+                    if (e instanceof AiClientException ace) {
+                        return ace.getStatus().is5xxServerError();
+                    }
+                    return true;
+                })
                 .build();
 
         circuitBreaker = CircuitBreaker.of("ai-server-test", config);
@@ -135,5 +143,47 @@ class AiEmbeddingClientCircuitBreakerTest {
 
         // 시험 요청 성공 → CLOSED 복귀
         assertThat(circuitBreaker.getState()).isEqualTo(CircuitBreaker.State.CLOSED);
+    }
+
+    @Test
+    @DisplayName("4xx 응답이 반복되어도 서킷은 CLOSED를 유지한다")
+    void circuitStaysClosedOn4xxErrors() {
+        // 10건 연속 422 응답 — 클라이언트 오류이므로 서킷 실패로 기록되지 않아야 함
+        for (int i = 0; i < 10; i++) {
+            server.enqueue(new MockResponse().setResponseCode(422).setBody("Validation Error"));
+        }
+
+        for (int i = 0; i < 10; i++) {
+            try {
+                client.embedJd(new EmbedRequest("test")).block();
+            } catch (Exception ignored) {
+            }
+        }
+
+        assertThat(circuitBreaker.getState()).isEqualTo(CircuitBreaker.State.CLOSED);
+        assertThat(server.getRequestCount()).isEqualTo(10);
+    }
+
+    @Test
+    @DisplayName("5xx 응답이 반복되면 서킷이 OPEN된다")
+    void circuitOpensOn5xxErrors() {
+        // 5건 연속 503 응답 — 서버 장애이므로 서킷 실패로 기록되어야 함
+        for (int i = 0; i < 5; i++) {
+            server.enqueue(new MockResponse().setResponseCode(503).setBody("Service Unavailable"));
+        }
+
+        for (int i = 0; i < 5; i++) {
+            try {
+                client.embedJd(new EmbedRequest("test")).block();
+            } catch (Exception ignored) {
+            }
+        }
+
+        assertThat(circuitBreaker.getState()).isEqualTo(CircuitBreaker.State.OPEN);
+
+        // 서킷 OPEN 후 요청은 서버 호출 없이 즉시 실패
+        assertThatThrownBy(() -> client.embedJd(new EmbedRequest("test")).block())
+                .isInstanceOf(CallNotPermittedException.class);
+        assertThat(server.getRequestCount()).isEqualTo(5);
     }
 }

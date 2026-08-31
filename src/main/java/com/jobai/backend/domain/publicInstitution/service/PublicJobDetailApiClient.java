@@ -14,8 +14,11 @@ import reactor.util.retry.Retry;
 
 import java.time.Duration;
 
-/*
-    외부 공공 API를 호출하여 상세 정보를 가져오는 클래스
+/**
+ * 외부 공공 API(data.go.kr)를 호출하여 채용공고 상세 정보를 가져오는 클라이언트.
+ *
+ * <p>public-data-api 서킷 브레이커가 적용되어, API 장애 시 호출을 즉시 차단한다.
+ * 응답시간은 {@code public.api.detail.duration} 메트릭으로 수집된다.
  */
 @Slf4j
 @Component
