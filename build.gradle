@@ -125,6 +125,11 @@ dependencies {
 	// ── Kafka (이벤트 드리븐 파이프라인) ─────────────────────
 	implementation 'org.springframework.kafka:spring-kafka'
 
+	// ── Resilience4j (서킷 브레이커) ──────────────────────────
+	implementation 'io.github.resilience4j:resilience4j-circuitbreaker:2.2.0'
+	implementation 'io.github.resilience4j:resilience4j-reactor:2.2.0'
+	implementation 'io.github.resilience4j:resilience4j-micrometer:2.2.0'
+
 	// ── Jsoup ─────────────────────────────────────────────────
 	implementation 'org.jsoup:jsoup:1.18.1'
 

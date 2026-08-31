@@ -2,7 +2,12 @@ package com.jobai.backend.global.llm;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.github.resilience4j.circuitbreaker.CallNotPermittedException;
+import io.github.resilience4j.circuitbreaker.CircuitBreaker;
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.Timer;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
@@ -24,18 +29,31 @@ public class AnthropicClient {
     private final ObjectMapper objectMapper;
     private final String apiKey;
     private final String model;
+    private final CircuitBreaker circuitBreaker;
+    private final Timer successTimer;
+    private final Timer failureTimer;
 
     public AnthropicClient(ObjectMapper objectMapper,
                            @Value("${spring.ai.anthropic.api-key}") String apiKey,
                            @Value("${spring.ai.anthropic.model}") String model,
-                           @Value("${spring.ai.anthropic.base-url}") String baseUrl) {
+                           @Value("${spring.ai.anthropic.base-url}") String baseUrl,
+                           @Qualifier("anthropicApiCircuitBreaker") CircuitBreaker circuitBreaker,
+                           MeterRegistry meterRegistry) {
         this.objectMapper = objectMapper;
         this.apiKey = apiKey;
         this.model = model;
         this.webClient = WebClient.builder()
                 .baseUrl(baseUrl)
                 .build();
-
+        this.circuitBreaker = circuitBreaker;
+        this.successTimer = Timer.builder("llm.anthropic.duration")
+                .tag("outcome", "success")
+                .description("Anthropic API 호출 소요시간")
+                .register(meterRegistry);
+        this.failureTimer = Timer.builder("llm.anthropic.duration")
+                .tag("outcome", "failure")
+                .description("Anthropic API 호출 소요시간")
+                .register(meterRegistry);
     }
 
     /**
@@ -47,6 +65,20 @@ public class AnthropicClient {
      * @return 모델이 생성한 텍스트(첫 text 블록)
      */
     public String complete(String system, String userText, int maxTokens) {
+        try {
+            return circuitBreaker.executeCheckedSupplier(
+                    () -> doComplete(system, userText, maxTokens));
+        } catch (CallNotPermittedException e) {
+            throw new LlmException("Anthropic API 서킷 브레이커 OPEN — 호출 차단됨", e);
+        } catch (LlmException e) {
+            throw e;
+        } catch (Throwable e) {
+            throw new LlmException("Anthropic 호출 실패: " + e.getMessage(), e);
+        }
+    }
+
+    private String doComplete(String system, String userText, int maxTokens) {
+        Timer.Sample sample = Timer.start();
         Map<String, Object> body = Map.of(
                 "model", model,
                 "max_tokens", maxTokens,
@@ -68,8 +100,11 @@ public class AnthropicClient {
                     .timeout(Duration.ofSeconds(30))
                     .block();
 
-            return extractText(raw);
+            String result = extractText(raw);
+            sample.stop(successTimer);
+            return result;
         } catch (Exception e) {
+            sample.stop(failureTimer);
             throw new LlmException("Anthropic 호출 실패: " + e.getMessage(), e);
         }
     }

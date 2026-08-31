@@ -1,6 +1,8 @@
 package com.jobai.backend.global.llm;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.github.resilience4j.circuitbreaker.CircuitBreaker;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import okhttp3.mockwebserver.MockResponse;
 import okhttp3.mockwebserver.MockWebServer;
 import org.junit.jupiter.api.AfterEach;
@@ -28,7 +30,9 @@ class AnthropicClientTest {
                 new ObjectMapper(),
                 "test-key",
                 "claude-haiku-4-5-20251001",
-                server.url("/").toString().replaceAll("/$", ""));
+                server.url("/").toString().replaceAll("/$", ""),
+                CircuitBreaker.ofDefaults("test"),
+                new SimpleMeterRegistry());
     }
 
     @AfterEach

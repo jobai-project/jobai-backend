@@ -3,6 +3,10 @@ package com.jobai.backend.global.ai.client;
 import com.jobai.backend.global.ai.dto.RerankRequest;
 import com.jobai.backend.global.ai.dto.RerankResponse;
 import com.jobai.backend.global.ai.exception.AiClientException;
+import io.github.resilience4j.circuitbreaker.CircuitBreaker;
+import io.github.resilience4j.reactor.circuitbreaker.operator.CircuitBreakerOperator;
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.Timer;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.client.WebClient;
@@ -16,9 +20,23 @@ import reactor.core.publisher.Mono;
 public class AiRerankClient {
 
     private final WebClient aiWebClient;
+    private final CircuitBreaker circuitBreaker;
+    private final Timer successTimer;
+    private final Timer failureTimer;
 
-    public AiRerankClient(@Qualifier("aiWebClient") WebClient aiWebClient) {
+    public AiRerankClient(@Qualifier("aiWebClient") WebClient aiWebClient,
+                          @Qualifier("aiServerCircuitBreaker") CircuitBreaker circuitBreaker,
+                          MeterRegistry meterRegistry) {
         this.aiWebClient = aiWebClient;
+        this.circuitBreaker = circuitBreaker;
+        this.successTimer = Timer.builder("ai.rerank.duration")
+                .tag("outcome", "success")
+                .description("AI 리랭킹 호출 소요시간")
+                .register(meterRegistry);
+        this.failureTimer = Timer.builder("ai.rerank.duration")
+                .tag("outcome", "failure")
+                .description("AI 리랭킹 호출 소요시간")
+                .register(meterRegistry);
     }
 
     /**
@@ -29,6 +47,7 @@ public class AiRerankClient {
      * @throws AiClientException ai-server 호출 실패 시
      */
     public Mono<RerankResponse> rerank(RerankRequest request) {
+        Timer.Sample sample = Timer.start();
         return aiWebClient.post()
                 .uri("/rerank")
                 .bodyValue(request)
@@ -40,6 +59,9 @@ public class AiRerankClient {
                                 .flatMap(body -> Mono.error(new AiClientException(
                                         response.statusCode(), body)))
                 )
-                .bodyToMono(RerankResponse.class);
+                .bodyToMono(RerankResponse.class)
+                .doOnSuccess(r -> sample.stop(successTimer))
+                .doOnError(e -> sample.stop(failureTimer))
+                .transformDeferred(CircuitBreakerOperator.of(circuitBreaker));
     }
 }

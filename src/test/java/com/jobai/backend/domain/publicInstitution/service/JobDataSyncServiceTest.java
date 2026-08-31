@@ -1,5 +1,7 @@
 package com.jobai.backend.domain.publicInstitution.service;
 
+import io.github.resilience4j.circuitbreaker.CircuitBreaker;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import okhttp3.mockwebserver.MockResponse;
 import okhttp3.mockwebserver.MockWebServer;
 import org.junit.jupiter.api.AfterEach;
@@ -37,7 +39,8 @@ class JobDataSyncServiceTest {
 
         jobDetailSyncService = Mockito.mock(JobDetailSyncService.class);
         WebClient webClient = WebClient.builder().build();
-        syncService = new JobDataSyncService(jobDetailSyncService, webClient);
+        syncService = new JobDataSyncService(jobDetailSyncService, webClient,
+                CircuitBreaker.ofDefaults("test"), new SimpleMeterRegistry());
 
         setField(syncService, "serviceKey", SERVICE_KEY);
         setField(syncService, "baseUrl", server.url("/").toString().replaceAll("/$", ""));

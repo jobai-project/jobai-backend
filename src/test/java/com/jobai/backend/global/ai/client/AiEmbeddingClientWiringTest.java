@@ -3,6 +3,9 @@ package com.jobai.backend.global.ai.client;
 import com.jobai.backend.global.ai.client.AiEmbeddingClient;
 import com.jobai.backend.global.ai.dto.EmbedRequest;
 import com.jobai.backend.global.config.WebClientConfig;
+import io.github.resilience4j.circuitbreaker.CircuitBreaker;
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import okhttp3.mockwebserver.MockResponse;
 import okhttp3.mockwebserver.MockWebServer;
 import okhttp3.mockwebserver.RecordedRequest;
@@ -11,6 +14,8 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.context.TestConfiguration;
+import org.springframework.context.annotation.Bean;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 
@@ -27,8 +32,21 @@ import static org.assertj.core.api.Assertions.assertThat;
  * 두 WebClient 빈(webClient=@Primary, aiWebClient) 중 반드시 aiWebClient가 주입되는지를 실제 Spring
  * ApplicationContext로 검증한다.
  */
-@SpringBootTest(classes = {WebClientConfig.class, AiEmbeddingClient.class})
+@SpringBootTest(classes = {WebClientConfig.class, AiEmbeddingClient.class, AiEmbeddingClientWiringTest.TestConfig.class})
 class AiEmbeddingClientWiringTest {
+
+    @TestConfiguration
+    static class TestConfig {
+        @Bean
+        public CircuitBreaker aiServerCircuitBreaker() {
+            return CircuitBreaker.ofDefaults("ai-server");
+        }
+
+        @Bean
+        public MeterRegistry meterRegistry() {
+            return new SimpleMeterRegistry();
+        }
+    }
 
     static MockWebServer aiServer;
 

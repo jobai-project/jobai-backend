@@ -5,6 +5,8 @@ import com.jobai.backend.global.ai.dto.ScorePrivateResponse;
 import com.jobai.backend.global.ai.dto.ScorePublicRequest;
 import com.jobai.backend.global.ai.dto.ScorePublicResponse;
 import com.jobai.backend.global.ai.exception.AiClientException;
+import io.github.resilience4j.circuitbreaker.CircuitBreaker;
+import io.github.resilience4j.reactor.circuitbreaker.operator.CircuitBreakerOperator;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Timer;
@@ -21,6 +23,7 @@ import reactor.core.publisher.Mono;
 public class AiScoringClient {
 
     private final WebClient aiWebClient;
+    private final CircuitBreaker circuitBreaker;
     private final Timer privateSuccessTimer;
     private final Timer privateFailureTimer;
     private final Timer publicSuccessTimer;
@@ -28,8 +31,10 @@ public class AiScoringClient {
     private final Counter failureCounter;
 
     public AiScoringClient(@Qualifier("aiWebClient") WebClient aiWebClient,
+                           @Qualifier("aiServerCircuitBreaker") CircuitBreaker circuitBreaker,
                            MeterRegistry meterRegistry) {
         this.aiWebClient = aiWebClient;
+        this.circuitBreaker = circuitBreaker;
         this.privateSuccessTimer = Timer.builder("ai.scoring.duration")
                 .tag("type", "private").tag("outcome", "success")
                 .description("AI 사기업 스코어링 호출 소요시간")
@@ -71,7 +76,8 @@ public class AiScoringClient {
                 .doOnError(e -> {
                     sample.stop(privateFailureTimer);
                     failureCounter.increment();
-                });
+                })
+                .transformDeferred(CircuitBreakerOperator.of(circuitBreaker));
     }
 
     public Mono<ScorePublicResponse> scorePublic(ScorePublicRequest request) {
@@ -94,6 +100,7 @@ public class AiScoringClient {
                 .doOnError(e -> {
                     sample.stop(publicFailureTimer);
                     failureCounter.increment();
-                });
+                })
+                .transformDeferred(CircuitBreakerOperator.of(circuitBreaker));
     }
 }
