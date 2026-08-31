@@ -1,8 +1,12 @@
 package com.jobai.backend.domain.publicInstitution.service;
 
 import com.jobai.backend.domain.publicInstitution.dto.PublicJobListResponse;
-import lombok.RequiredArgsConstructor;
+import io.github.resilience4j.circuitbreaker.CircuitBreaker;
+import io.github.resilience4j.reactor.circuitbreaker.operator.CircuitBreakerOperator;
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.Timer;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
@@ -19,11 +23,30 @@ import java.util.List;
  */
 @Slf4j
 @Service
-@RequiredArgsConstructor
 public class JobDataSyncService {
 
     private final JobDetailSyncService jobDetailSyncService;
     private final WebClient webClient;
+    private final CircuitBreaker circuitBreaker;
+    private final Timer successTimer;
+    private final Timer failureTimer;
+
+    public JobDataSyncService(JobDetailSyncService jobDetailSyncService,
+                              WebClient webClient,
+                              @Qualifier("publicDataApiCircuitBreaker") CircuitBreaker circuitBreaker,
+                              MeterRegistry meterRegistry) {
+        this.jobDetailSyncService = jobDetailSyncService;
+        this.webClient = webClient;
+        this.circuitBreaker = circuitBreaker;
+        this.successTimer = Timer.builder("public.api.list.duration")
+                .tag("outcome", "success")
+                .description("공공데이터 API 목록 조회 소요시간")
+                .register(meterRegistry);
+        this.failureTimer = Timer.builder("public.api.list.duration")
+                .tag("outcome", "failure")
+                .description("공공데이터 API 목록 조회 소요시간")
+                .register(meterRegistry);
+    }
 
     @Value("${api.data-go-kr.service-key}")
     private String serviceKey;
@@ -60,6 +83,7 @@ public class JobDataSyncService {
                 .build();
 
         // 2. 외부 공공 API 호출 (기재부 공공기관 채용정보 API)
+        Timer.Sample sample = Timer.start();
         PublicJobListResponse apiResponse = syncClient.get()
                 .uri(uriBuilder -> uriBuilder
                         .path("/1051000/recruitment/list")
@@ -73,8 +97,11 @@ public class JobDataSyncService {
                 .retrieve()
                 .bodyToMono(PublicJobListResponse.class)
                 .timeout(Duration.ofSeconds(15)) // 전체 요청 타임아웃
-                .retryWhen(Retry.backoff(3, Duration.ofSeconds(2)) // 3회 재시도 (지수 백오프)
+                .retryWhen(Retry.backoff(3, Duration.ofSeconds(2)) // 3회 재시도 (지수 백오프, 서킷 브레이커 안쪽)
                         .filter(throwable -> !(throwable instanceof IllegalArgumentException))) // 특정 예외 제외 가능
+                .doOnSuccess(r -> sample.stop(successTimer))
+                .doOnError(e -> sample.stop(failureTimer))
+                .transformDeferred(CircuitBreakerOperator.of(circuitBreaker))
                 .block();
 
         if (apiResponse == null || apiResponse.result() == null) {

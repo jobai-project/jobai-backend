@@ -4,6 +4,7 @@ import com.jobai.backend.global.ai.client.AiScoringClient;
 import com.jobai.backend.global.ai.dto.ScorePrivateRequest;
 import com.jobai.backend.global.ai.dto.ScorePrivateResponse;
 import com.jobai.backend.global.ai.exception.AiClientException;
+import io.github.resilience4j.circuitbreaker.CircuitBreaker;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import okhttp3.mockwebserver.MockResponse;
 import okhttp3.mockwebserver.MockWebServer;
@@ -31,7 +32,9 @@ class AiScoringClientTest {
         WebClient webClient = WebClient.builder()
                 .baseUrl(mockWebServer.url("/").toString())
                 .build();
-        client = new AiScoringClient(webClient, new SimpleMeterRegistry());
+        client = new AiScoringClient(webClient,
+                CircuitBreaker.ofDefaults("test"),
+                new SimpleMeterRegistry());
     }
 
     @AfterEach

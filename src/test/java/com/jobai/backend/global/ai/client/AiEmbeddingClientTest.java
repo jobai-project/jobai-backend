@@ -4,6 +4,8 @@ import com.jobai.backend.global.ai.client.AiEmbeddingClient;
 import com.jobai.backend.global.ai.dto.EmbedRequest;
 import com.jobai.backend.global.ai.dto.EmbedResponse;
 import com.jobai.backend.global.ai.exception.AiClientException;
+import io.github.resilience4j.circuitbreaker.CircuitBreaker;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import okhttp3.mockwebserver.MockResponse;
 import okhttp3.mockwebserver.MockWebServer;
 import okhttp3.mockwebserver.RecordedRequest;
@@ -31,7 +33,9 @@ class AiEmbeddingClientTest {
         WebClient webClient = WebClient.builder()
                 .baseUrl(server.url("/").toString().replaceAll("/$", ""))
                 .build();
-        client = new AiEmbeddingClient(webClient);
+        client = new AiEmbeddingClient(webClient,
+                CircuitBreaker.ofDefaults("test"),
+                new SimpleMeterRegistry());
     }
 
     @AfterEach
