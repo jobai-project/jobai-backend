@@ -14,7 +14,7 @@
       "id": 1, "type": "stat", "title": "Service Up",
       "gridPos": { "h": 4, "w": 6, "x": 0, "y": 1 },
       "datasource": { "type": "prometheus", "uid": "prometheus" },
-      "targets": [{ "expr": "up{job=\"jobai-backend-local\"}", "legendFormat": "up" }],
+      "targets": [{ "expr": "up{job=\"jobai-backend\"}", "legendFormat": "up" }],
       "fieldConfig": { "defaults": { "mappings": [
         { "type": "value", "options": { "0": { "text": "DOWN", "color": "red" }, "1": { "text": "UP", "color": "green" } } }
       ] }, "overrides": [] }
@@ -23,21 +23,21 @@
       "id": 2, "type": "stat", "title": "Uptime",
       "gridPos": { "h": 4, "w": 6, "x": 6, "y": 1 },
       "datasource": { "type": "prometheus", "uid": "prometheus" },
-      "targets": [{ "expr": "process_uptime_seconds{job=\"jobai-backend-local\"}", "legendFormat": "uptime" }],
+      "targets": [{ "expr": "process_uptime_seconds{job=\"jobai-backend\"}", "legendFormat": "uptime" }],
       "fieldConfig": { "defaults": { "unit": "s" }, "overrides": [] }
     },
     {
       "id": 3, "type": "stat", "title": "HTTP Request Rate",
       "gridPos": { "h": 4, "w": 6, "x": 12, "y": 1 },
       "datasource": { "type": "prometheus", "uid": "prometheus" },
-      "targets": [{ "expr": "sum(rate(http_server_requests_seconds_count{job=\"jobai-backend-local\"}[5m]))", "legendFormat": "req/s" }],
+      "targets": [{ "expr": "sum(rate(http_server_requests_seconds_count{job=\"jobai-backend\"}[5m]))", "legendFormat": "req/s" }],
       "fieldConfig": { "defaults": { "unit": "reqps" }, "overrides": [] }
     },
     {
       "id": 4, "type": "stat", "title": "5xx Error Rate",
       "gridPos": { "h": 4, "w": 6, "x": 18, "y": 1 },
       "datasource": { "type": "prometheus", "uid": "prometheus" },
-      "targets": [{ "expr": "100 * sum(rate(http_server_requests_seconds_count{job=\"jobai-backend-local\",status=~\"5..\"}[5m])) / sum(rate(http_server_requests_seconds_count{job=\"jobai-backend-local\"}[5m]))", "legendFormat": "error %" }],
+      "targets": [{ "expr": "100 * sum(rate(http_server_requests_seconds_count{job=\"jobai-backend\",status=~\"5..\"}[5m])) / sum(rate(http_server_requests_seconds_count{job=\"jobai-backend\"}[5m]))", "legendFormat": "error %" }],
       "fieldConfig": { "defaults": { "unit": "percent", "thresholds": { "mode": "absolute", "steps": [
         { "color": "green", "value": null }, { "color": "red", "value": 1 }
       ] } }, "overrides": [] }
@@ -49,8 +49,8 @@
       "gridPos": { "h": 8, "w": 12, "x": 0, "y": 6 },
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "targets": [
-        { "expr": "sum(jvm_memory_used_bytes{job=\"jobai-backend-local\",area=\"heap\"})", "legendFormat": "used" },
-        { "expr": "sum(jvm_memory_max_bytes{job=\"jobai-backend-local\",area=\"heap\"})", "legendFormat": "max" }
+        { "expr": "sum(jvm_memory_used_bytes{job=\"jobai-backend\",area=\"heap\"})", "legendFormat": "used" },
+        { "expr": "sum(jvm_memory_max_bytes{job=\"jobai-backend\",area=\"heap\"})", "legendFormat": "max" }
       ],
       "fieldConfig": { "defaults": { "unit": "bytes" }, "overrides": [] }
     },
@@ -59,7 +59,7 @@
       "gridPos": { "h": 8, "w": 12, "x": 12, "y": 6 },
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "targets": [
-        { "expr": "rate(jvm_gc_pause_seconds_sum{job=\"jobai-backend-local\"}[5m]) / rate(jvm_gc_pause_seconds_count{job=\"jobai-backend-local\"}[5m])", "legendFormat": "{{action}} / {{cause}}" }
+        { "expr": "rate(jvm_gc_pause_seconds_sum{job=\"jobai-backend\"}[5m]) / rate(jvm_gc_pause_seconds_count{job=\"jobai-backend\"}[5m])", "legendFormat": "{{action}} / {{cause}}" }
       ],
       "fieldConfig": { "defaults": { "unit": "s" }, "overrides": [] }
     },
@@ -67,7 +67,7 @@
       "id": 12, "type": "timeseries", "title": "Live Threads",
       "gridPos": { "h": 8, "w": 12, "x": 0, "y": 14 },
       "datasource": { "type": "prometheus", "uid": "prometheus" },
-      "targets": [{ "expr": "jvm_threads_live_threads{job=\"jobai-backend-local\"}", "legendFormat": "live threads" }],
+      "targets": [{ "expr": "jvm_threads_live_threads{job=\"jobai-backend\"}", "legendFormat": "live threads" }],
       "fieldConfig": { "defaults": {}, "overrides": [] }
     },
     {
@@ -75,8 +75,8 @@
       "gridPos": { "h": 8, "w": 12, "x": 12, "y": 14 },
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "targets": [
-        { "expr": "process_cpu_usage{job=\"jobai-backend-local\"}", "legendFormat": "process cpu" },
-        { "expr": "system_cpu_usage{job=\"jobai-backend-local\"}", "legendFormat": "system cpu" }
+        { "expr": "process_cpu_usage{job=\"jobai-backend\"}", "legendFormat": "process cpu" },
+        { "expr": "system_cpu_usage{job=\"jobai-backend\"}", "legendFormat": "system cpu" }
       ],
       "fieldConfig": { "defaults": { "unit": "percentunit", "max": 1, "min": 0 }, "overrides": [] }
     },
@@ -87,9 +87,9 @@
       "gridPos": { "h": 8, "w": 12, "x": 0, "y": 23 },
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "targets": [
-        { "expr": "histogram_quantile(0.50, sum(rate(http_server_requests_seconds_bucket{job=\"jobai-backend-local\"}[5m])) by (le))", "legendFormat": "p50" },
-        { "expr": "histogram_quantile(0.95, sum(rate(http_server_requests_seconds_bucket{job=\"jobai-backend-local\"}[5m])) by (le))", "legendFormat": "p95" },
-        { "expr": "histogram_quantile(0.99, sum(rate(http_server_requests_seconds_bucket{job=\"jobai-backend-local\"}[5m])) by (le))", "legendFormat": "p99" }
+        { "expr": "histogram_quantile(0.50, sum(rate(http_server_requests_seconds_bucket{job=\"jobai-backend\"}[5m])) by (le))", "legendFormat": "p50" },
+        { "expr": "histogram_quantile(0.95, sum(rate(http_server_requests_seconds_bucket{job=\"jobai-backend\"}[5m])) by (le))", "legendFormat": "p95" },
+        { "expr": "histogram_quantile(0.99, sum(rate(http_server_requests_seconds_bucket{job=\"jobai-backend\"}[5m])) by (le))", "legendFormat": "p99" }
       ],
       "fieldConfig": { "defaults": { "unit": "s" }, "overrides": [] }
     },
@@ -97,21 +97,21 @@
       "id": 21, "type": "timeseries", "title": "p99 Latency by URI (top 10)",
       "gridPos": { "h": 8, "w": 12, "x": 12, "y": 23 },
       "datasource": { "type": "prometheus", "uid": "prometheus" },
-      "targets": [{ "expr": "topk(10, histogram_quantile(0.99, sum(rate(http_server_requests_seconds_bucket{job=\"jobai-backend-local\"}[5m])) by (uri, le)))", "legendFormat": "{{uri}}" }],
+      "targets": [{ "expr": "topk(10, histogram_quantile(0.99, sum(rate(http_server_requests_seconds_bucket{job=\"jobai-backend\"}[5m])) by (uri, le)))", "legendFormat": "{{uri}}" }],
       "fieldConfig": { "defaults": { "unit": "s" }, "overrides": [] }
     },
     {
       "id": 22, "type": "timeseries", "title": "Request Rate by URI (top 10)",
       "gridPos": { "h": 8, "w": 12, "x": 0, "y": 31 },
       "datasource": { "type": "prometheus", "uid": "prometheus" },
-      "targets": [{ "expr": "topk(10, sum by (uri) (rate(http_server_requests_seconds_count{job=\"jobai-backend-local\"}[5m])))", "legendFormat": "{{uri}}" }],
+      "targets": [{ "expr": "topk(10, sum by (uri) (rate(http_server_requests_seconds_count{job=\"jobai-backend\"}[5m])))", "legendFormat": "{{uri}}" }],
       "fieldConfig": { "defaults": { "unit": "reqps" }, "overrides": [] }
     },
     {
       "id": 23, "type": "timeseries", "title": "Error Rate by URI",
       "gridPos": { "h": 8, "w": 12, "x": 12, "y": 31 },
       "datasource": { "type": "prometheus", "uid": "prometheus" },
-      "targets": [{ "expr": "topk(10, sum by (uri) (rate(http_server_requests_seconds_count{job=\"jobai-backend-local\",status=~\"5..\"}[5m])))", "legendFormat": "{{uri}}" }],
+      "targets": [{ "expr": "topk(10, sum by (uri) (rate(http_server_requests_seconds_count{job=\"jobai-backend\",status=~\"5..\"}[5m])))", "legendFormat": "{{uri}}" }],
       "fieldConfig": { "defaults": { "unit": "reqps" }, "overrides": [] }
     },
 
@@ -121,10 +121,10 @@
       "gridPos": { "h": 8, "w": 12, "x": 0, "y": 40 },
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "targets": [
-        { "expr": "hikaricp_connections_active{job=\"jobai-backend-local\"}", "legendFormat": "active" },
-        { "expr": "hikaricp_connections_idle{job=\"jobai-backend-local\"}", "legendFormat": "idle" },
-        { "expr": "hikaricp_connections_pending{job=\"jobai-backend-local\"}", "legendFormat": "pending" },
-        { "expr": "hikaricp_connections_max{job=\"jobai-backend-local\"}", "legendFormat": "max" }
+        { "expr": "hikaricp_connections_active{job=\"jobai-backend\"}", "legendFormat": "active" },
+        { "expr": "hikaricp_connections_idle{job=\"jobai-backend\"}", "legendFormat": "idle" },
+        { "expr": "hikaricp_connections_pending{job=\"jobai-backend\"}", "legendFormat": "pending" },
+        { "expr": "hikaricp_connections_max{job=\"jobai-backend\"}", "legendFormat": "max" }
       ],
       "fieldConfig": { "defaults": {}, "overrides": [] }
     },
@@ -133,8 +133,8 @@
       "gridPos": { "h": 8, "w": 12, "x": 12, "y": 40 },
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "targets": [
-        { "expr": "hikaricp_connections_acquire_seconds{job=\"jobai-backend-local\",quantile=\"0.95\"}", "legendFormat": "p95" },
-        { "expr": "hikaricp_connections_acquire_seconds{job=\"jobai-backend-local\",quantile=\"0.99\"}", "legendFormat": "p99" }
+        { "expr": "hikaricp_connections_acquire_seconds{job=\"jobai-backend\",quantile=\"0.95\"}", "legendFormat": "p95" },
+        { "expr": "hikaricp_connections_acquire_seconds{job=\"jobai-backend\",quantile=\"0.99\"}", "legendFormat": "p99" }
       ],
       "fieldConfig": { "defaults": { "unit": "s" }, "overrides": [] }
     },
@@ -144,14 +144,14 @@
       "id": 40, "type": "timeseries", "title": "Consumer Lag by Topic",
       "gridPos": { "h": 8, "w": 12, "x": 0, "y": 49 },
       "datasource": { "type": "prometheus", "uid": "prometheus" },
-      "targets": [{ "expr": "sum by (topic) (kafka_consumer_fetch_manager_records_lag{job=\"jobai-backend-local\"})", "legendFormat": "{{topic}}" }],
+      "targets": [{ "expr": "sum by (topic) (kafka_consumer_fetch_manager_records_lag{job=\"jobai-backend\"})", "legendFormat": "{{topic}}" }],
       "fieldConfig": { "defaults": {}, "overrides": [] }
     },
     {
       "id": 41, "type": "timeseries", "title": "Consumer Throughput (records/s)",
       "gridPos": { "h": 8, "w": 12, "x": 12, "y": 49 },
       "datasource": { "type": "prometheus", "uid": "prometheus" },
-      "targets": [{ "expr": "sum by (topic) (rate(kafka_consumer_fetch_manager_records_consumed_total{job=\"jobai-backend-local\"}[5m]))", "legendFormat": "{{topic}}" }],
+      "targets": [{ "expr": "sum by (topic) (rate(kafka_consumer_fetch_manager_records_consumed_total{job=\"jobai-backend\"}[5m]))", "legendFormat": "{{topic}}" }],
       "fieldConfig": { "defaults": { "unit": "cps" }, "overrides": [] }
     },
 
@@ -161,8 +161,8 @@
       "gridPos": { "h": 8, "w": 8, "x": 0, "y": 58 },
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "targets": [
-        { "expr": "rate(ai_scoring_duration_seconds_sum{job=\"jobai-backend-local\",outcome=\"success\"}[5m]) / rate(ai_scoring_duration_seconds_count{job=\"jobai-backend-local\",outcome=\"success\"}[5m])", "legendFormat": "success {{type}}" },
-        { "expr": "rate(ai_scoring_duration_seconds_sum{job=\"jobai-backend-local\",outcome=\"failure\"}[5m]) / rate(ai_scoring_duration_seconds_count{job=\"jobai-backend-local\",outcome=\"failure\"}[5m])", "legendFormat": "failure {{type}}" }
+        { "expr": "rate(ai_scoring_duration_seconds_sum{job=\"jobai-backend\",outcome=\"success\"}[5m]) / rate(ai_scoring_duration_seconds_count{job=\"jobai-backend\",outcome=\"success\"}[5m])", "legendFormat": "success {{type}}" },
+        { "expr": "rate(ai_scoring_duration_seconds_sum{job=\"jobai-backend\",outcome=\"failure\"}[5m]) / rate(ai_scoring_duration_seconds_count{job=\"jobai-backend\",outcome=\"failure\"}[5m])", "legendFormat": "failure {{type}}" }
       ],
       "fieldConfig": { "defaults": { "unit": "s" }, "overrides": [] }
     },
@@ -170,7 +170,7 @@
       "id": 51, "type": "timeseries", "title": "AI Scoring Failures",
       "gridPos": { "h": 8, "w": 8, "x": 8, "y": 58 },
       "datasource": { "type": "prometheus", "uid": "prometheus" },
-      "targets": [{ "expr": "rate(ai_scoring_failures_total{job=\"jobai-backend-local\"}[5m])", "legendFormat": "failures/s" }],
+      "targets": [{ "expr": "rate(ai_scoring_failures_total{job=\"jobai-backend\"}[5m])", "legendFormat": "failures/s" }],
       "fieldConfig": { "defaults": { "unit": "cps" }, "overrides": [] }
     },
     {
@@ -178,8 +178,8 @@
       "gridPos": { "h": 8, "w": 8, "x": 16, "y": 58 },
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "targets": [
-        { "expr": "increase(crawl_collect_success_total{job=\"jobai-backend-local\"}[1h])", "legendFormat": "success" },
-        { "expr": "increase(crawl_collect_failure_total{job=\"jobai-backend-local\"}[1h])", "legendFormat": "failure" }
+        { "expr": "increase(crawl_collect_success_total{job=\"jobai-backend\"}[1h])", "legendFormat": "success" },
+        { "expr": "increase(crawl_collect_failure_total{job=\"jobai-backend\"}[1h])", "legendFormat": "failure" }
       ],
       "fieldConfig": { "defaults": {}, "overrides": [] }
     },
@@ -190,10 +190,10 @@
       "gridPos": { "h": 8, "w": 12, "x": 0, "y": 67 },
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "targets": [
-        { "expr": "rate(http_server_requests_seconds_sum{job=\"jobai-backend-local\",uri=\"/api/v1/home/latest-jobs\",status=\"200\"}[5m]) / rate(http_server_requests_seconds_count{job=\"jobai-backend-local\",uri=\"/api/v1/home/latest-jobs\",status=\"200\"}[5m])", "legendFormat": "latest-jobs" },
-        { "expr": "rate(http_server_requests_seconds_sum{job=\"jobai-backend-local\",uri=\"/api/v1/home/tech-cards\",status=\"200\"}[5m]) / rate(http_server_requests_seconds_count{job=\"jobai-backend-local\",uri=\"/api/v1/home/tech-cards\",status=\"200\"}[5m])", "legendFormat": "tech-cards" },
-        { "expr": "rate(http_server_requests_seconds_sum{job=\"jobai-backend-local\",uri=\"/api/v1/home/recommended-jobs\",status=\"200\"}[5m]) / rate(http_server_requests_seconds_count{job=\"jobai-backend-local\",uri=\"/api/v1/home/recommended-jobs\",status=\"200\"}[5m])", "legendFormat": "recommended-jobs" },
-        { "expr": "rate(http_server_requests_seconds_sum{job=\"jobai-backend-local\",uri=\"/api/search/jobs\",status=\"200\"}[5m]) / rate(http_server_requests_seconds_count{job=\"jobai-backend-local\",uri=\"/api/search/jobs\",status=\"200\"}[5m])", "legendFormat": "search/jobs" }
+        { "expr": "rate(http_server_requests_seconds_sum{job=\"jobai-backend\",uri=\"/api/v1/home/latest-jobs\",status=\"200\"}[5m]) / rate(http_server_requests_seconds_count{job=\"jobai-backend\",uri=\"/api/v1/home/latest-jobs\",status=\"200\"}[5m])", "legendFormat": "latest-jobs" },
+        { "expr": "rate(http_server_requests_seconds_sum{job=\"jobai-backend\",uri=\"/api/v1/home/tech-cards\",status=\"200\"}[5m]) / rate(http_server_requests_seconds_count{job=\"jobai-backend\",uri=\"/api/v1/home/tech-cards\",status=\"200\"}[5m])", "legendFormat": "tech-cards" },
+        { "expr": "rate(http_server_requests_seconds_sum{job=\"jobai-backend\",uri=\"/api/v1/home/recommended-jobs\",status=\"200\"}[5m]) / rate(http_server_requests_seconds_count{job=\"jobai-backend\",uri=\"/api/v1/home/recommended-jobs\",status=\"200\"}[5m])", "legendFormat": "recommended-jobs" },
+        { "expr": "rate(http_server_requests_seconds_sum{job=\"jobai-backend\",uri=\"/api/search/jobs\",status=\"200\"}[5m]) / rate(http_server_requests_seconds_count{job=\"jobai-backend\",uri=\"/api/search/jobs\",status=\"200\"}[5m])", "legendFormat": "search/jobs" }
       ],
       "fieldConfig": { "defaults": { "unit": "s" }, "overrides": [] }
     },
@@ -202,10 +202,10 @@
       "gridPos": { "h": 8, "w": 12, "x": 12, "y": 67 },
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "targets": [
-        { "expr": "histogram_quantile(0.95, sum by (le) (rate(http_server_requests_seconds_bucket{job=\"jobai-backend-local\",uri=\"/api/v1/home/latest-jobs\",status=\"200\"}[5m])))", "legendFormat": "latest-jobs" },
-        { "expr": "histogram_quantile(0.95, sum by (le) (rate(http_server_requests_seconds_bucket{job=\"jobai-backend-local\",uri=\"/api/v1/home/tech-cards\",status=\"200\"}[5m])))", "legendFormat": "tech-cards" },
-        { "expr": "histogram_quantile(0.95, sum by (le) (rate(http_server_requests_seconds_bucket{job=\"jobai-backend-local\",uri=\"/api/v1/home/recommended-jobs\",status=\"200\"}[5m])))", "legendFormat": "recommended-jobs" },
-        { "expr": "histogram_quantile(0.95, sum by (le) (rate(http_server_requests_seconds_bucket{job=\"jobai-backend-local\",uri=\"/api/search/jobs\",status=\"200\"}[5m])))", "legendFormat": "search/jobs" }
+        { "expr": "histogram_quantile(0.95, sum by (le) (rate(http_server_requests_seconds_bucket{job=\"jobai-backend\",uri=\"/api/v1/home/latest-jobs\",status=\"200\"}[5m])))", "legendFormat": "latest-jobs" },
+        { "expr": "histogram_quantile(0.95, sum by (le) (rate(http_server_requests_seconds_bucket{job=\"jobai-backend\",uri=\"/api/v1/home/tech-cards\",status=\"200\"}[5m])))", "legendFormat": "tech-cards" },
+        { "expr": "histogram_quantile(0.95, sum by (le) (rate(http_server_requests_seconds_bucket{job=\"jobai-backend\",uri=\"/api/v1/home/recommended-jobs\",status=\"200\"}[5m])))", "legendFormat": "recommended-jobs" },
+        { "expr": "histogram_quantile(0.95, sum by (le) (rate(http_server_requests_seconds_bucket{job=\"jobai-backend\",uri=\"/api/search/jobs\",status=\"200\"}[5m])))", "legendFormat": "search/jobs" }
       ],
       "fieldConfig": { "defaults": { "unit": "s" }, "overrides": [] }
     },
@@ -216,7 +216,7 @@
       "gridPos": { "h": 8, "w": 12, "x": 0, "y": 76 },
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "targets": [{
-        "expr": "sum by (cache) (rate(cache_gets_total{job=\"jobai-backend-local\",result=\"hit\"}[5m])) / (sum by (cache) (rate(cache_gets_total{job=\"jobai-backend-local\",result=\"hit\"}[5m])) + sum by (cache) (rate(cache_gets_total{job=\"jobai-backend-local\",result=\"miss\"}[5m])))",
+        "expr": "sum by (cache) (rate(cache_gets_total{job=\"jobai-backend\",result=\"hit\"}[5m])) / (sum by (cache) (rate(cache_gets_total{job=\"jobai-backend\",result=\"hit\"}[5m])) + sum by (cache) (rate(cache_gets_total{job=\"jobai-backend\",result=\"miss\"}[5m])))",
         "legendFormat": "{{cache}}"
       }],
       "fieldConfig": { "defaults": { "unit": "percentunit", "min": 0, "max": 1 }, "overrides": [] }
@@ -226,7 +226,7 @@
       "gridPos": { "h": 8, "w": 12, "x": 12, "y": 76 },
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "targets": [{
-        "expr": "sum by (cache) (rate(cache_l2_requests_total{job=\"jobai-backend-local\",result=\"hit\"}[5m])) / (sum by (cache) (rate(cache_l2_requests_total{job=\"jobai-backend-local\",result=\"hit\"}[5m])) + sum by (cache) (rate(cache_l2_requests_total{job=\"jobai-backend-local\",result=\"miss\"}[5m])))",
+        "expr": "sum by (cache) (rate(cache_l2_requests_total{job=\"jobai-backend\",result=\"hit\"}[5m])) / (sum by (cache) (rate(cache_l2_requests_total{job=\"jobai-backend\",result=\"hit\"}[5m])) + sum by (cache) (rate(cache_l2_requests_total{job=\"jobai-backend\",result=\"miss\"}[5m])))",
         "legendFormat": "{{cache}}"
       }],
       "fieldConfig": { "defaults": { "unit": "percentunit", "min": 0, "max": 1 }, "overrides": [] }
@@ -235,14 +235,14 @@
       "id": 62, "type": "timeseries", "title": "Cache Size (Caffeine)",
       "gridPos": { "h": 8, "w": 12, "x": 0, "y": 84 },
       "datasource": { "type": "prometheus", "uid": "prometheus" },
-      "targets": [{ "expr": "cache_size{job=\"jobai-backend-local\"}", "legendFormat": "{{cache}}" }],
+      "targets": [{ "expr": "cache_size{job=\"jobai-backend\"}", "legendFormat": "{{cache}}" }],
       "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] }
     },
     {
       "id": 63, "type": "timeseries", "title": "Cache Evictions",
       "gridPos": { "h": 8, "w": 12, "x": 12, "y": 84 },
       "datasource": { "type": "prometheus", "uid": "prometheus" },
-      "targets": [{ "expr": "rate(cache_evictions_total{job=\"jobai-backend-local\"}[5m])", "legendFormat": "{{cache}}" }],
+      "targets": [{ "expr": "rate(cache_evictions_total{job=\"jobai-backend\"}[5m])", "legendFormat": "{{cache}}" }],
       "fieldConfig": { "defaults": { "unit": "cps" }, "overrides": [] }
     }
   ]
