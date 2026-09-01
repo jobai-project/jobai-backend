@@ -24,8 +24,8 @@ import java.time.Duration;
  * <p>서킷이 OPEN되면 호출을 즉시 차단하여 타임아웃 대기 시간을 제거하고,
  * 미처리 건은 기존 배치 로직(EmbeddingBatchService, Kafka DLT 등)이 다음 실행에서 재처리한다.
  *
- * <p>{@code slowCallDurationThreshold}는 타임아웃의 80% 초기값이며,
- * 운영 메트릭(ai.embedding.duration 등) 수집 후 p95 기반으로 튜닝한다.
+ * <p>{@code slowCallDurationThreshold}는 실측 평균 응답시간 × 3 기반으로 설정하였다.
+ * (ai-server: 임베딩 1.18s 기준 → 4s, anthropic-api: 1.40s 기준 → 5s)
  */
 @Configuration
 public class ResilienceConfig {
@@ -45,7 +45,7 @@ public class ResilienceConfig {
                 .slidingWindowSize(20)
                 .minimumNumberOfCalls(10)
                 .failureRateThreshold(50)
-                .slowCallDurationThreshold(Duration.ofSeconds(8))   // 타임아웃(10s)의 80% — 메트릭 수집 후 p95 기반으로 튜닝
+                .slowCallDurationThreshold(Duration.ofSeconds(4))   // 측정 평균(임베딩 1.18s, 스코어링 0.22s, 리랭킹 1.00s) × 3 기반 튜닝
                 .slowCallRateThreshold(80)
                 .waitDurationInOpenState(Duration.ofSeconds(30))
                 .permittedNumberOfCallsInHalfOpenState(3)
@@ -75,7 +75,7 @@ public class ResilienceConfig {
                 .slidingWindowSize(10)
                 .minimumNumberOfCalls(5)
                 .failureRateThreshold(50)
-                .slowCallDurationThreshold(Duration.ofSeconds(25))  // 타임아웃(30s)의 83% — 메트릭 수집 후 p95 기반으로 튜닝
+                .slowCallDurationThreshold(Duration.ofSeconds(5))   // 측정 평균(1.40s) × 3 기반 튜닝
                 .slowCallRateThreshold(80)
                 .waitDurationInOpenState(Duration.ofSeconds(60))
                 .permittedNumberOfCallsInHalfOpenState(2)

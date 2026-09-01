@@ -2,6 +2,7 @@ package com.jobai.backend.domain.privatejobposting.controller;
 
 import com.jobai.backend.domain.matching.repository.PrivateMatchScoreRepository;
 import com.jobai.backend.domain.privatejobposting.scheduler.DailyJobScheduler;
+import com.jobai.backend.domain.privatejobposting.service.PrivateJobBatchCollectService;
 import com.jobai.backend.domain.privatejobposting.service.PrivateJobPostingService;
 import com.jobai.backend.domain.matching.service.BatchNotificationHelper;
 import com.jobai.backend.domain.matching.service.PrivateMatchBatchService;
@@ -42,6 +43,7 @@ import java.util.concurrent.Executor;
 public class DailyJobSchedulerController implements DailyJobSchedulerControllerDocs {
 
     private final DailyJobScheduler dailyJobScheduler;
+    private final PrivateJobBatchCollectService privateJobBatchCollectService;
     private final PrivateJobPostingService privateJobPostingService;
     private final EmbeddingBatchService embeddingBatchService;
     private final PrivateMatchBatchService privateMatchBatchService;
@@ -59,6 +61,7 @@ public class DailyJobSchedulerController implements DailyJobSchedulerControllerD
 
     public DailyJobSchedulerController(
             DailyJobScheduler dailyJobScheduler,
+            PrivateJobBatchCollectService privateJobBatchCollectService,
             PrivateJobPostingService privateJobPostingService,
             EmbeddingBatchService embeddingBatchService,
             PrivateMatchBatchService privateMatchBatchService,
@@ -72,6 +75,7 @@ public class DailyJobSchedulerController implements DailyJobSchedulerControllerD
             Environment environment
     ) {
         this.dailyJobScheduler = dailyJobScheduler;
+        this.privateJobBatchCollectService = privateJobBatchCollectService;
         this.privateJobPostingService = privateJobPostingService;
         this.embeddingBatchService = embeddingBatchService;
         this.privateMatchBatchService = privateMatchBatchService;
@@ -83,6 +87,24 @@ public class DailyJobSchedulerController implements DailyJobSchedulerControllerD
         this.privateMatchScoreRepository = privateMatchScoreRepository;
         this.stringRedisTemplate = stringRedisTemplate;
         this.environment = environment;
+    }
+
+    /** 사기업 공고 수집만 실행한다 (백그라운드 실행). */
+    @Override
+    @PostMapping("/collect")
+    public ResponseEntity<String> collectPrivateJobs() {
+        taskStatus.put("collect", Map.of("status", "RUNNING"));
+        schedulerTaskExecutor.execute(() -> {
+            try {
+                int collected = privateJobBatchCollectService.collectAll();
+                taskStatus.put("collect", Map.of(
+                        "status", "COMPLETED", "result", "사기업 공고 " + collected + "건 수집 완료"));
+            } catch (Exception e) {
+                taskStatus.put("collect", Map.of("status", "FAILED", "result", e.getMessage()));
+                log.error("[수동트리거] 사기업 공고 수집 실패: {}", e.getMessage(), e);
+            }
+        });
+        return ResponseEntity.accepted().body("사기업 공고 수집 시작됨 (백그라운드)");
     }
 
     /** 새벽 파이프라인을 수동으로 트리거한다 (백그라운드 실행). */

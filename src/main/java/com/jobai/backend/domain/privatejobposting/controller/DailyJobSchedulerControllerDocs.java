@@ -13,6 +13,26 @@ import java.util.Map;
 public interface DailyJobSchedulerControllerDocs {
 
     @Operation(
+            summary = "사기업 공고 수집",
+            description = """
+                    전체 YAML 스펙(18개 회사)을 순회하며 사기업 채용공고를 수집합니다.
+                    수집만 실행하고, 분류·임베딩·스코어링은 실행하지 않습니다.
+                    202 Accepted를 즉시 반환하며, 실제 처리는 비동기로 실행됩니다.
+                    """
+    )
+    @ApiResponses(value = {
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "202",
+                    description = "수집 시작됨",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = @ExampleObject(value = "\"사기업 공고 수집 시작됨 (백그라운드)\"")
+                    )
+            )
+    })
+    ResponseEntity<String> collectPrivateJobs();
+
+    @Operation(
             summary = "새벽 파이프라인 수동 실행",
             description = """
                     전체 파이프라인을 백그라운드로 즉시 실행합니다.
