@@ -57,6 +57,7 @@ public class ResumeService {
         return ResumeResponseDTO.ResumeListDTO.builder().resumes(items).build();
     }
 
+    @Transactional
     public Long uploadResume(String email, MultipartFile file) {
         Member member = memberRepository.findByEmail(email)
                 .orElseThrow(() -> new GeneralException(GeneralErrorCode.MEMBER_NOT_FOUND));
