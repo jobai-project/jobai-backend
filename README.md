@@ -264,7 +264,7 @@ JobA!는 사용자가 채용공고를 직접 찾는 대신,
  ├── 📄 application-collect.yml       # 공고 수집 프로필
  ├── 📄 application-export.yml        # 내보내기 프로필
  ├── 📁 db/migration                  # Flyway 마이그레이션 (V1~V13)
- └── 📁 specs                         # 크롤러 기업별 스펙 (19개 기업)
+ └── 📁 specs                         # 크롤러 기업별 스펙 (18개 기업)
 
 📦 infra                              # 인프라 구성
  ├── 📁 nginx                         # Nginx 설정
